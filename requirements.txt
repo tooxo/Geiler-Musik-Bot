@@ -1,0 +1,13 @@
+https://github.com/Rapptz/discord.py/archive/rewrite.zip#egg=discord.py[voice]
+youtube_dl
+aiohttp
+cchardet
+aiodns
+attr
+async_timeout
+attrs
+multidict
+yarl
+pymongo
+django
+gunicorn
