@@ -162,7 +162,7 @@ async def cool(ctx):
 
 @bot.command(pass_context=True)
 async def dani(ctx):
-    await ctx.send("https://tenor.com/view/suffer-time-gif-7212239")
+    await ctx.send("https://media.discordapp.net/attachments/357956193093812234/566737035541610526/i_actually_wann_die2.png?width=510&height=676")
 
 @bot.command(pass_context=True)
 async def play(ctx, *, url:str):
@@ -293,7 +293,11 @@ async def shuffle(ctx):
 @bot.command(pass_context=True)
 async def niki(ctx):
     await ctx.send("https://cdn.discordapp.com/attachments/561858486430859266/563436218914701322/Niki_Nasa.png")
-
+	
+@bot.command(pass_context=True)
+async def anstalt(ctx):
+    await ctx.send("https://media.discordapp.net/attachments/357956193093812234/566329884386000896/HTL.png")	
+	
 @bot.command(pass_context=True)
 async def info(ctx):
     global dictionary
