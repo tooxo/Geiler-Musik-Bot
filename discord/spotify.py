@@ -21,14 +21,21 @@ async def requestGet(session, url, header):
         async with session.get(url, headers=header) as response:
             return await response.text()
 
-def gatherSpotifyTrack(track_url):
-    token = util.oauth2.SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
-    cache_token = token.get_access_token()
-    spotify = spotipy.Spotify(cache_token)
-    track = spotify.track(track_url)
-    return track['album']['artists'][0]['name'] + " - " + track['name']
+async def gatherSpotifyTrack(track_url, token):
+    session = aiohttp.ClientSession()
+    track_id = track_url.split("track/")[1]
+    if "?" in track_id:
+        track_id = track_id.split("?")[0]
+    url = "https://api.spotify.com/v1/tracks/" + track_id
+    header = {
+        'Authorization': 'Bearer ' + token
+    }
+    result = await requestGet(session, url, header)
+    result = JSON.loads(result)
+    await session.close()
+    return result['artists'][0]['name'] + " - " + result['name']
 
-async def requestToken(loop=None):
+async def requestToken():
     str = client_id + ":" + client_secret
     enc = base64.b64encode(str.encode())
     url = "https://accounts.spotify.com/api/token"
@@ -76,4 +83,10 @@ async def playlist_fetch_spotify(playlist_url):
     playlist_id = playlist_id.split("?si")[0]
     woop = await requestToken()
     suup = await requestPlaylist(playlist_id, woop)
+    return suup
+
+
+async def track_fetch_spotify(playlist_url):
+    woop = await requestToken()
+    suup = await gatherSpotifyTrack(playlist_url, woop)
     return suup

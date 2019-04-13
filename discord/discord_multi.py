@@ -134,7 +134,7 @@ async def nextSong(context, type="next", url=None):
         await context.send(embed=embed)
         await nextSong(context)
     elif type == "sp_track" and url is not None:
-        track = gatherSpotifyTrack(url)
+        track = await track_fetch_spotify(url)
         dictw = dict()
         dictw['title'] = track
         dictw['user'] = context.message.author
