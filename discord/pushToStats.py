@@ -54,6 +54,7 @@ def push_to_mongo(resp):
 mostcollection = db.mostcollection
 def push_to_most_mongo(songname):
     songname = songname.replace('"', "")
+	songname = songname.replace("'", "")
     song = mostcollection.find_one({"name": songname})
     if song is not None:
         mostcollection.update_one({'_id': song['_id']}, {'$inc': {'val': 1}})
