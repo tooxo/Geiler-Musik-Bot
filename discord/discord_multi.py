@@ -6,19 +6,23 @@ import youtube_dl
 import time
 from youtube_youtubedl import *
 from spotify import *
-from statsWebServer import *
+from threading import Thread
+import subprocess
 
 dictionary = dict()
 prefix = "."
 bot = commands.Bot(command_prefix=prefix)
 bot.remove_command('help')
 print("[STARTUP] Starting...")
+PORT = int(os.environ['PORT'])
 
 @bot.event
 async def on_ready():
-    server_thread()
     print("[STARTUP] Finished.")
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=".help"))
+    t = Thread(target=server)
+    t.start()
+
 
 async def clear_presence(context):
     global dictionary
@@ -165,6 +169,10 @@ async def dani(ctx):
     await ctx.send("https://media.discordapp.net/attachments/357956193093812234/566737035541610526/i_actually_wann_die2.png?width=510&height=676")
 
 @bot.command(pass_context=True)
+async def anstalt(ctx):
+    await ctx.send("https://media.discordapp.net/attachments/357956193093812234/566329884386000896/HTL.png")
+
+@bot.command(pass_context=True)
 async def play(ctx, *, url:str):
     global dictionary
     try:
@@ -221,7 +229,7 @@ async def rename(ctx, *, name:str):
     try:
         if len(name) > 32:
             embed=discord.Embed(title="Name too long. 32 chars is the limit.", url="https://f.chulte.de")
-            ctx.send(embed=embed)
+            await ctx.send(embed=embed)
         me = ctx.guild.me
         await me.edit(nick=name)
     except Exception as e:
@@ -293,11 +301,7 @@ async def shuffle(ctx):
 @bot.command(pass_context=True)
 async def niki(ctx):
     await ctx.send("https://cdn.discordapp.com/attachments/561858486430859266/563436218914701322/Niki_Nasa.png")
-	
-@bot.command(pass_context=True)
-async def anstalt(ctx):
-    await ctx.send("https://media.discordapp.net/attachments/357956193093812234/566329884386000896/HTL.png")	
-	
+
 @bot.command(pass_context=True)
 async def info(ctx):
     global dictionary
@@ -324,7 +328,18 @@ async def quit(ctx):
     except:
         pass
 
-@bot.command(pass_context=True, aliases=["yeehee", "clear"])
+@bot.command(pass_context=True, aliases=["empty"])
+async def clear(ctx):
+    global dictionary
+    if len(dictionary[ctx.guild.id]['song_queue']) is not 0:
+        dictionary[ctx.guild.id]['song_queue'] = []
+        embed = discord.Embed(title="Cleared the Queue. :cloud:", color=0x00ffcc, url="https://f.chulte.de")
+        await ctx.send(embed)
+    else:
+        embed = discord.Embed(title="The Playlist was already empty! :cloud:", color=0x00ffcc, url="https://f.chulte.de")
+        await ctx.send(embed)
+
+@bot.command(pass_context=True, aliases=["yeehee"])
 async def stop(ctx):
     global dictionary
     if dictionary[ctx.guild.id]['voice_client'] is not None:
@@ -335,7 +350,8 @@ async def stop(ctx):
         source = discord.FFmpegPCMAudio(link['stream'], executable="ffmpeg", before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5")
         dictionary[ctx.guild.id]['voice_client'].play(source)
         embed=discord.Embed(title="Music Stopped! 🛑", color=0x00ffcc, url="https://f.chulte.de")
-        await ctx.send(embed=embed)
+        if dictionary[ctx.guild.id]['voice_client'] is not None and dictionary[ctx.guild.id]['voice_client'].is_playing():
+            await ctx.send(embed=embed)
     else:
         embed=discord.Embed(title=":thinking: The Bot isn't connected. :thinking:", color=0x00ffcc, url="https://f.chulte.de")
         await ctx.send(embed=embed)
@@ -363,11 +379,10 @@ async def skip(ctx):
 
 @bot.command(pass_context=True)
 async def help(ctx):
-    embed=discord.Embed(title="Help", color=0x00ffcc, url="https://f.chulte.de")
-    embed.add_field(name="Music Commands", value=".play [songname/link] - Plays a song, Spotify and YouTube are supported. \n.stop - Stops the Playback \n.pause - Pauses the Music \n.resume - Resumes the music \n.shuffle - Shuffles the Queue \n.queue - Shows the coming up songs. \n.volume <num between 0.0 and 2.0> - Changes the playback volume, only updates on song changes.", inline=False)
-#    embed.add_field(name="lolz commands", value=".clemi \n.dani \n.niki", inline=False)
-    embed.add_field(name="Debug Commands", value=".np - More infos about the currently playing song\n.ping - Shows the bot's ping \n.echo - [text] - Echoes the text back.\n.rename [name] - Renames the Bot", inline=False)
-    embed.set_footer(text="despacito")
+    embed=discord.Embed(title="Help", color=0x00ffcc, url="https://f.chulte.de")\
+    .add_field(name="Music Commands", value=".play [songname/link] - Plays a song, Spotify and YouTube are supported. \n.stop - Stops the Playback \n.pause - Pauses the Music \n.resume - Resumes the music \n.shuffle - Shuffles the Queue \n.queue - Shows the coming up songs. \n.volume <num between 0.0 and 2.0> - Changes the playback volume, only updates on song changes.", inline=False)\
+    .add_field(name="Debug Commands", value=".np - More infos about the currently playing song\n.ping - Shows the bot's ping \n.echo - [text] - Echoes the text back.\n.rename [name] - Renames the Bot", inline=False)\
+    .set_footer(text="despacito")
     await ctx.send(embed=embed)
 
 @bot.command(pass_context=True, aliases=["unpause"])
@@ -380,7 +395,11 @@ async def resume(ctx):
             await ctx.send(embed=embed)
         except:
             embed = discord.Embed(title=":thinking: Nothing is running... :thinking:", color=0x00ffcc, url="https://f.chulte.de")
-            ctx.send(embed=embed)
+            await ctx.send(embed=embed)
 
-token = os.environ['bot_token']
+def server():
+    task = ['gunicorn', '--bind', '0.0.0.0:' + str(PORT), '--chdir', './stats', 'stats.wsgi:application']
+    proc = subprocess.call(task)
+
+token = os.environ['BOT_TOKEN']
 bot.run(token)

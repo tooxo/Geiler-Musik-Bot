@@ -8,8 +8,8 @@ import base64
 import urllib.parse
 import os
 
-client_id = os.environ['spotify_id']
-client_secret = os.environ['spotify_secret']
+client_id = os.environ['SPOTIFY_ID']
+client_secret = os.environ['SPOTIFY_SECRET']
 
 async def requestPost(session, url, header=None, body=None):
     with async_timeout.timeout(3):
