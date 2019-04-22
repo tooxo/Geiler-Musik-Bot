@@ -11,3 +11,4 @@ yarl
 pymongo
 django
 gunicorn
+motor
