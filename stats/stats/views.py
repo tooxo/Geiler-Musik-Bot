@@ -1,4 +1,5 @@
 from django.http import HttpResponse
+from django.http import HttpResponseRedirect
 from pymongo import MongoClient
 import os
 
@@ -18,10 +19,10 @@ def main(request):
     return HttpResponse(open('http/main.js', 'r').read())
 
 def chart(request):
-    return HttpResponse(open('http/chart.js', 'r').read())
+    return HttpResponseRedirect("https://cdnjs.cloudflare.com/ajax/libs/Chart.js/1.0.2/Chart.js")
 
 def jquery(request):
-    return HttpResponse(open('http/jquery.js', 'r').read())
+    return HttpResponseRedirect("https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js")
 
 mongo_url = os.environ['MONGODB_URI']
 client = MongoClient(mongo_url)
