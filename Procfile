@@ -1,1 +1,1 @@
-web: python3 ./discord/discord_multi.py
+web: python3 ./discord/discord_main.py
