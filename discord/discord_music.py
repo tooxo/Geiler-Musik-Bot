@@ -134,6 +134,26 @@ class DiscordBot(commands.Cog):
             dictw['user'] = ctx.message.author
             dictionary[ctx.guild.id]['song_queue'].append(dictw)
             await self.nextSong(ctx)
+        elif type == "sp_album" and url is not None:
+            tracks = await self.spotify.spotifyAlbum(url)
+            for track in tracks:
+                dic = dict()
+                dic['title'] = track
+                dic['user'] = ctx.message.author
+                dictionary[ctx.guild.id]['song_queue'].append(dic)
+            embed = discord.Embed(title=":asterisk: Added " + str(len(tracks)) + " Tracks to Queue. :asterisk:", url="https://f.chulte.de")
+            await ctx.send(embed=embed)
+            await self.nextSong(ctx)
+        elif type == "sp_artist" and url is not None:
+            tracks = await self.spotify.spotifyArtist(url)
+            for track in tracks:
+                dic = dict()
+                dic['title'] = track
+                dic['user'] = ctx.message.author
+                dictionary[ctx.guild.id]['song_queue'].append(dic)
+            embed = discord.Embed(title=":asterisk: Added " + str(len(tracks)) + " Tracks to Queue. :asterisk:", url="https://f.chulte.de")
+            await ctx.send(embed=embed)
+            await self.nextSong(ctx)
         elif type == "yt_link" and url is not None:
             dic = await self.youtube.youtubeUrl(url)
             dic['user'] = ctx.message.author
@@ -171,6 +191,10 @@ class DiscordBot(commands.Cog):
                 await self.nextSong(ctx, "sp_play", url)
             elif "track" in url:
                 await self.nextSong(ctx, "sp_track", url)
+            elif "album" in url:
+                await self.nextSong(ctx, "sp_album", url)
+            elif "artist" in url:
+                await self.nextSong(ctx, "sp_artist", url)
             else:
                 await ctx.send("This type of link is unsupported.")
         else:
@@ -337,7 +361,6 @@ class DiscordBot(commands.Cog):
             except:
                 embed=discord.Embed(title=":thinking: Nothing is playing... :thinking:", color=0x00ffcc, url="https://f.chulte.de")
                 await ctx.send(embed=embed)
-
 
     @commands.command(aliases=['next', 'müll'])
     async def skip(self, ctx):

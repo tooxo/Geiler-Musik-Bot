@@ -7,6 +7,8 @@ class TextResponse(commands.Cog):
         print("[Startup]: Initializing Text Module . . .")
         self.bot = bot
 
+#// //#
+
     @commands.command(aliases=["clemi", "god", "gott"])
     async def cool(self, ctx):
         await ctx.send("https://cdn.discordapp.com/attachments/357956193093812234/563063266457288714/Unbenanntw2.jpg")
@@ -23,6 +25,7 @@ class TextResponse(commands.Cog):
     async def niki(self, ctx):
         await ctx.send("https://cdn.discordapp.com/attachments/561858486430859266/563436218914701322/Niki_Nasa.png")
 
+#// //#
 
     @commands.command()
     async def help(self, ctx):

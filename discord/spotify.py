@@ -1,5 +1,5 @@
-import time
 import json as JSON
+import time
 import asyncio
 import async_timeout
 import aiohttp
@@ -90,3 +90,39 @@ class Spotify():
             if track not in tracklist_prod:
                 tracklist_prod.append(track)
         return tracklist_prod
+
+    async def spotifyAlbum(self, albumUrl):
+        token = await self.requestToken()
+        albumId = albumUrl.split("album/")[1]
+        if "?" in albumId:
+            albumId = albumId.split("?")[0]
+        url = "https://api.spotify.com/v1/albums/" + albumId + "/tracks?limit=50"
+        header = {
+            'Authorization': 'Bearer '+token
+        }
+        result = await self.requestGet(url, header)
+        js = JSON.loads(result)
+        tracklist = []
+        for item in js['items']:
+            artist = item['artists'][0]['name']
+            song = item['name']
+            tracklist.append(artist + " - " + song)
+        return tracklist
+
+    async def spotifyArtist(self, artistUrl):
+        token = await self.requestToken()
+        artistId = artistUrl.split("artist/")[1]
+        if "?" in artistId:
+            artistId = artistId.split("?")[0]
+        url = "https://api.spotify.com/v1/artists/" + artistId + "/top-tracks?country=DE"
+        header = {
+            'Authorization': 'Bearer ' + token
+        }
+        result = await self.requestGet(url, header)
+        js = JSON.loads(result)
+        tracklist = []
+        for item in js['tracks']:
+            artist = item['artists'][0]['name']
+            song = item['name']
+            tracklist.append(artist + " - " + song)
+        return tracklist
