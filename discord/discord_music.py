@@ -2,14 +2,18 @@ from discord.ext import commands
 import discord
 import random
 import asyncio
-from youtube_youtubedl import *
-from spotify import *
+import spotify
+import youtube
+import mongo
 
 class DiscordBot(commands.Cog):
     def __init__(self, bot):
         print("[Startup]: Initializing Music Module . . .")
         self.dictionary = {}
         self.bot = bot
+        self.spotify = spotify.Spotify()
+        self.youtube = youtube.Youtube()
+        self.mongo = mongo.Mongo()
         bot.remove_command("help")
 
     async def clear_presence(self,ctx):
@@ -32,7 +36,7 @@ class DiscordBot(commands.Cog):
                     a = song_queue[l]['link']
                     a = song_queue[l]['stream']
                 except Exception:
-                    tempdict = await youtube_search_by_term_async(song_queue[l]['title'])
+                    tempdict = await self.youtube.youtubeTerm(song_queue[l]['title'])
                     tempdict['user'] = song_queue[l]['user']
                     song_queue[l] = tempdict
                     break
@@ -69,9 +73,9 @@ class DiscordBot(commands.Cog):
                 try:
                     a = dictionary[ctx.guild.id]['song_queue'][0]['title']
                     a = dictionary[ctx.guild.id]['song_queue'][0]['link']
-                    smalldict = await get_youtube_by_url_async(dictionary[ctx.guild.id]['song_queue'][0]['link'])
+                    smalldict = await self.youtube.youtubeUrl(dictionary[ctx.guild.id]['song_queue'][0]['link'])
                 except Exception:
-                    smalldict = await youtube_search_by_term_async(dictionary[ctx.guild.id]['song_queue'][0]['title'])
+                    smalldict = await self.youtube.youtubeTerm(dictionary[ctx.guild.id]['song_queue'][0]['title'])
             try:
                 smalldict['user'] = dictionary[ctx.guild.id]['song_queue'][0]['user']
             except Exception as e:
@@ -87,13 +91,13 @@ class DiscordBot(commands.Cog):
                 await ctx.send(embed=embed)
                 embed=discord.Embed(title="🔁 Loading ... 🔁", color=0x00ffcc, url="https://f.chulte.de")
                 await ctx.send(embed=embed)
-                stream = await youtube_search_by_term_async(smalldict['title'])
+                stream = await self.youtube.youtubeTerm(smalldict['title'])
                 source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(stream, executable="ffmpeg", before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"), volume=dictionary[ctx.guild.id]['volume'])
                 dictionary[ctx.guild.id]['voice_client'].play(source, after=lambda _: self.after_song(ctx))
             await self.bot.change_presence(activity=discord.Game(name=smalldict['title'], type=1))
             embed=discord.Embed(title="🎶 Now Playing: " + smalldict['title'] + " 🎶", color=0x00ffcc, url="https://f.chulte.de")
             await dictionary[ctx.guild.id]['now_playing_message'].edit(embed=embed)
-            push_to_most_mongo_thread(smalldict['title'])
+            await self.mongo.appendMostPlayed(smalldict['title'])
         elif type == "yt_term" and url is not None:
             smalldict = {}
             smalldict['title'] = url
@@ -104,7 +108,7 @@ class DiscordBot(commands.Cog):
             else:
                 await ctx.send(':white_check_mark: Added one Song to Queue. :white_check_mark: ["'+ url + '"]')
         elif type == "yt_playlist" and url is not None:
-            sick = await youtube_playlist_async(url)
+            sick = await self.youtube.youtubePlaylist(url)
             length = len(sick)
             for track in sick:
                 track['user'] = ctx.message.author
@@ -113,7 +117,7 @@ class DiscordBot(commands.Cog):
             await ctx.send(embed=embed)
             await self.nextSong(ctx)
         elif type == "sp_play" and url is not None:
-            tracks = await playlist_fetch_spotify(url)
+            tracks = await self.spotify.spotifyPlaylist(url)
             length = len(tracks)
             for track in tracks:
                 smalldict = dict()
@@ -124,14 +128,34 @@ class DiscordBot(commands.Cog):
             await ctx.send(embed=embed)
             await self.nextSong(ctx)
         elif type == "sp_track" and url is not None:
-            track = await track_fetch_spotify(url)
+            track = await self.spotify.spotifyTrack(url)
             dictw = dict()
             dictw['title'] = track
             dictw['user'] = ctx.message.author
             dictionary[ctx.guild.id]['song_queue'].append(dictw)
             await self.nextSong(ctx)
+        elif type == "sp_album" and url is not None:
+            tracks = await self.spotify.spotifyAlbum(url)
+            for track in tracks:
+                dic = dict()
+                dic['title'] = track
+                dic['user'] = ctx.message.author
+                dictionary[ctx.guild.id]['song_queue'].append(dic)
+            embed = discord.Embed(title=":asterisk: Added " + str(len(tracks)) + " Tracks to Queue. :asterisk:", url="https://f.chulte.de")
+            await ctx.send(embed=embed)
+            await self.nextSong(ctx)
+        elif type == "sp_artist" and url is not None:
+            tracks = await self.spotify.spotifyArtist(url)
+            for track in tracks:
+                dic = dict()
+                dic['title'] = track
+                dic['user'] = ctx.message.author
+                dictionary[ctx.guild.id]['song_queue'].append(dic)
+            embed = discord.Embed(title=":asterisk: Added " + str(len(tracks)) + " Tracks to Queue. :asterisk:", url="https://f.chulte.de")
+            await ctx.send(embed=embed)
+            await self.nextSong(ctx)
         elif type == "yt_link" and url is not None:
-            dic = await get_youtube_by_url_async(url)
+            dic = await self.youtube.youtubeUrl(url)
             dic['user'] = ctx.message.author
             dictionary[ctx.guild.id]['song_queue'].append(dic)
             await self.nextSong(ctx)
@@ -167,6 +191,10 @@ class DiscordBot(commands.Cog):
                 await self.nextSong(ctx, "sp_play", url)
             elif "track" in url:
                 await self.nextSong(ctx, "sp_track", url)
+            elif "album" in url:
+                await self.nextSong(ctx, "sp_album", url)
+            elif "artist" in url:
+                await self.nextSong(ctx, "sp_artist", url)
             else:
                 await ctx.send("This type of link is unsupported.")
         else:
@@ -311,7 +339,7 @@ class DiscordBot(commands.Cog):
             dictionary[ctx.guild.id]['song_queue'] = []
             dictionary[ctx.guild.id]['now_playing_song'] = None
             dictionary[ctx.guild.id]['voice_client'].stop()
-            link = get_youtube_by_url("https://www.youtube.com/watch?v=siLkbdVxntU")
+            link = self.youtube.youtubeUrl("https://www.youtube.com/watch?v=siLkbdVxntU")
             source = discord.FFmpegPCMAudio(link['stream'], executable="ffmpeg", before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5")
             dictionary[ctx.guild.id]['voice_client'].play(source)
             embed=discord.Embed(title="Music Stopped! 🛑", color=0x00ffcc, url="https://f.chulte.de")
@@ -333,7 +361,6 @@ class DiscordBot(commands.Cog):
             except:
                 embed=discord.Embed(title=":thinking: Nothing is playing... :thinking:", color=0x00ffcc, url="https://f.chulte.de")
                 await ctx.send(embed=embed)
-
 
     @commands.command(aliases=['next', 'müll'])
     async def skip(self, ctx):

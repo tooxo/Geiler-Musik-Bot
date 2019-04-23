@@ -12,7 +12,6 @@ client.load_extension("discord_text")
 def server():
     subprocess.call(['gunicorn', '--bind', '0.0.0.0:' + os.environ['PORT'], '--chdir', './stats', 'stats.wsgi:application'])
 
-
 @client.event
 async def on_ready():
     print("[Startup]: Finished.")
