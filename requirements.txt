@@ -12,3 +12,4 @@ pymongo
 django
 gunicorn
 motor
+PyNaCl
