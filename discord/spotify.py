@@ -79,8 +79,8 @@ class Spotify():
         for track in js['items']:
             tracklist.append(track['track']['album']['artists'][0]['name'] + " - "  + track['track']['name'])
         if track_count > 100:
-            url = "https://api.spotify.com/v1/playlists/" + playlist_url + "/tracks?offset=100&limit=100"
-            result2 = await self.requestGet(url, header)
+            url2 = "https://api.spotify.com/v1/playlists/" + playlist_id + "/tracks?limit=100&offset=100"
+            result2 = await self.requestGet(url2, {'Authorization': 'Bearer ' + token})
             js2 = JSON.loads(result2)
             o = 0
             for track3 in js2['items']:
