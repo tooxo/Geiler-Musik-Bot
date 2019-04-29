@@ -2,7 +2,7 @@
 A discord-bot for playing music in discord.
 
 # What services are supported?
-Spotify Titles & Playlists; Youtube Links & Playlists; Search by Term
+Spotify Titles, Playlists, Artists & Albums; Youtube Links & Playlists; Search by Term [All Songs are played via YouTube]
 
 # Gimme the invite link
 Its on the statistics site of the bot: https://f.chulte.de
@@ -29,4 +29,9 @@ You also need to set this environment variables
 > SPOTIFY_ID=<spotify app id>
 > SPOTIFY_SECRET=<spotify app secret>
 > DJANGO_SECRET=<a key from this site https://www.miniwebtool.com/django-secret-key-generator/>
+> PORT=<port for the webserver (not needed on heroku)>
+
+Optional:
+> MONGODB_URI=<for stats>
+> MONGODB_USER=<mongodb user>
 ```

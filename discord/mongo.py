@@ -7,9 +7,9 @@ import motor.motor_asyncio
 class Mongo():
     def __init__(self):
         print("[Startup]: Initializing Mongo Module . . .")
-        self.host = os.environ['MONGODB_URI']
+        self.host = os.environ['MONGODB_URI', ""]
         self.client = motor.motor_asyncio.AsyncIOMotorClient(self.host)
-        self.db = eval("self.client."+os.environ['MONGODB_USER'])
+        self.db = eval("self.client."+os.environ['MONGODB_USER', ""])
         self.collection = self.db.connectiontime
         self.mostcollection = self.db.mostcollection
 
