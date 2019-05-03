@@ -297,7 +297,7 @@ class DiscordBot(commands.Cog):
             await ctx.send(embed=embed)
             return
         try:
-            embed = discord.Embed(title="Information", description="Name: " + dictionary[ctx.guild.id]['now_playing_song']['title'] + "\nStreamed from: " + dictionary[ctx.guild.id]['now_playing_song']['link'] + "\nDuration: " + dictionary[ctx.guild.id]['now_playing_song']['duration'] + "\nRequested by: <@!" + str(dictionary[ctx.guild.id]['now_playing_song']['user'].id) + ">\nLoaded in: " + str(round(dictionary[ctx.guild.id]['now_playing_song']['loadtime'], 2)) + " sec.", color=0x00ffcc, url="https://f.chulte.de")
+            embed = discord.Embed(title="Information", description="Name: " + str(dictionary[ctx.guild.id]['now_playing_song']['title']) + "\nStreamed from: " + str(dictionary[ctx.guild.id]['now_playing_song']['link']) + "\nDuration: " + str(dictionary[ctx.guild.id]['now_playing_song']['duration']) + "\nRequested by: <@!" + str(dictionary[ctx.guild.id]['now_playing_song']['user'].id) + ">\nLoaded in: " + str(round(dictionary[ctx.guild.id]['now_playing_song']['loadtime'], 2)) + " sec.", color=0x00ffcc, url="https://f.chulte.de")
             await ctx.send(embed=embed)
         except Exception as e:
             print(e)

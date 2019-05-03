@@ -19,7 +19,7 @@ def main(request):
     return HttpResponse(open('http/main.js', 'r').read())
 
 def chart(request):
-    return HttpResponseRedirect("https://cdnjs.cloudflare.com/ajax/libs/Chart.js/1.0.2/Chart.js")
+    return HttpResponseRedirect("https://github.com/chartjs/Chart.js/releases/download/v2.8.0/Chart.bundle.js")
 
 def jquery(request):
     return HttpResponseRedirect("https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js")
