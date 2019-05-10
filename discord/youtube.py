@@ -49,6 +49,7 @@ class Youtube():
             dictionary['stream'] = info_dict['formats'][1]['url']
             dictionary['duration'] = info_dict['duration']
         dictionary['loadtime'] = time.time() - start
+		dictionary['error'] = False
         return dictionary
 
     async def youtubeUrl(self, url):
