@@ -16,14 +16,14 @@ Its on the statistics site of the bot: https://f.chulte.de
 > .info to view information about the current song
 ```
 # Can i host it for myself?
-Sure, its hosted using heroku. Its free, i wont provide tutorial, but Ill help if needed.
-The buildpacks you'll need:
+Sure, its a docker-compose container. You can for example host it via heroku. Visit https://dockhero.io/ for help.
 ```sh
-> heroku/python
-> https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest.git
-> https://github.com/ampledata/heroku-opus.git
+#Startup
+docker-compose up
+#Startup detached
+docker-compose up -d
 ```
-You also need to set this environment variables
+You also need to set this environment variables in the sysenv.txt.example file and rename it to sysenv.txt before starting the container the first time.
 ```sh
 > BOT_TOKEN=<your discord bot token>
 > SPOTIFY_ID=<spotify app id>

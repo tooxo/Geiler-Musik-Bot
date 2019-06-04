@@ -22,10 +22,10 @@ class Mongo():
     async def appendResponsetime(self, responsetime):
         current_time = time.time()
         all = self.collection.find()
-        for item in all:
-            if item['x'] < current_time - 60480000:
+        async for item in all:
+            if item['x'] < current_time * 1000 - 86400000:
                 await self.collection.delete_one({'_id': item['_id']})
-        obj = {'x': int(time.time()) * 1000, 'y': resp * 10}
+        obj = {'x': int(time.time()) * 1000, 'y': responsetime * 10}
         await self.collection.insert_one(obj)
 
     async def appendMostPlayed(self, songname):

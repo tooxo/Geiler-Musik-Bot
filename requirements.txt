@@ -9,7 +9,6 @@ attrs
 multidict
 yarl
 pymongo
-django
-gunicorn
 motor
 PyNaCl
+requests

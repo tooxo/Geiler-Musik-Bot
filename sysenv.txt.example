@@ -1,0 +1,7 @@
+BOT_TOKEN=discord bot token
+DJANGO_SECRET=random code from a django code generator view readme.md
+MONGODB_URI=uri for mongodb look for a free service or host urself
+MONGODB_USER=user view above
+SPOTIFY_ID=spotify app id
+SPOTIFY_SECRET=spotify app secret
+PORT=stats port

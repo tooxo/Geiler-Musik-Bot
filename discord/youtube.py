@@ -3,6 +3,7 @@ import time
 import asyncio
 import datetime
 import mongo
+import requests
 
 class Youtube():
     def __init__(self):
@@ -12,6 +13,8 @@ class Youtube():
 
     def youtubeTermSync(self, term):
         now = time.time()
+        if ' - ' in term:
+            term = term.replace(" - ", " ")
         if now - self.epoch < 1:
             time.sleep(1)
         youtube_dl_opts = {
@@ -26,8 +29,27 @@ class Youtube():
             dictionary['duration'] = str(datetime.timedelta(seconds=info_dict['entries'][0]['duration']))
         end = time.time() - now
         dictionary['loadtime'] = end
+        dictionary['term'] = term
+        dictionary['error'] = False
         self.epoch = time.time()
-        return dictionary
+        re = requests.head(dictionary['stream'])
+        if (re.status_code == 302 or re.status_code == 200):
+            return dictionary
+        else:
+            print("Error: Retrying")
+            with YoutubeDL(youtube_dl_opts) as ydl:
+                info_dict = ydl.extract_info("ytsearch:" + term, download=False)
+                dictionary['link'] = info_dict['entries'][0]['webpage_url']
+                dictionary['title'] = info_dict['entries'][0]['title']
+                dictionary['stream'] = info_dict['entries'][0]['formats'][1]['url']
+                dictionary['duration'] = str(datetime.timedelta(seconds=info_dict['entries'][0]['duration']))
+            re = requests.head(dictionary['stream'])
+            if (re.status_code == 302 or re.status_code == 200):
+                return dictionary
+            else:
+                dictionary['error'] = True
+                return dictionary
+
 
     async def youtubeTerm(self,term):
         loop = asyncio.get_event_loop()
@@ -49,7 +71,7 @@ class Youtube():
             dictionary['stream'] = info_dict['formats'][1]['url']
             dictionary['duration'] = info_dict['duration']
         dictionary['loadtime'] = time.time() - start
-		dictionary['error'] = False
+        dictionary['error'] = False
         return dictionary
 
     async def youtubeUrl(self, url):

@@ -1,0 +1,20 @@
+version: '2'
+services:
+    discord:
+        build: .
+        command: bash -c "pip list --outdated --format=freeze | grep -v '^\-e' | cut -d = -f 1  | xargs -n1 pip install -U > /dev/null || true && python -u discord/discord_main.py"
+        volumes:
+            - .:/usr/src/app/
+        env_file:
+            - sysenv.txt
+    web:
+        build:
+            context: .
+            dockerfile: Dockerfile_b
+        command: bash -c "pip list --outdated --format=freeze | grep -v '^\-e' | cut -d = -f 1  | xargs -n1 pip install -U > /dev/null || true && python stats/manage.py migrate && gunicorn --bind 0.0.0.0:8080 --chdir ./stats stats.wsgi:application"
+        volumes:
+            - .:/usr/src/app
+        ports:
+            - "8080:80"
+        env_file:
+            - sysenv.txt

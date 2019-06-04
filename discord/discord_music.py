@@ -76,6 +76,9 @@ class DiscordBot(commands.Cog):
                     smalldict = await self.youtube.youtubeUrl(dictionary[ctx.guild.id]['song_queue'][0]['link'])
                 except Exception:
                     smalldict = await self.youtube.youtubeTerm(dictionary[ctx.guild.id]['song_queue'][0]['title'])
+            if (smalldict['error'] == True):
+                ctx.send("Error, while loading.")
+                after_song(ctx)
             try:
                 smalldict['user'] = dictionary[ctx.guild.id]['song_queue'][0]['user']
             except Exception as e:
@@ -297,7 +300,7 @@ class DiscordBot(commands.Cog):
             await ctx.send(embed=embed)
             return
         try:
-            embed = discord.Embed(title="Information", description="Name: " + str(dictionary[ctx.guild.id]['now_playing_song']['title']) + "\nStreamed from: " + str(dictionary[ctx.guild.id]['now_playing_song']['link']) + "\nDuration: " + str(dictionary[ctx.guild.id]['now_playing_song']['duration']) + "\nRequested by: <@!" + str(dictionary[ctx.guild.id]['now_playing_song']['user'].id) + ">\nLoaded in: " + str(round(dictionary[ctx.guild.id]['now_playing_song']['loadtime'], 2)) + " sec.", color=0x00ffcc, url="https://f.chulte.de")
+            embed = discord.Embed(title="Information", description="Name: " + str(dictionary[ctx.guild.id]['now_playing_song']['title']) + "\nStreamed from: " + str(dictionary[ctx.guild.id]['now_playing_song']['link']) + "\nDuration: " + str(dictionary[ctx.guild.id]['now_playing_song']['duration']) + "\nRequested by: <@!" + str(dictionary[ctx.guild.id]['now_playing_song']['user'].id) + ">\nLoaded in: " + str(round(dictionary[ctx.guild.id]['now_playing_song']['loadtime'], 2)) + " sec." + "\nSearched Term: " + str(dictionary[ctx.guild.id]['now_playing_song']['term']), color=0x00ffcc, url="https://f.chulte.de")
             await ctx.send(embed=embed)
         except Exception as e:
             print(e)
@@ -339,7 +342,7 @@ class DiscordBot(commands.Cog):
             dictionary[ctx.guild.id]['song_queue'] = []
             dictionary[ctx.guild.id]['now_playing_song'] = None
             dictionary[ctx.guild.id]['voice_client'].stop()
-            link = self.youtube.youtubeUrl("https://www.youtube.com/watch?v=siLkbdVxntU")
+            link = await self.youtube.youtubeUrl("https://www.youtube.com/watch?v=siLkbdVxntU")
             source = discord.FFmpegPCMAudio(link['stream'], executable="ffmpeg", before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5")
             dictionary[ctx.guild.id]['voice_client'].play(source)
             embed=discord.Embed(title="Music Stopped! 🛑", color=0x00ffcc, url="https://f.chulte.de")
