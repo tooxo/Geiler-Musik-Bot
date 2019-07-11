@@ -2,19 +2,21 @@ version: '2'
 services:
     discord:
         build: .
-        command: bash -c "pip list --outdated --format=freeze | grep -v '^\-e' | cut -d = -f 1  | xargs -n1 pip install -U > /dev/null || true && python -u discord/discord_main.py"
+        command: sh -c "cd /usr/src/app && python -u discord/discord_main.py"
         volumes:
             - .:/usr/src/app/
         env_file:
             - sysenv.txt
+        stop_grace_period: 15s
+        stop_signal: SIGTERM
     web:
         build:
             context: .
             dockerfile: Dockerfile_b
-        command: bash -c "pip list --outdated --format=freeze | grep -v '^\-e' | cut -d = -f 1  | xargs -n1 pip install -U > /dev/null || true && python stats/manage.py migrate && gunicorn --bind 0.0.0.0:8080 --chdir ./stats stats.wsgi:application"
+        command: sh -c "cd /usr/src/app && python stats/manage.py migrate && cd ./stats/ && python3 manage.py runserver 0.0.0.0:8001"
         volumes:
             - .:/usr/src/app
         ports:
-            - "8080:80"
+            - "8001:8001"
         env_file:
             - sysenv.txt

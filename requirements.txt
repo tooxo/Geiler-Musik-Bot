@@ -1,14 +1,8 @@
 discord.py
 youtube_dl
-aiohttp
-cchardet
 aiodns
 attr
-async_timeout
-attrs
 multidict
-yarl
 pymongo
 motor
-PyNaCl
 requests

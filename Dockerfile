@@ -1,6 +1,3 @@
-FROM python:3
-COPY . /
-RUN pip install -r requirements.txt
-RUN apt-get update
-RUN apt-get -y upgrade
-RUN apt-get install -y libopus-dev ffmpeg
+FROM python:3.7-alpine
+COPY requirements.txt /
+RUN apk update && apk add --update opus-dev ffmpeg gcc linux-headers libc-dev libffi-dev g++ make py3-aiohttp py3-pynacl && pip install --upgrade -r requirements.txt && pip install ./dependencies/*

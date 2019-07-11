@@ -1,11 +1,10 @@
 import json as JSON
-import time
 import asyncio
 import async_timeout
 import aiohttp
 import base64
-import urllib.parse
 import os
+
 
 class Spotify():
     def __init__(self):
@@ -27,26 +26,27 @@ class Spotify():
 
     async def invalidateToken(self):
         if self.token is not "":
-            for x in range(1,3000):
+            for x in range(1, 3000):
                 try:
-                    asyncio.sleep(x)
-                except Exception as e:
+                    await asyncio.sleep(x)
+                except InterruptedError:
                     break
             self.token = ""
 
     async def requestToken(self):
-        if (self.token is ""):
+        if self.token is "":
             str = self.client_id + ":" + self.client_secret
             enc = base64.b64encode(str.encode())
             url = "https://accounts.spotify.com/api/token"
-            header =  {
+            header = {
                 'Authorization': 'Basic ' + enc.decode(),
                 'Content-Type': "application/x-www-form-urlencoded"
             }
             payload = "grant_type=client_credentials&undefined="
             test = await self.requestPost(url, header, payload)
             asyncio.ensure_future(self.invalidateToken())
-            return JSON.loads(test)['access_token']
+            self.token = JSON.loads(test)['access_token']
+            return self.token
         else:
             return self.token
 
@@ -74,22 +74,18 @@ class Spotify():
         }
         result = await self.requestGet(url, header)
         js = JSON.loads(result)
-        track_count = js['total']
-        tracklist = []
-        for track in js['items']:
-            tracklist.append(track['track']['album']['artists'][0]['name'] + " - "  + track['track']['name'])
-        if track_count > 100:
-            url2 = "https://api.spotify.com/v1/playlists/" + playlist_id + "/tracks?limit=100&offset=100"
-            result2 = await self.requestGet(url2, {'Authorization': 'Bearer ' + token})
-            js2 = JSON.loads(result2)
-            o = 0
-            for track3 in js2['items']:
-                tracklist.append(track3['track']['album']['artists'][0]['name'] + " - "  + track3['track']['name'])
-        tracklist_prod = []
-        for track in tracklist:
-            if track not in tracklist_prod:
-                tracklist_prod.append(track)
-        return tracklist_prod
+        t_list = []
+        more = True
+        while more is True:
+            for track in js['items']:
+                t_list.append(track['track']['album']['artists'][0]['name'] + " - " + track['track']['name'])
+            if js['next'] is None:
+                more = False
+            else:
+                url = js["next"]
+                result = await self.requestGet(url, header)
+                js = JSON.loads(result)
+        return t_list
 
     async def spotifyAlbum(self, albumUrl):
         token = await self.requestToken()
@@ -98,7 +94,7 @@ class Spotify():
             albumId = albumId.split("?")[0]
         url = "https://api.spotify.com/v1/albums/" + albumId + "/tracks?limit=50"
         header = {
-            'Authorization': 'Bearer '+token
+            'Authorization': 'Bearer ' + token
         }
         result = await self.requestGet(url, header)
         js = JSON.loads(result)

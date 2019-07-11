@@ -1,10 +1,9 @@
-import json as JSON
 import time
 import os
-import asyncio
 import motor.motor_asyncio
 
-class Mongo():
+
+class Mongo:
     def __init__(self):
         print("[Startup]: Initializing Mongo Module . . .")
         try:
@@ -13,7 +12,7 @@ class Mongo():
             self.host = ""
         self.client = motor.motor_asyncio.AsyncIOMotorClient(self.host)
         try:
-            self.db = eval("self.client."+os.environ['MONGODB_USER'])
+            self.db = eval("self.client." + os.environ['MONGODB_USER'])
         except Exception:
             self.db = ""
         self.collection = self.db.connectiontime

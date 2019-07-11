@@ -5,6 +5,7 @@ import datetime
 import mongo
 import requests
 
+
 class Youtube():
     def __init__(self):
         print("[Startup]: Initializing YouTube Module . . .")
@@ -33,10 +34,9 @@ class Youtube():
         dictionary['error'] = False
         self.epoch = time.time()
         re = requests.head(dictionary['stream'])
-        if (re.status_code == 302 or re.status_code == 200):
+        if re.status_code == 302 or re.status_code == 200:
             return dictionary
         else:
-            print("Error: Retrying")
             with YoutubeDL(youtube_dl_opts) as ydl:
                 info_dict = ydl.extract_info("ytsearch:" + term, download=False)
                 dictionary['link'] = info_dict['entries'][0]['webpage_url']
@@ -44,20 +44,19 @@ class Youtube():
                 dictionary['stream'] = info_dict['entries'][0]['formats'][1]['url']
                 dictionary['duration'] = str(datetime.timedelta(seconds=info_dict['entries'][0]['duration']))
             re = requests.head(dictionary['stream'])
-            if (re.status_code == 302 or re.status_code == 200):
+            if re.status_code == 302 or re.status_code == 200:
                 return dictionary
             else:
                 dictionary['error'] = True
                 return dictionary
 
-
-    async def youtubeTerm(self,term):
+    async def youtubeTerm(self, term):
         loop = asyncio.get_event_loop()
         youtube = await loop.run_in_executor(None, self.youtubeTermSync, term)
         asyncio.run_coroutine_threadsafe(self.mongo.appendResponsetime(youtube['loadtime']), loop)
         return youtube
 
-    def youtubeUrlSync(self,url):
+    def youtubeUrlSync(self, url):
         start = time.time()
         ydl_opts = {
             'skip_download': True,
@@ -80,8 +79,7 @@ class Youtube():
         asyncio.run_coroutine_threadsafe(self.mongo.appendResponsetime(youtube['loadtime']), loop)
         return youtube
 
-    def youtubePlaylistSync(self,url):
-        start = time.time()
+    def youtubePlaylistSync(self, url):
         youtube_dl_opts = {
             'ignoreerrors': True,
             'extract_flat': True
@@ -98,6 +96,6 @@ class Youtube():
                 output.append(dic)
         return output
 
-    async def youtubePlaylist(self,url):
+    async def youtubePlaylist(self, url):
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, self.youtubePlaylistSync, url)

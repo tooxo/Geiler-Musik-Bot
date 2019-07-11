@@ -15,7 +15,7 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY=os.environ.get('DJANGO_SECRET', "(b#(zk*pz$+iibe(&r%2dgumc(2ll(-)r=_=un81vp8f^qd=i@")
 DEBUG = False
-ALLOWED_HOSTS = ["discordbot-tooxo.herokuapp.com", 'localhost', 'f.chulte.de']
+ALLOWED_HOSTS = ["*"]
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
