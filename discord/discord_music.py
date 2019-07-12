@@ -22,7 +22,43 @@ class DiscordBot(commands.Cog):
         await self.dictionary[ctx.guild.id]['now_playing_message'].delete()
         await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=".help"))
 
-    async def emptyChannel(self, ctx):
+    async def message_cycle(self, message, ctx):
+        await asyncio.sleep(1.5)
+        if self.dictionary[ctx.guild.id]['now_playing_song']['is_paused'] is False:
+            now_time = int(time.time()) - self.dictionary[ctx.guild.id]['now_playing_song']['start_time'] - \
+                       self.dictionary[ctx.guild.id]['now_playing_song']['pause_duration']
+            finish_second = int(
+                str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[
+                    0]) * 3600 + int(
+                str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[
+                    1]) * 60 + int(
+                str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[2])
+            percentage = int((now_time / finish_second) * 100)
+            if percentage > 100:
+                percentage = 100
+            count = percentage / 4
+            hashes = ""
+            while count > 0:
+                hashes += "█"
+                count -= 1
+            while len(hashes) < 25:
+                hashes += "░"
+            hashes += " " + str(percentage) + "%"
+            embed2 = discord.Embed(title=self.dictionary[ctx.guild.id]['now_playing_song']['title'],
+                                   color=0x00ffcc, url=self.dictionary[ctx.guild.id]['now_playing_song']['link'])
+            embed2.set_author(name="Currently Playing:")
+            embed2.add_field(name=hashes, value=time.strftime('%H:%M:%S', time.gmtime(now_time)) + " / " +
+                                                self.dictionary[ctx.guild.id]['now_playing_song'][
+                                                    'duration'])
+            try:
+                await message.edit(embed=embed2)
+            except discord.NotFound:
+                return
+            if now_time >= finish_second:
+                return
+        await self.message_cycle(message, ctx)
+
+    async def empty_channel(self, ctx):
         if len(self.dictionary[ctx.guild.id]['voice_channel'].members) == 1:
             self.dictionary[ctx.guild.id]['song_queue'] = []
             await self.dictionary[ctx.guild.id]['voice_client'].disconnect()
@@ -30,7 +66,7 @@ class DiscordBot(commands.Cog):
                                   url="https://f.chulte.de")
             await ctx.send(embed=embed)
 
-    async def preloadNext(self, ctx):
+    async def preload_next(self, ctx):
         song_queue = self.dictionary[ctx.guild.id]['song_queue']
         if len(song_queue) > 0:
             x = len(song_queue)
@@ -51,7 +87,7 @@ class DiscordBot(commands.Cog):
             fur.result()
         except Exception as e:
             print(e)
-        l = asyncio.run_coroutine_threadsafe(self.emptyChannel(ctx), self.bot.loop)
+        l = asyncio.run_coroutine_threadsafe(self.empty_channel(ctx), self.bot.loop)
         try:
             l.result()
         except Exception as e:
@@ -74,26 +110,26 @@ class DiscordBot(commands.Cog):
                 a = dictionary[ctx.guild.id]['song_queue'][0]['title']
                 a = dictionary[ctx.guild.id]['song_queue'][0]['link']
                 a = dictionary[ctx.guild.id]['song_queue'][0]['stream']
-                smalldict = dictionary[ctx.guild.id]['song_queue'][0]
+                small_dict = dictionary[ctx.guild.id]['song_queue'][0]
             except KeyError:
                 try:
                     o = dictionary[ctx.guild.id]['song_queue'][0]['title']
                     o = dictionary[ctx.guild.id]['song_queue'][0]['link']
-                    smalldict = await self.youtube.youtubeUrl(dictionary[ctx.guild.id]['song_queue'][0]['link'])
+                    small_dict = await self.youtube.youtubeUrl(dictionary[ctx.guild.id]['song_queue'][0]['link'])
                 except KeyError:
-                    smalldict = await self.youtube.youtubeTerm(dictionary[ctx.guild.id]['song_queue'][0]['title'])
-            if smalldict['error'] is True:
+                    small_dict = await self.youtube.youtubeTerm(dictionary[ctx.guild.id]['song_queue'][0]['title'])
+            if small_dict['error'] is True:
                 embed = discord.Embed(title="Error while loading.", color=0x00ffcc, url="https://f.chulte.de")
                 await ctx.send(embed)
                 self.after_song(ctx)
             try:
-                smalldict['user'] = dictionary[ctx.guild.id]['song_queue'][0]['user']
+                small_dict['user'] = dictionary[ctx.guild.id]['song_queue'][0]['user']
             except Exception as e:
                 print(e)
             del dictionary[ctx.guild.id]['song_queue'][0]
-            dictionary[ctx.guild.id]['now_playing_song'] = smalldict
+            dictionary[ctx.guild.id]['now_playing_song'] = small_dict
             try:
-                source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(smalldict['stream'], executable="ffmpeg",
+                source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(small_dict['stream'], executable="ffmpeg",
                                                                              before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"),
                                                       volume=dictionary[ctx.guild.id]['volume'])
                 dictionary[ctx.guild.id]['voice_client'].play(source, after=lambda _: self.after_song(ctx))
@@ -104,24 +140,51 @@ class DiscordBot(commands.Cog):
                 await ctx.send(embed=embed)
                 embed = discord.Embed(title="🔁 Loading ... 🔁", color=0x00ffcc, url="https://f.chulte.de")
                 await ctx.send(embed=embed)
-                stream = await self.youtube.youtubeTerm(smalldict['title'])
+                stream = await self.youtube.youtubeTerm(small_dict['title'])
                 source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(stream, executable="ffmpeg",
                                                                              before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"),
                                                       volume=dictionary[ctx.guild.id]['volume'])
                 dictionary[ctx.guild.id]['voice_client'].play(source, after=lambda _: self.after_song(ctx))
-            await self.bot.change_presence(activity=discord.Game(name=smalldict['title'], type=1))
+            await self.bot.change_presence(activity=discord.Game(name=small_dict['title'], type=1))
             dictionary[ctx.guild.id]['now_playing_song']['start_time'] = int(time.time())
             dictionary[ctx.guild.id]['now_playing_song']['is_paused'] = False
             dictionary[ctx.guild.id]['now_playing_song']['pause_duration'] = 0
-            embed = discord.Embed(title="🎶 Now Playing: " + smalldict['title'] + " 🎶", color=0x00ffcc,
-                                  url="https://f.chulte.de")
+            hash_empty = '░'
+            hash_full = '█'
+
+            now_position = int(time.time()) - self.dictionary[ctx.guild.id]['now_playing_song']['start_time'] - \
+                           self.dictionary[ctx.guild.id]['now_playing_song']['pause_duration']
+            end_position = int(
+                str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[0]) * 3600 + int(
+                str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[1]) * 60 + int(
+                str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[2])
+
+            description = time.strftime('%H:%M:%S', time.gmtime(now_position)) + " / " + \
+                          self.dictionary[ctx.guild.id]['now_playing_song']['duration']
+
+            percentage = int((now_position / end_position) * 100)
+            count = int(percentage / 4)
+            hashes = ''
+            while count > 0:
+                hashes += hash_full
+                count -= 1
+
+            while len(hashes) < 25:
+                hashes += hash_empty
+
+            embed = discord.Embed(title=self.dictionary[ctx.guild.id]['now_playing_song']['title'], color=0x00ffcc,
+                                  url=self.dictionary[ctx.guild.id]['now_playing_song']['link'])
+            embed.set_author(name='Currently Playing:')
+            embed.add_field(name=hashes, value=description)
             await dictionary[ctx.guild.id]['now_playing_message'].edit(embed=embed)
-            await self.mongo.appendMostPlayed(smalldict['title'])
+            await self.mongo.appendMostPlayed(small_dict['title'])
+            await self.message_cycle(dictionary[ctx.guild.id]['now_playing_message'], ctx)
+
         elif type == "yt_term" and url is not None:
-            smalldict = {}
-            smalldict['title'] = url
-            smalldict['user'] = ctx.message.author
-            dictionary[ctx.guild.id]['song_queue'].append(smalldict)
+            small_dict = dict()
+            small_dict['title'] = url
+            small_dict['user'] = ctx.message.author
+            dictionary[ctx.guild.id]['song_queue'].append(small_dict)
             if not dictionary[ctx.guild.id]['voice_client'].is_playing():
                 await self.nextSong(ctx)
             else:
@@ -143,10 +206,10 @@ class DiscordBot(commands.Cog):
             tracks = await self.spotify.spotifyPlaylist(url)
             length = len(tracks)
             for track in tracks:
-                smalldict = dict()
-                smalldict['title'] = track
-                smalldict['user'] = ctx.message.author
-                dictionary[ctx.guild.id]['song_queue'].append(smalldict)
+                small_dict = dict()
+                small_dict['title'] = track
+                small_dict['user'] = ctx.message.author
+                dictionary[ctx.guild.id]['song_queue'].append(small_dict)
             embed = discord.Embed(title=":asterisk: Added " + str(length) + " Tracks to Queue. :asterisk:",
                                   url="https://f.chulte.de", color=0x00ffcc)
             await ctx.send(embed=embed)
@@ -185,7 +248,7 @@ class DiscordBot(commands.Cog):
             dic['user'] = ctx.message.author
             dictionary[ctx.guild.id]['song_queue'].append(dic)
             await self.nextSong(ctx)
-        await self.preloadNext(ctx)
+        await self.preload_next(ctx)
 
     @commands.command()
     async def ping(self, ctx):
@@ -252,29 +315,15 @@ class DiscordBot(commands.Cog):
     async def cog_before_invoke(self, ctx):
         if ctx.guild.id not in self.dictionary:
             self.dictionary[ctx.guild.id] = dict()
-        try:
-            f = self.dictionary[ctx.guild.id]['song_queue']
-        except:
+        if 'song_queue' not in self.dictionary[ctx.guild.id]:
             self.dictionary[ctx.guild.id]['song_queue'] = []
-        try:
-            f = self.dictionary[ctx.guild.id]['voice_client']
-        except:
+        if 'voice_client' not in self.dictionary[ctx.guild.id]:
             self.dictionary[ctx.guild.id]['voice_client'] = None
-        try:
-            f = self.dictionary[ctx.guild.id]['voice_channel']
-        except:
+        if 'voice_channel' not in self.dictionary[ctx.guild.id]:
             self.dictionary[ctx.guild.id]['voice_channel'] = None
-        try:
-            f = self.dictionary[ctx.guild.id]['now_playing_ctx']
-        except:
-            self.dictionary[ctx.guild.id]['now_playing_ctx'] = None
-        try:
-            f = self.dictionary[ctx.guild.id]['now_playing_song']
-        except:
+        if 'now_playing_song' not in self.dictionary[ctx.guild.id]:
             self.dictionary[ctx.guild.id]['now_playing_song'] = None
-        try:
-            f = self.dictionary[ctx.guild.id]['volume']
-        except:
+        if 'volume' not in self.dictionary[ctx.guild.id]:
             self.dictionary[ctx.guild.id]['volume'] = 0.5
 
     @commands.command()
@@ -319,9 +368,9 @@ class DiscordBot(commands.Cog):
             await ctx.send(embed=embed)
 
     @commands.command()
-    async def volume(self, ctx, volume=329842372.3):
+    async def volume(self, ctx, volume=None):
         dictionary = self.dictionary
-        if volume == 329842372.3:
+        if volume is None:
             embed = discord.Embed(title="The current volume is: " + str(
                 dictionary[ctx.guild.id]['volume']) + ". It only updates on song changes, so beware.", color=0x00ffcc,
                                   url="https://f.chulte.de")
@@ -329,7 +378,7 @@ class DiscordBot(commands.Cog):
             return
         try:
             var = float(volume)
-        except Exception as e:
+        except ValueError as e:
             embed = discord.Embed(title="You need to enter a number.", color=0x00ffcc, url="https://f.chulte.de")
             await ctx.send(embed=embed)
             return
@@ -397,7 +446,7 @@ class DiscordBot(commands.Cog):
             embed = discord.Embed(title="Shuffled! :twisted_rightwards_arrows:", color=0x00ffcc,
                                   url="https://f.chulte.de")
             await ctx.send(embed=embed)
-            await self.preloadNext(ctx)
+            await self.preload_next(ctx)
 
     @commands.command(aliases=["yeehee"])
     async def stop(self, ctx):
@@ -422,14 +471,22 @@ class DiscordBot(commands.Cog):
     @commands.command(aliases=["halteein"])
     async def pause(self, ctx):
         dictionary = self.dictionary
+        if dictionary[ctx.guild.id]['now_playing_song']['is_paused'] is True:
+            embed = discord.Embed(title="Already Paused.", color=0x00ffcc, url="https://f.chulte.de")
+            await ctx.send(embed=embed)
         if dictionary[ctx.guild.id]['voice_client'] is not None:
             try:
                 dictionary[ctx.guild.id]['voice_client'].pause()
                 embed = discord.Embed(title="Paused! ⏸", color=0x00ffcc, url="https://f.chulte.de")
-                await ctx.send(embed=embed)
+                message = await ctx.send(embed=embed)
                 dictionary[ctx.guild.id]['now_playing_song']['pause_time'] = int(time.time())
                 dictionary[ctx.guild.id]['now_playing_song']['is_paused'] = True
-            except:
+                await asyncio.sleep(5)
+                await message.delete()
+                await ctx.message.delete()
+                # await ctx.message.edit(text="")
+            except Exception as e:
+                print(e)
                 embed = discord.Embed(title=":thinking: Nothing is playing... :thinking:", color=0x00ffcc,
                                       url="https://f.chulte.de")
                 await ctx.send(embed=embed)
@@ -636,6 +693,24 @@ class DiscordBot(commands.Cog):
                                       description=description)
                 embed.set_author(name=hashes)
                 await ctx.send(embed=embed)
+
+    @commands.command()
+    async def reset(self, ctx):
+        try:
+            await self.dictionary[ctx.guild.id]['voice_client'].disconnect()
+        except:
+            pass
+        if ctx.guild.id not in self.dictionary:
+            self.dictionary[ctx.guild.id] = dict()
+        self.dictionary[ctx.guild.id]['song_queue'] = []
+        self.dictionary[ctx.guild.id]['voice_client'] = None
+        self.dictionary[ctx.guild.id]['voice_channel'] = None
+        self.dictionary[ctx.guild.id]['now_playing_song'] = None
+        self.dictionary[ctx.guild.id]['volume'] = 0.5
+        embed = discord.Embed(
+            title="I hope this resolved your issues. :smile: Click me if you want to file a bug report.",
+            color=0x00ffcc, url="https://github.com/tooxo/Geiler-Musik-Bot/issues/new")
+        await ctx.send(embed=embed)
 
 
 def setup(bot):
