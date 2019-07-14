@@ -1,4 +1,4 @@
-version: '2'
+version: '3'
 services:
     discord:
         build: .
@@ -8,15 +8,22 @@ services:
         env_file:
             - sysenv.txt
         stop_grace_period: 15s
-        stop_signal: SIGTERM
+        depends_on:
+          - database
     web:
         build:
             context: .
             dockerfile: Dockerfile_b
-        command: sh -c "cd /usr/src/app && python stats/manage.py migrate && cd ./stats/ && python3 manage.py runserver 0.0.0.0:8001"
+        command: sh -c "cd /usr/src/app/stats/ && gunicorn stats.wsgi -b 0.0.0.0:8001"
         volumes:
             - .:/usr/src/app
         ports:
             - "8001:8001"
         env_file:
             - sysenv.txt
+        depends_on:
+          - database
+    database:
+        image: mvertes/alpine-mongo
+        volumes:
+          - ./mongodb:/data/db

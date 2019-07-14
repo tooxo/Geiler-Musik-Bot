@@ -6,3 +6,7 @@ multidict
 pymongo
 motor
 requests
+async_timeout
+cchardet
+yarl
+attrs

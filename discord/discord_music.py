@@ -18,45 +18,51 @@ class DiscordBot(commands.Cog):
         self.mongo = mongo.Mongo()
         bot.remove_command("help")
 
+        if not discord.opus.is_loaded():
+            discord.opus.load_opus('/usr/lib/libopus.so')
+
     async def clear_presence(self, ctx):
         await self.dictionary[ctx.guild.id]['now_playing_message'].delete()
         await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=".help"))
 
-    async def message_cycle(self, message, ctx):
+    async def message_cycle(self, message, ctx, full, empty):
         await asyncio.sleep(1.5)
-        if self.dictionary[ctx.guild.id]['now_playing_song']['is_paused'] is False:
-            now_time = int(time.time()) - self.dictionary[ctx.guild.id]['now_playing_song']['start_time'] - \
-                       self.dictionary[ctx.guild.id]['now_playing_song']['pause_duration']
-            finish_second = int(
-                str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[
-                    0]) * 3600 + int(
-                str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[
-                    1]) * 60 + int(
-                str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[2])
-            percentage = int((now_time / finish_second) * 100)
-            if percentage > 100:
-                percentage = 100
-            count = percentage / 4
-            hashes = ""
-            while count > 0:
-                hashes += "█"
-                count -= 1
-            while len(hashes) < 25:
-                hashes += "░"
-            hashes += " " + str(percentage) + "%"
-            embed2 = discord.Embed(title=self.dictionary[ctx.guild.id]['now_playing_song']['title'],
-                                   color=0x00ffcc, url=self.dictionary[ctx.guild.id]['now_playing_song']['link'])
-            embed2.set_author(name="Currently Playing:")
-            embed2.add_field(name=hashes, value=time.strftime('%H:%M:%S', time.gmtime(now_time)) + " / " +
-                                                self.dictionary[ctx.guild.id]['now_playing_song'][
-                                                    'duration'])
-            try:
-                await message.edit(embed=embed2)
-            except discord.NotFound:
-                return
-            if now_time >= finish_second:
-                return
-        await self.message_cycle(message, ctx)
+        try:
+            if self.dictionary[ctx.guild.id]['now_playing_song']['is_paused'] is False:
+                now_time = int(time.time()) - self.dictionary[ctx.guild.id]['now_playing_song']['start_time'] - \
+                           self.dictionary[ctx.guild.id]['now_playing_song']['pause_duration']
+                finish_second = int(
+                    str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[
+                        0]) * 3600 + int(
+                    str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[
+                        1]) * 60 + int(
+                    str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[2])
+                percentage = int((now_time / finish_second) * 100)
+                if percentage > 100:
+                    percentage = 100
+                count = percentage / 4
+                hashes = ""
+                while count > 0:
+                    hashes += full
+                    count -= 1
+                while len(hashes) < 25:
+                    hashes += empty
+                hashes += " " + str(percentage) + "%"
+                embed2 = discord.Embed(title=self.dictionary[ctx.guild.id]['now_playing_song']['title'],
+                                       color=0x00ffcc, url=self.dictionary[ctx.guild.id]['now_playing_song']['link'])
+                embed2.set_author(name="Currently Playing:")
+                embed2.add_field(name=hashes, value=time.strftime('%H:%M:%S', time.gmtime(now_time)) + " / " +
+                                                    self.dictionary[ctx.guild.id]['now_playing_song'][
+                                                        'duration'])
+                try:
+                    await message.edit(embed=embed2)
+                except discord.NotFound:
+                    return
+                if now_time >= finish_second:
+                    return
+        except TypeError:
+            return
+        await self.message_cycle(message, ctx, full, empty)
 
     async def empty_channel(self, ctx):
         if len(self.dictionary[ctx.guild.id]['voice_channel'].members) == 1:
@@ -128,10 +134,11 @@ class DiscordBot(commands.Cog):
                 print(e)
             del dictionary[ctx.guild.id]['song_queue'][0]
             dictionary[ctx.guild.id]['now_playing_song'] = small_dict
+            volume = await self.mongo.get_volume(ctx.guild.id)
             try:
                 source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(small_dict['stream'], executable="ffmpeg",
                                                                              before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"),
-                                                      volume=dictionary[ctx.guild.id]['volume'])
+                                                      volume=volume)
                 dictionary[ctx.guild.id]['voice_client'].play(source, after=lambda _: self.after_song(ctx))
             except Exception:
                 await dictionary[ctx.guild.id]['now_playing_message'].delete()
@@ -143,14 +150,14 @@ class DiscordBot(commands.Cog):
                 stream = await self.youtube.youtubeTerm(small_dict['title'])
                 source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(stream, executable="ffmpeg",
                                                                              before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"),
-                                                      volume=dictionary[ctx.guild.id]['volume'])
+                                                      volume=volume)
                 dictionary[ctx.guild.id]['voice_client'].play(source, after=lambda _: self.after_song(ctx))
             await self.bot.change_presence(activity=discord.Game(name=small_dict['title'], type=1))
             dictionary[ctx.guild.id]['now_playing_song']['start_time'] = int(time.time())
             dictionary[ctx.guild.id]['now_playing_song']['is_paused'] = False
             dictionary[ctx.guild.id]['now_playing_song']['pause_duration'] = 0
-            hash_empty = '░'
-            hash_full = '█'
+
+            hash_full, hash_empty = await self.mongo.get_chars(ctx.guild.id)
 
             now_position = int(time.time()) - self.dictionary[ctx.guild.id]['now_playing_song']['start_time'] - \
                            self.dictionary[ctx.guild.id]['now_playing_song']['pause_duration']
@@ -178,7 +185,8 @@ class DiscordBot(commands.Cog):
             embed.add_field(name=hashes, value=description)
             await dictionary[ctx.guild.id]['now_playing_message'].edit(embed=embed)
             await self.mongo.appendMostPlayed(small_dict['title'])
-            await self.message_cycle(dictionary[ctx.guild.id]['now_playing_message'], ctx)
+            await self.message_cycle(dictionary[ctx.guild.id]['now_playing_message'], ctx, hash_full, hash_empty)
+            await ctx.message.delete()
 
         elif type == "yt_term" and url is not None:
             small_dict = dict()
@@ -251,16 +259,10 @@ class DiscordBot(commands.Cog):
         await self.preload_next(ctx)
 
     @commands.command()
-    async def ping(self, ctx):
-        latency = self.bot.latency
-        embed = discord.Embed(title="My Ping / Latency is: " + str(latency), color=0x00ffcc, url="https://f.chulte.de")
-        await ctx.send(embed=embed)
-
-    @commands.command()
     async def echo(self, ctx, *, content: str):
         await ctx.send(content)
 
-    @commands.command()
+    @commands.command(aliases=["p"])
     async def play(self, ctx, *, url: str):
         dictionary = self.dictionary
         try:
@@ -272,7 +274,7 @@ class DiscordBot(commands.Cog):
             return
         if dictionary[ctx.guild.id]['voice_client'] is None:
             try:
-                if ctx.author.voice.channel.user_limit >= len(ctx.author.voice.channel.members) - 1:
+                if ctx.author.voice.channel.user_limit <= len(ctx.author.voice.channel.members) and ctx.author.voice.channel.user_limit != 0:
                     if ctx.guild.me.guild_permissions.administrator is True:
                         dictionary[ctx.guild.id]['voice_client'] = await ctx.author.voice.channel.connect(timeout=60,
                                                                                                           reconnect=True)
@@ -323,8 +325,6 @@ class DiscordBot(commands.Cog):
             self.dictionary[ctx.guild.id]['voice_channel'] = None
         if 'now_playing_song' not in self.dictionary[ctx.guild.id]:
             self.dictionary[ctx.guild.id]['now_playing_song'] = None
-        if 'volume' not in self.dictionary[ctx.guild.id]:
-            self.dictionary[ctx.guild.id]['volume'] = 0.5
 
     @commands.command()
     async def queue(self, ctx):
@@ -369,11 +369,12 @@ class DiscordBot(commands.Cog):
 
     @commands.command()
     async def volume(self, ctx, volume=None):
-        dictionary = self.dictionary
+        current_volume = await self.mongo.get_volume(ctx.guild.id)
         if volume is None:
-            embed = discord.Embed(title="The current volume is: " + str(
-                dictionary[ctx.guild.id]['volume']) + ". It only updates on song changes, so beware.", color=0x00ffcc,
-                                  url="https://f.chulte.de")
+            embed = discord.Embed(
+                title="The current volume is: " + str(current_volume) + ". It only updates on song changes, so beware.",
+                color=0x00ffcc,
+                url="https://f.chulte.de")
             await ctx.send(embed=embed)
             return
         try:
@@ -387,7 +388,7 @@ class DiscordBot(commands.Cog):
                                   url="https://f.chulte.de")
             await ctx.send(embed=embed)
             return
-        dictionary[ctx.guild.id]['volume'] = var
+        await self.mongo.set_volume(ctx.guild.id, var)
         embed = discord.Embed(title="The Volume was set to: " + str(var), color=0x00ffcc, url="https://f.chulte.de")
         await ctx.send(embed=embed)
 
@@ -468,6 +469,35 @@ class DiscordBot(commands.Cog):
                                   url="https://f.chulte.de")
             await ctx.send(embed=embed)
 
+    @commands.command(aliases=[])
+    async def chars(self, ctx, first=None, last=None):
+        if first is None:
+            full, empty = await self.mongo.get_chars(ctx.guild.id)
+            embed = discord.Embed(
+                title="You are currently using **" + full + "** for 'full' and **" + empty + "** for 'empty'",
+                color=0x00ffcc)
+            embed.add_field(name="Syntax to add:",
+                            value=".chars <full> <empty> \nUseful Website: https://changaco.oy.lc/unicode-progress-bars/")
+            await ctx.send(embed=embed)
+            return
+        elif first == "reset" and last is None:
+            await self.mongo.set_chars(ctx.guild.id, '█', '░')
+            embed = discord.Embed(title="Characters reset to: Full: **█** and Empty: **░**", color=0x00ffcc)
+            await ctx.send(embed=embed)
+        elif last is None:
+            embed = discord.Embed(title="You need to provide 2 Unicode Characters separated with a blank space.",
+                                  color=0x00ffcc)
+            await ctx.send(embed=embed)
+            return
+        if len(first) > 1 or len(last) > 1:
+            embed = discord.Embed(title="The characters have a maximal length of 1.", color=0x00ffcc)
+            await ctx.send(embed=embed)
+            return
+        await self.mongo.set_chars(ctx.guild.id, first, last)
+        embed = discord.Embed(title="The characters got updated! Full: **" + first + "**, Empty: **" + last + "**",
+                              color=0x00ffcc)
+        await ctx.send(embed=embed)
+
     @commands.command(aliases=["halteein"])
     async def pause(self, ctx):
         dictionary = self.dictionary
@@ -484,14 +514,13 @@ class DiscordBot(commands.Cog):
                 await asyncio.sleep(5)
                 await message.delete()
                 await ctx.message.delete()
-                # await ctx.message.edit(text="")
             except Exception as e:
                 print(e)
                 embed = discord.Embed(title=":thinking: Nothing is playing... :thinking:", color=0x00ffcc,
                                       url="https://f.chulte.de")
                 await ctx.send(embed=embed)
 
-    @commands.command(aliases=['next', 'müll'])
+    @commands.command(aliases=['next', 'müll', 's'])
     async def skip(self, ctx):
         dictionary = self.dictionary
         if dictionary[ctx.guild.id]['voice_client'] is not None:
@@ -529,171 +558,6 @@ class DiscordBot(commands.Cog):
                                       url="https://f.chulte.de")
                 await ctx.send(embed=embed)
 
-    @commands.command(aliases=["sup"])
-    async def suprogress(self, ctx):
-        if self.dictionary[ctx.guild.id]['now_playing_song'] is None:
-            embed = discord.Embed(title="░░░░░░░░░░░░░░░░░░░░░░░░░", color=0x00ffcc)
-            await ctx.send(embed=embed)
-        else:
-            if self.dictionary[ctx.guild.id]['now_playing_song']['is_paused'] is False:
-                now_time = int(time.time()) - self.dictionary[ctx.guild.id]['now_playing_song']['start_time'] - \
-                           self.dictionary[ctx.guild.id]['now_playing_song']['pause_duration']
-                finish_second = int(
-                    str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[0]) * 3600 + int(
-                    str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[1]) * 60 + int(
-                    str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[2])
-                percentage = int((now_time / finish_second) * 100)
-                if percentage > 100:
-                    percentage = 100
-                count = percentage / 4
-                hashes = ""
-                while count > 0:
-                    hashes += "█"
-                    count -= 1
-                while len(hashes) < 25:
-                    hashes += "░"
-                hashes += " " + str(percentage) + "%"
-                embed = discord.Embed(title=self.dictionary[ctx.guild.id]['now_playing_song']['title'], color=0x00ffcc,
-                                      description=time.strftime('%H:%M:%S', time.gmtime(now_time)) + " / " +
-                                                  self.dictionary[ctx.guild.id]['now_playing_song']['duration'])
-                embed.set_author(name=hashes)
-                message = await ctx.send(embed=embed)
-
-                async def message_cycle():
-                    await asyncio.sleep(2)
-                    if self.dictionary[ctx.guild.id]['now_playing_song']['is_paused'] is False:
-                        now_time = int(time.time()) - self.dictionary[ctx.guild.id]['now_playing_song']['start_time'] - \
-                                   self.dictionary[ctx.guild.id]['now_playing_song']['pause_duration']
-                        finish_second = int(
-                            str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[
-                                0]) * 3600 + int(
-                            str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[
-                                1]) * 60 + int(
-                            str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[2])
-                        percentage = int((now_time / finish_second) * 100)
-                        if percentage > 100:
-                            percentage = 100
-                        count = percentage / 4
-                        hashes = ""
-                        while count > 0:
-                            hashes += "█"
-                            count -= 1
-                        while len(hashes) < 25:
-                            hashes += "░"
-                        hashes += " " + str(percentage) + "%"
-                        embed2 = discord.Embed(title=self.dictionary[ctx.guild.id]['now_playing_song']['title'],
-                                               color=0x00ffcc,
-                                               description=time.strftime('%H:%M:%S', time.gmtime(now_time)) + " / " +
-                                                           self.dictionary[ctx.guild.id]['now_playing_song'][
-                                                               'duration'])
-                        embed2.set_author(name=hashes)
-                        await message.edit(embed=embed2)
-                        if now_time >= finish_second:
-                            return
-                    await message_cycle()
-
-                await message_cycle()
-                return
-            else:
-                now_time = self.dictionary[ctx.guild.id]['now_playing_song']['pause_time'] - \
-                           self.dictionary[ctx.guild.id]['now_playing_song']['start_time'] - \
-                           self.dictionary[ctx.guild.id]['now_playing_song']['pause_duration']
-                finish_second = int(
-                    str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[0]) * 3600 + int(
-                    str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[1]) * 60 + int(
-                    str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[2])
-                percentage = int((now_time / finish_second) * 100)
-                if percentage > 100:
-                    percentage = 100
-                count = percentage / 4
-                hashes = ""
-                while count > 0:
-                    hashes += "█"
-                    count -= 1
-                while len(hashes) < 25:
-                    hashes += "░"
-                hashes += " " + str(percentage) + "%"
-
-                if now_time < finish_second:
-                    description = time.strftime('%H:%M:%S', time.gmtime(now_time)) + " / " + \
-                                  self.dictionary[ctx.guild.id]['now_playing_song']['duration']
-                else:
-                    description = self.dictionary[ctx.guild.id]['now_playing_song']['duration'] + " / " + \
-                                  self.dictionary[ctx.guild.id]['now_playing_song']['duration']
-
-                embed = discord.Embed(title=self.dictionary[ctx.guild.id]['now_playing_song']['title'], color=0x00ffcc,
-                                      description=description)
-                embed.set_author(name=hashes)
-
-                await ctx.send(embed=embed)
-
-    @commands.command(aliases=["p", "wielangenoch"])
-    async def progress(self, ctx):
-        if self.dictionary[ctx.guild.id]['now_playing_song'] is None:
-            embed = discord.Embed(title="░░░░░░░░░░░░░░░░░░░░░░░░░", color=0x00ffcc)
-            await ctx.send(embed=embed)
-        else:
-            if self.dictionary[ctx.guild.id]['now_playing_song']['is_paused'] is False:
-                now_time = int(time.time()) - self.dictionary[ctx.guild.id]['now_playing_song']['start_time'] - \
-                           self.dictionary[ctx.guild.id]['now_playing_song']['pause_duration']
-                finish_second = int(
-                    str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[0]) * 3600 + int(
-                    str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[1]) * 60 + int(
-                    str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[2])
-                percentage = int((now_time / finish_second) * 100)
-                if percentage > 100:
-                    percentage = 100
-                count = percentage / 4
-                hashes = ""
-                while count > 0:
-                    hashes += "█"
-                    count -= 1
-                while len(hashes) < 25:
-                    hashes += "░"
-                hashes += " " + str(percentage) + "%"
-                if now_time < finish_second:
-                    description = time.strftime('%H:%M:%S', time.gmtime(now_time)) + " / " + \
-                                  self.dictionary[ctx.guild.id]['now_playing_song']['duration']
-                else:
-                    description = self.dictionary[ctx.guild.id]['now_playing_song']['duration'] + " / " + \
-                                  self.dictionary[ctx.guild.id]['now_playing_song']['duration']
-
-                embed = discord.Embed(title=self.dictionary[ctx.guild.id]['now_playing_song']['title'], color=0x00ffcc,
-                                      description=description)
-                embed.set_author(name=hashes)
-                await ctx.send(embed=embed)
-                return
-            else:
-                now_time = self.dictionary[ctx.guild.id]['now_playing_song']['pause_time'] - \
-                           self.dictionary[ctx.guild.id]['now_playing_song']['start_time'] - \
-                           self.dictionary[ctx.guild.id]['now_playing_song']['pause_duration']
-                finish_second = int(
-                    str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[0]) * 3600 + int(
-                    str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[1]) * 60 + int(
-                    str(self.dictionary[ctx.guild.id]['now_playing_song']['duration']).split(":")[2])
-                percentage = int((now_time / finish_second) * 100)
-                if percentage > 100:
-                    percentage = 100
-                count = percentage / 4
-                hashes = ""
-                while count > 0:
-                    hashes += "█"
-                    count -= 1
-                while len(hashes) < 25:
-                    hashes += "░"
-                hashes += " " + str(percentage) + "%"
-                if now_time < finish_second:
-                    description = time.strftime('%H:%M:%S', time.gmtime(now_time)) + " / " + \
-                                  self.dictionary[ctx.guild.id]['now_playing_song']['duration']
-                else:
-                    description = self.dictionary[ctx.guild.id]['now_playing_song']['duration'] + " / " + \
-                                  self.dictionary[ctx.guild.id]['now_playing_song']['duration']
-
-                embed = discord.Embed(title=self.dictionary[ctx.guild.id]['now_playing_song']['title'], color=0x00ffcc,
-                                      description=description)
-                embed.set_author(name=hashes)
-                await ctx.send(embed=embed)
-
     @commands.command()
     async def reset(self, ctx):
         try:
@@ -706,7 +570,6 @@ class DiscordBot(commands.Cog):
         self.dictionary[ctx.guild.id]['voice_client'] = None
         self.dictionary[ctx.guild.id]['voice_channel'] = None
         self.dictionary[ctx.guild.id]['now_playing_song'] = None
-        self.dictionary[ctx.guild.id]['volume'] = 0.5
         embed = discord.Embed(
             title="I hope this resolved your issues. :smile: Click me if you want to file a bug report.",
             color=0x00ffcc, url="https://github.com/tooxo/Geiler-Musik-Bot/issues/new")

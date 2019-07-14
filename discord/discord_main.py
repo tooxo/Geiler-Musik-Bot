@@ -2,7 +2,6 @@ from discord.ext import commands
 import os
 import discord
 import asyncio
-import sys
 
 client = commands.Bot(command_prefix=".")
 client.load_extension("discord_music")
@@ -13,6 +12,15 @@ client.load_extension("discord_text")
 async def on_ready():
     print("[Startup]: Finished.")
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=".help"))
+
+
+@client.event
+async def on_command_error(ctx, error):
+    if 'not found' in str(error):
+        embed = discord.Embed(title=str(error), color=0x00ffcc, url='https://github.com/tooxo/Geiler-Musik-Bot/issues')
+        await ctx.send(embed=embed)
+    else:
+        print(error)
 
 
 loop = asyncio.get_event_loop()

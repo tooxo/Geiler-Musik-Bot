@@ -29,7 +29,7 @@ class TextResponse(commands.Cog):
     async def help(self, ctx):
         embed = discord.Embed(title="Help", color=0x00ffcc, url="https://f.chulte.de") \
             .add_field(name="Music Commands",
-                       value=".play [songname/link] - Plays a song, Spotify and YouTube are supported. \n.stop - Stops the Playback \n.pause - Pauses the Music \n.resume - Resumes the music \n.shuffle - Shuffles the Queue \n.queue - Shows the coming up songs. \n.volume <num between 0.0 and 2.0> - Changes the playback volume, only updates on song changes.",
+                       value=".play [songname/link] - Plays a song, Spotify and YouTube are supported. \n.stop - Stops the Playback \n.pause - Pauses the Music \n.resume - Resumes the music \n.shuffle - Shuffles the Queue \n.queue - Shows the coming up songs. \n.volume <num between 0.0 and 2.0> - Changes the playback volume, only updates on song changes. \n.chars <full> <empty> - Changes the characters of the progress-bar.",
                        inline=False) \
             .add_field(name="Debug Commands",
                        value=".ping - Shows the bot's ping \n.echo - [text] - Echoes the text back.\n.rename [name] - Renames the Bot",

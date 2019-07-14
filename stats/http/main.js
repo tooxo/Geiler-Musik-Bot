@@ -3,8 +3,8 @@ $.ajax({
   url: 'http/mongo_response',
   success: function(msg) {
     mm = [];
-    msg = msg.split("'").join('"')
-    mm = JSON.parse(msg)
+    msg = msg.split("'").join('"');
+    mm = JSON.parse(msg);
     mm = mm.sort(function(a, b){
     var keyA = new Date(a.x),
         keyB = new Date(b.x);
@@ -65,4 +65,4 @@ $.ajax({
       };
     var chart = new Chart(canvas , options);
   }
-})
+});
