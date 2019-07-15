@@ -6,7 +6,7 @@ import mongo
 import requests
 
 
-class Youtube():
+class Youtube:
     def __init__(self):
         print("[Startup]: Initializing YouTube Module . . .")
         self.epoch = time.time()
@@ -41,7 +41,9 @@ class Youtube():
                 info_dict = ydl.extract_info("ytsearch:" + term, download=False)
                 dictionary['link'] = info_dict['entries'][0]['webpage_url']
                 dictionary['title'] = info_dict['entries'][0]['title']
-                dictionary['stream'] = info_dict['entries'][0]['formats'][1]['url']
+                for item in info_dict['formats']:
+                    if 'audio only' in item['format']:
+                        dictionary['stream'] = item['url']
                 dictionary['duration'] = str(datetime.timedelta(seconds=info_dict['entries'][0]['duration']))
             re = requests.head(dictionary['stream'])
             if re.status_code == 302 or re.status_code == 200:
@@ -56,7 +58,8 @@ class Youtube():
         asyncio.run_coroutine_threadsafe(self.mongo.appendResponsetime(youtube['loadtime']), loop)
         return youtube
 
-    def youtubeUrlSync(self, url):
+    @staticmethod
+    def youtubeUrlSync(url):
         start = time.time()
         ydl_opts = {
             'skip_download': True,
@@ -67,7 +70,9 @@ class Youtube():
             info_dict = ydl.extract_info(url, download=False)
             dictionary['link'] = url
             dictionary['title'] = info_dict['title']
-            dictionary['stream'] = info_dict['formats'][1]['url']
+            for item in info_dict['formats']:
+                if 'audio only' in item['format']:
+                    dictionary['stream'] = item['url']
             dictionary['duration'] = info_dict['duration']
         dictionary['loadtime'] = time.time() - start
         dictionary['error'] = False
@@ -79,7 +84,8 @@ class Youtube():
         asyncio.run_coroutine_threadsafe(self.mongo.appendResponsetime(youtube['loadtime']), loop)
         return youtube
 
-    def youtubePlaylistSync(self, url):
+    @staticmethod
+    def youtubePlaylistSync(url):
         youtube_dl_opts = {
             'ignoreerrors': True,
             'extract_flat': True

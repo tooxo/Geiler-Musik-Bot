@@ -6,7 +6,7 @@ import base64
 import os
 
 
-class Spotify():
+class Spotify:
     def __init__(self):
         print("[Startup]: Initializing Spotify Module . . .")
         self.session = aiohttp.ClientSession()
@@ -77,14 +77,18 @@ class Spotify():
         t_list = []
         more = True
         while more is True:
-            for track in js['items']:
-                t_list.append(track['track']['album']['artists'][0]['name'] + " - " + track['track']['name'])
-            if js['next'] is None:
+            try:
+                for track in js['items']:
+                    t_list.append(track['track']['album']['artists'][0]['name'] + " - " + track['track']['name'])
+                if js['next'] is None:
+                    more = False
+                else:
+                    url = js["next"]
+                    result = await self.requestGet(url, header)
+                    js = JSON.loads(result)
+            except KeyError as key_error:
+                print(key_error)
                 more = False
-            else:
-                url = js["next"]
-                result = await self.requestGet(url, header)
-                js = JSON.loads(result)
         return t_list
 
     async def spotifyAlbum(self, albumUrl):

@@ -3,7 +3,12 @@ import os
 import discord
 import asyncio
 
-client = commands.Bot(command_prefix=".")
+if os.environ.get('TEST_ENVIRONMENT', 'False') == 'True':
+    prefix = ','
+else:
+    prefix = '.'
+
+client = commands.Bot(command_prefix=prefix)
 client.load_extension("discord_music")
 client.load_extension("discord_text")
 
