@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/tooxo/Geiler-Musik-Bot.svg?branch=master)](https://travis-ci.com/tooxo/Geiler-Musik-Bot)
+
 # Geiler-Musik-Bot
 A discord-bot for playing music in discord.
 
