@@ -8,12 +8,13 @@ class Mongo:
         print("[Startup]: Initializing Mongo Module . . .")
         try:
             self.host = os.environ['MONGODB_URI']
-        except Exception:
+        except KeyError:
             self.host = ""
         self.client = motor.motor_asyncio.AsyncIOMotorClient(self.host)
         try:
             self.db = eval("self.client." + os.environ['MONGODB_USER'])
-        except:
+        except Exception as e:
+            print(e)
             self.db = ""
         self.collection = self.db.connectiontime
         self.most_played_collection = self.db.most_played_collection
@@ -22,23 +23,23 @@ class Mongo:
         alternative_client = motor.motor_asyncio.AsyncIOMotorClient(alternative_host)
         self.alternative_db = alternative_client.discordbot
 
-    async def appendResponsetime(self, responsetime):
+    async def append_response_time(self, response_time):
         current_time = time.time()
-        all = self.collection.find()
-        async for item in all:
+        every = self.collection.find()
+        async for item in every:
             if item['x'] < current_time * 1000 - 86400000:
                 await self.collection.delete_one({'_id': item['_id']})
-        obj = {'x': int(time.time()) * 1000, 'y': responsetime * 10}
+        obj = {'x': int(time.time()) * 1000, 'y': response_time * 10}
         await self.collection.insert_one(obj)
 
-    async def appendMostPlayed(self, songname):
-        songname = songname.replace('"', "")
-        songname = songname.replace("'", "")
-        song = await self.most_played_collection.find_one({"name": songname})
+    async def append_most_played(self, song_name):
+        song_name = song_name.replace('"', "")
+        song_name = song_name.replace("'", "")
+        song = await self.most_played_collection.find_one({"name": song_name})
         if song is not None:
             await self.most_played_collection.update_one({'_id': song['_id']}, {'$inc': {'val': 1}})
         else:
-            obj = {'name': songname, 'val': 1}
+            obj = {'name': song_name, 'val': 1}
             await self.most_played_collection.insert_one(obj)
 
     async def set_volume(self, guild_id, volume):
