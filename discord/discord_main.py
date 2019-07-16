@@ -35,6 +35,7 @@ try:
 except KeyboardInterrupt:
 
     def yikes(f):
+        print(f)
         loop.stop()
 
 

@@ -12,7 +12,7 @@ class Youtube:
         self.epoch = time.time()
         self.mongo = mongo.Mongo()
 
-    def youtubeTermSync(self, term):
+    def youtube_term_sync(self, term):
         now = time.time()
         if ' - ' in term:
             term = term.replace(" - ", " ")
@@ -52,14 +52,14 @@ class Youtube:
                 dictionary['error'] = True
                 return dictionary
 
-    async def youtubeTerm(self, term):
+    async def youtube_term(self, term):
         loop = asyncio.get_event_loop()
-        youtube = await loop.run_in_executor(None, self.youtubeTermSync, term)
-        asyncio.run_coroutine_threadsafe(self.mongo.appendResponsetime(youtube['loadtime']), loop)
+        youtube = await loop.run_in_executor(None, self.youtube_term_sync, term)
+        asyncio.run_coroutine_threadsafe(self.mongo.append_response_time(youtube['loadtime']), loop)
         return youtube
 
     @staticmethod
-    def youtubeUrlSync(url):
+    def youtube_url_sync(url):
         start = time.time()
         ydl_opts = {
             'skip_download': True,
@@ -78,14 +78,14 @@ class Youtube:
         dictionary['error'] = False
         return dictionary
 
-    async def youtubeUrl(self, url):
+    async def youtube_url(self, url):
         loop = asyncio.get_event_loop()
-        youtube = await loop.run_in_executor(None, self.youtubeUrlSync, url)
-        asyncio.run_coroutine_threadsafe(self.mongo.appendResponsetime(youtube['loadtime']), loop)
+        youtube = await loop.run_in_executor(None, self.youtube_url_sync, url)
+        asyncio.run_coroutine_threadsafe(self.mongo.append_response_time(youtube['loadtime']), loop)
         return youtube
 
     @staticmethod
-    def youtubePlaylistSync(url):
+    def youtube_playlist_sync(url):
         youtube_dl_opts = {
             'ignoreerrors': True,
             'extract_flat': True
@@ -102,6 +102,6 @@ class Youtube:
                 output.append(dic)
         return output
 
-    async def youtubePlaylist(self, url):
+    async def youtube_playlist(self, url):
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self.youtubePlaylistSync, url)
+        return await loop.run_in_executor(None, self.youtube_playlist_sync, url)

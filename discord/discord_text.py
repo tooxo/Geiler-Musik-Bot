@@ -47,7 +47,7 @@ class TextResponse(commands.Cog):
     async def whatsnew(self, ctx):
         embed = discord.Embed(title="Changelog", color=0x00ffcc, url="https://f.chulte.de") \
             .add_field(name="22. April 2019", value="+ Rewrote Bot, Improved Loading Performance of Spotify") \
-            .add_field(name="23. April 2019", value="+ Added Support for Spotify Albums and Spotify Artist Top Tracks") \
+            .add_field(name="23. April 2019", value="+ Added Support for Spotify Albums and Spotify Artist Top Tracks")\
             .set_footer(text="des-pa-cito")
         await ctx.send(embed=embed)
 
@@ -65,7 +65,9 @@ class TextResponse(commands.Cog):
             .add_field(name="What should I do?",
                        value="Create a new Issue or responde to an existing one, describing your issue.") \
             .add_field(name="Link?",
-                       value="https://github.com/tooxo/Geiler-Musik-Bot/issues\nhttps://github.com/tooxo/Geiler-Musik-Bot/issues/new")
+                       value="https://github.com/tooxo/Geiler-Musik-Bot/issues\n"
+                             "https://github.com/tooxo/Geiler-Musik-Bot/issues/new"
+                       )
         await ctx.send(embed=embed)
 
 
