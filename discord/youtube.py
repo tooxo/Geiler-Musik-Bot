@@ -1,4 +1,4 @@
-from youtube_dl import YoutubeDL
+from youtube_dl import YoutubeDL, DownloadError
 import time
 import asyncio
 import datetime
@@ -22,12 +22,18 @@ class Youtube:
             'format': 'bestaudio/best'
         }
         dictionary = dict()
-        with YoutubeDL(youtube_dl_opts) as ydl:
-            info_dict = ydl.extract_info("ytsearch:" + term, download=False)
-            dictionary['link'] = info_dict['entries'][0]['webpage_url']
-            dictionary['title'] = info_dict['entries'][0]['title']
-            dictionary['stream'] = info_dict['entries'][0]['formats'][1]['url']
-            dictionary['duration'] = str(datetime.timedelta(seconds=info_dict['entries'][0]['duration']))
+        try:
+            with YoutubeDL(youtube_dl_opts) as ydl:
+                info_dict = ydl.extract_info("ytsearch:" + term, download=False)
+                dictionary['link'] = info_dict['entries'][0]['webpage_url']
+                dictionary['title'] = info_dict['entries'][0]['title']
+                for audio_format in info_dict['entries'][0]['formats']:
+                    if 'audio only' in audio_format['format']:
+                        dictionary['stream'] = audio_format['url']
+                dictionary['duration'] = str(datetime.timedelta(seconds=info_dict['entries'][0]['duration']))
+        except DownloadError as de:
+            print('DownloadError', de)
+            return {'error': True, 'title': term}
         end = time.time() - now
         dictionary['loadtime'] = end
         dictionary['term'] = term
@@ -55,7 +61,8 @@ class Youtube:
     async def youtube_term(self, term):
         loop = asyncio.get_event_loop()
         youtube = await loop.run_in_executor(None, self.youtube_term_sync, term)
-        asyncio.run_coroutine_threadsafe(self.mongo.append_response_time(youtube['loadtime']), loop)
+        if youtube['error'] is False:
+            asyncio.run_coroutine_threadsafe(self.mongo.append_response_time(youtube['loadtime']), loop)
         return youtube
 
     @staticmethod

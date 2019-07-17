@@ -87,7 +87,7 @@ class Spotify:
                     result = await self.request_get(url, header)
                     js = JSON.loads(result)
             except KeyError as key_error:
-                print(key_error)
+                print(key_error, js)
                 more = False
         return t_list
 
