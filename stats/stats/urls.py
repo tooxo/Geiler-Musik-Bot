@@ -12,4 +12,8 @@ urlpatterns = [
     path('http/mongo_most', views.mongo_request_most),
     path('response', views.resp),
     path('mostplayed', views.mostplayed),
+    path('sha256.js', views.sha256),
+    path('sjcl.js', views.sjcl),
+    path('check_password', views.check_password),
+    path('restart_token', views.restart_token)
 ]
