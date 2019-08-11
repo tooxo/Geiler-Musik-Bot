@@ -2,6 +2,7 @@ version: '3'
 services:
     discord:
         build: .
+        restart: always
         command: sh -c "cd /usr/src/app && python -u discord/discord_main.py"
         volumes:
             - .:/usr/src/app/
@@ -24,6 +25,6 @@ services:
         depends_on:
           - database
     database:
-        image: mvertes/alpine-mongo
+        image: tooxo/alpine-mongo-silent
         volumes:
           - ./mongodb:/data/db
