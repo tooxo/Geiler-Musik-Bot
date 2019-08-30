@@ -24,6 +24,7 @@ before_install:
   - echo "SPOTIFY_ID=spotify" >> sysenv.txt
   - echo "SPOTIFY_SECRET=spotify" >> sysenv.txt
   - echo "PORT=8001" >> sysenv.txt
+  - docker network create web
 
 script:
   - docker-compose build
