@@ -10,3 +10,7 @@ async_timeout
 cchardet
 yarl
 attrs
+pytube
+aiohttp
+bs4
+expiringdict

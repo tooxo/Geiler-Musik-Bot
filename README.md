@@ -8,7 +8,7 @@ A discord-bot for playing music in discord.
 Spotify Titles, Playlists, Artists & Albums; Youtube Links & Playlists; Search by Term [All Songs are played via YouTube]
 
 # Gimme the invite link
-Its on the statistics site of the bot: https://f.chulte.de
+Its on the statistics site of the bot: https://d.chulte.de
 
 # Getting Started
 ```sh

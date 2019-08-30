@@ -1,30 +1,44 @@
 version: '3'
 services:
-    discord:
-        build: .
-        restart: always
-        command: sh -c "cd /usr/src/app && python -u discord/discord_main.py"
-        volumes:
-            - .:/usr/src/app/
-        env_file:
-            - sysenv.txt
-        stop_grace_period: 15s
-        depends_on:
-          - database
-    web:
-        build:
-            context: .
-            dockerfile: Dockerfile_b
-        command: sh -c "cd /usr/src/app/stats/ && gunicorn stats.wsgi -b 0.0.0.0:8001"
-        volumes:
-            - .:/usr/src/app
-        ports:
-            - "8001:8001"
-        env_file:
-            - sysenv.txt
-        depends_on:
-          - database
-    database:
-        image: tooxo/alpine-mongo-silent
-        volumes:
-          - ./mongodb:/data/db
+  discord:
+    build:
+      context: discord/
+    restart: always
+    command: sh -c "cd /usr/src/app && python -u discord/discord_main.py"
+    volumes:
+      - .:/usr/src/app/
+    env_file:
+      - sysenv.txt
+    stop_grace_period: 15s
+    depends_on:
+      - database
+    networks:
+      - web
+  web:
+    hostname: web
+    build:
+      context: web/
+    command: sh -c "cd /usr/src/app/ && gunicorn --bind=0.0.0.0:80 wsgi:app"
+    volumes:
+      - ./web/:/usr/src/app
+    env_file:
+      - sysenv.txt
+    depends_on:
+      - database
+    networks:
+      - web
+    labels:
+      - traefik.frontend.rule=Host:f.chulte.de,d.chulte.de;PathPrefix:/
+      - traefik.enable=true
+      - traefik.frontend.priority=5
+      - traefik.port=80
+  database:
+    image: tooxo/alpine-mongo-silent
+    volumes:
+      - ./mongodb:/data/db
+    networks:
+      - web
+
+networks:
+  web:
+    external: true

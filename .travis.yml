@@ -28,8 +28,6 @@ before_install:
 script:
   - docker-compose build
   - docker-compose up -d
-  - sleep 5
-  - curl http://localhost:8001
 
 after_script:
   - docker-compose stop

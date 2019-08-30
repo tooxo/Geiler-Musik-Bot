@@ -1,10 +1,12 @@
 import discord
 from discord.ext import commands
+import logging_manager
 
 
 class TextResponse(commands.Cog):
     def __init__(self, bot):
-        print("[Startup]: Initializing Text Module . . .")
+        self.log = logging_manager.LoggingManager()
+        self.log.debug("[Startup]: Initializing Text Module . . .")
         self.bot = bot
 
     @commands.command(aliases=["clemi", "god", "gott"])
@@ -28,7 +30,7 @@ class TextResponse(commands.Cog):
     @commands.command()
     async def help(self, ctx):
         embed = (
-            discord.Embed(title="Help", color=0x00FFCC, url="https://f.chulte.de")
+            discord.Embed(title="Help", color=0x00FFCC, url="https://d.chulte.de")
             .add_field(
                 name="Music Commands",
                 value=".play [songname/link] - Plays a song, Spotify and YouTube are supported. \n.stop - Stops the Playback \n.pause - Pauses the Music \n.resume - Resumes the music \n.shuffle - Shuffles the Queue \n.queue - Shows the coming up songs. \n.volume <num between 0.0 and 2.0> - Changes the playback volume, only updates on song changes. \n.chars <full> <empty> - Changes the characters of the progress-bar.",
@@ -40,8 +42,7 @@ class TextResponse(commands.Cog):
                 inline=False,
             )
             .add_field(
-                name="Version Commands",
-                value=".changelog - Shows the recent changelog of the bot.\n.support - Shows the supported services\n.issue - File a bug report.",
+                name="Version Commands", value=".support - Shows the supported services\n.issue - File a bug report."
             )
             .set_footer(text="despacito")
         )
@@ -51,20 +52,10 @@ class TextResponse(commands.Cog):
     # INFO ABOUT FUNCTION AND VERSION #
     # // //#
 
-    @commands.command(aliases=["changelog"])
-    async def whatsnew(self, ctx):
-        embed = (
-            discord.Embed(title="Changelog", color=0x00FFCC, url="https://f.chulte.de")
-            .add_field(name="22. April 2019", value="+ Rewrote Bot, Improved Loading Performance of Spotify")
-            .add_field(name="23. April 2019", value="+ Added Support for Spotify Albums and Spotify Artist Top Tracks")
-            .set_footer(text="des-pa-cito")
-        )
-        await ctx.send(embed=embed)
-
     @commands.command()
     async def support(self, ctx):
         embed = (
-            discord.Embed(title="Supported Services", color=0x00FFCC, url="https://f.chulte.de")
+            discord.Embed(title="Supported Services", color=0x00FFCC, url="https://d.chulte.de")
             .add_field(name="YouTube", value="Video Urls\nVideo Search Terms\nPlaylist Urls")
             .add_field(name="Spotify", value="Track Links\nAlbum Links\nArtist Top-Tracks\nPlaylists")
         )
