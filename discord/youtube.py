@@ -3,12 +3,12 @@ import time
 import asyncio
 import mongo
 import logging_manager
-import re
 from multiprocessing import Queue
 from expiringdict import ExpiringDict
 from bs4 import BeautifulSoup
 import aiohttp
-from variable_store import VariableStore, strip_youtube_title
+from variable_store import strip_youtube_title
+from url_parser import YouTubeType
 
 log = logging_manager.LoggingManager()
 
@@ -59,6 +59,7 @@ class Youtube:
     async def youtube_term(self, term):
         loop = asyncio.get_event_loop()
         url = await self.search_youtube(term)
+
         if url is "NO RESULTS FOUND":
             return {"error": True, "reason": "No results found."}
         youtube = await loop.run_in_executor(None, self.youtube_url_sync, url)
@@ -68,7 +69,10 @@ class Youtube:
 
     def youtube_url_sync(self, url):
         try:
-            video_id = re.search(VariableStore.youtube_verify_pattern, url).group(1)
+            video = YouTubeType(url)
+            if not video.valid:
+                return {"error": True, "reason": "Invalid YouTube Url"}
+            video_id = video.id
             if self.cache.get(video_id) is not None:
                 return self.cache.get(video_id)
             start = time.time()
@@ -98,7 +102,8 @@ class Youtube:
     async def youtube_url(self, url):
         loop = asyncio.get_event_loop()
         youtube = await loop.run_in_executor(None, self.youtube_url_sync, url)
-        asyncio.run_coroutine_threadsafe(self.mongo.append_response_time(youtube["loadtime"]), loop)
+        if not youtube["error"]:
+            asyncio.run_coroutine_threadsafe(self.mongo.append_response_time(youtube["loadtime"]), loop)
         return youtube
 
     def youtube_playlist_sync(self, url):

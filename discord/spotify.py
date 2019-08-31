@@ -5,7 +5,7 @@ import aiohttp
 import base64
 import os
 import logging_manager
-from variable_store import SpotifyType
+from url_parser import SpotifyType
 
 
 class Spotify:

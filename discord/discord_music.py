@@ -14,6 +14,7 @@ import collections
 import aiohttp
 import re
 from variable_store import VariableStore
+from url_parser import YouTubeType, SpotifyType
 
 
 class DiscordBot(commands.Cog):
@@ -176,7 +177,7 @@ class DiscordBot(commands.Cog):
             if "reason" in small_dict:
                 error_message = small_dict["reason"]
             await self.send_error_message(ctx, error_message)
-            small_dict = await self.youtube.youtube_url(small_dict['link'])
+            small_dict = await self.youtube.youtube_url(small_dict["link"])
 
         try:
             self.dictionary[ctx.guild.id]["now_playing_song"] = small_dict
@@ -249,7 +250,7 @@ class DiscordBot(commands.Cog):
     async def add_to_queue(self, url, ctx, first_index_push=False, playskip=False):
         if playskip:
             self.dictionary[ctx.guild.id]["new_song_queue"] = Queue()
-        yt_pattern = VariableStore.youtube_url_pattern
+        yt_pattern = VariableStore.youtube_video_pattern
         spotify_pattern = VariableStore.spotify_url_pattern
         spotify_uri_pattern = VariableStore.spotify_uri_pattern
 
@@ -406,83 +407,42 @@ class DiscordBot(commands.Cog):
 
     @commands.command(aliases=["p"])
     async def play(self, ctx, *, url: str = None):
-        if not await self.join_check(ctx, url):
+        if not await self.play_check(ctx, url):
             return
-        if not await self.join_channel(ctx=ctx):
-            return
-
-        youtube_pattern = VariableStore.youtube_url_pattern
-        spotify_pattern = VariableStore.spotify_url_pattern
-
-        if (
-            re.match(youtube_pattern, url) is not None
-            or re.match(spotify_pattern, url) is not None
-            or url.lower() == "charts"
-        ):
-            await self.add_to_queue(url, ctx)
-        else:
-            url_pattern = VariableStore.url_pattern
-            if re.match(url_pattern, url) is not None:
-                embed = discord.Embed(
-                    title="This is not a valid/supported url.", url="https://d.chulte.de", color=0x00FFCC
-                )
-                await ctx.send(embed=embed)
-                return
-            else:
-                await self.add_to_queue(url, ctx)
+        await self.add_to_queue(url, ctx)
 
     @commands.command(aliases=["pn"])
     async def playnext(self, ctx, *, url: str = None):
-        if not await self.join_check(ctx, url):
+        if not await self.play_check(ctx, url):
             return
-        if not await self.join_channel(ctx=ctx):
-            return
-
-        youtube_pattern = VariableStore.youtube_url_pattern
-        spotify_pattern = VariableStore.spotify_url_pattern
-
-        if (
-            re.match(youtube_pattern, url) is not None
-            or re.match(spotify_pattern, url) is not None
-            or url.lower() == "charts"
-        ):
-            await self.add_to_queue(url, ctx, first_index_push=True)
-        else:
-
-            if re.match(VariableStore.url_pattern, url) is not None:
-                embed = discord.Embed(
-                    title="This is not a valid/supported url.", url="https://d.chulte.de", color=0x00FFCC
-                )
-                await ctx.send(embed=embed)
-                return
-            else:
-                await self.add_to_queue(url, ctx, first_index_push=True)
+        await self.add_to_queue(url, ctx, first_index_push=True)
 
     @commands.command(aliases=["ps"])
     async def playskip(self, ctx, *, url: str = None):
+        if not await self.play_check(ctx, url):
+            return
+        await self.add_to_queue(url, ctx, playskip=True)
+
+    async def play_check(self, ctx, url):
         if not await self.join_check(ctx, url):
-            return
+            return False
         if not await self.join_channel(ctx=ctx):
-            return
+            return False
 
-        youtube_pattern = VariableStore.youtube_url_pattern
-        spotify_pattern = VariableStore.spotify_url_pattern
+        yt = YouTubeType(url)
+        sp = SpotifyType(url)
 
-        if (
-            re.match(youtube_pattern, url) is not None
-            or re.match(spotify_pattern, url) is not None
-            or url.lower() == "charts"
-        ):
-            await self.add_to_queue(url, ctx, playskip=True)
+        if yt.valid or sp.valid or url.lower() == "charts":
+            return True
         else:
             if re.match(VariableStore.url_pattern, url) is not None:
                 embed = discord.Embed(
                     title="This is not a valid/supported url.", url="https://d.chulte.de", color=0x00FFCC
                 )
                 await ctx.send(embed=embed)
-                return
+                return False
             else:
-                await self.add_to_queue(url, ctx, playskip=True)
+                return True
 
     async def cog_before_invoke(self, ctx):
         if ctx.guild.id not in self.dictionary:
