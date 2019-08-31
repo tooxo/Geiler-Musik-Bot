@@ -13,6 +13,7 @@ import lastfm
 import collections
 import aiohttp
 import re
+from variable_store import VariableStore
 
 
 class DiscordBot(commands.Cog):
@@ -247,8 +248,8 @@ class DiscordBot(commands.Cog):
     async def add_to_queue(self, url, ctx, first_index_push=False, playskip=False):
         if playskip:
             self.dictionary[ctx.guild.id]["new_song_queue"] = Queue()
-        yt_pattern = re.compile(r".*(youtube\.|youtu\.be).*")
-        spotify_pattern = re.compile(r".*open\.spotify.*")
+        yt_pattern = VariableStore.youtube_url_pattern
+        spotify_pattern = VariableStore.spotify_url_pattern
 
         small_dict = dict()
         small_dict["user"] = ctx.message.author
@@ -408,16 +409,8 @@ class DiscordBot(commands.Cog):
         if not await self.join_channel(ctx=ctx):
             return
 
-        youtube_pattern = re.compile(
-            r".*youtube.com/watch\?.*v=[A-Za-z0-9]*.*|.*youtube.com/playlist.*", re.IGNORECASE | re.MULTILINE
-        )
-        spotify_pattern = re.compile(
-            r".*open\.spotify\.com/playlist.*|"
-            r".*open\.spotify\.com/track.*|"
-            r".*open\.spotify\.com/album.*|"
-            r".*open\.spotify\.com/artist.*",
-            re.IGNORECASE,
-        )
+        youtube_pattern = VariableStore.youtube_url_pattern
+        spotify_pattern = VariableStore.spotify_url_pattern
 
         if (
             re.match(youtube_pattern, url) is not None
@@ -426,9 +419,7 @@ class DiscordBot(commands.Cog):
         ):
             await self.add_to_queue(url, ctx)
         else:
-            url_pattern = re.compile(
-                r"^(?:http(s)?://)?[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]+$", re.IGNORECASE
-            )
+            url_pattern = VariableStore.url_pattern
             if re.match(url_pattern, url) is not None:
                 embed = discord.Embed(
                     title="This is not a valid/supported url.", url="https://d.chulte.de", color=0x00FFCC
@@ -445,16 +436,8 @@ class DiscordBot(commands.Cog):
         if not await self.join_channel(ctx=ctx):
             return
 
-        youtube_pattern = re.compile(
-            r".*youtube.com/watch\?.*v=[A-Za-z0-9]*.*|.*youtube.com/playlist.*", re.IGNORECASE | re.MULTILINE
-        )
-        spotify_pattern = re.compile(
-            r".*open\.spotify\.com/playlist.*|"
-            r".*open\.spotify\.com/track.*|"
-            r".*open\.spotify\.com/album.*|"
-            r".*open\.spotify\.com/artist.*",
-            re.IGNORECASE,
-        )
+        youtube_pattern = VariableStore.youtube_url_pattern
+        spotify_pattern = VariableStore.spotify_url_pattern
 
         if (
             re.match(youtube_pattern, url) is not None
@@ -463,10 +446,8 @@ class DiscordBot(commands.Cog):
         ):
             await self.add_to_queue(url, ctx, first_index_push=True)
         else:
-            url_pattern = re.compile(
-                r"^(?:http(s)?://)?[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]+$", re.IGNORECASE
-            )
-            if re.match(url_pattern, url) is not None:
+
+            if re.match(VariableStore.url_pattern, url) is not None:
                 embed = discord.Embed(
                     title="This is not a valid/supported url.", url="https://d.chulte.de", color=0x00FFCC
                 )
@@ -482,16 +463,8 @@ class DiscordBot(commands.Cog):
         if not await self.join_channel(ctx=ctx):
             return
 
-        youtube_pattern = re.compile(
-            r".*youtube.com/watch\?.*v=[A-Za-z0-9]*.*|.*youtube.com/playlist.*", re.IGNORECASE | re.MULTILINE
-        )
-        spotify_pattern = re.compile(
-            r".*open\.spotify\.com/playlist.*|"
-            r".*open\.spotify\.com/track.*|"
-            r".*open\.spotify\.com/album.*|"
-            r".*open\.spotify\.com/artist.*",
-            re.IGNORECASE,
-        )
+        youtube_pattern = VariableStore.youtube_url_pattern
+        spotify_pattern = VariableStore.spotify_url_pattern
 
         if (
             re.match(youtube_pattern, url) is not None
@@ -500,10 +473,7 @@ class DiscordBot(commands.Cog):
         ):
             await self.add_to_queue(url, ctx, playskip=True)
         else:
-            url_pattern = re.compile(
-                r"^(?:http(s)?://)?[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]+$", re.IGNORECASE
-            )
-            if re.match(url_pattern, url) is not None:
+            if re.match(VariableStore.url_pattern, url) is not None:
                 embed = discord.Embed(
                     title="This is not a valid/supported url.", url="https://d.chulte.de", color=0x00FFCC
                 )

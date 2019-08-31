@@ -8,6 +8,7 @@ from multiprocessing import Queue
 from expiringdict import ExpiringDict
 from bs4 import BeautifulSoup
 import aiohttp
+from variable_store import VariableStore
 
 log = logging_manager.LoggingManager()
 
@@ -67,8 +68,7 @@ class Youtube:
 
     def youtube_url_sync(self, url):
         try:
-            pattern = re.compile(r"watch\?v=([a-zA-Z0-9]*)")
-            video_id = re.search(pattern, url).group(1)
+            video_id = re.search(VariableStore.youtube_verify_pattern, url).group(1)
             if self.cache.get(video_id) is not None:
                 return self.cache.get(video_id)
             start = time.time()

@@ -8,6 +8,7 @@ env:
 
 
 before_install:
+  - pip install pytest
   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
   - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
   - sudo apt-get update
@@ -27,8 +28,10 @@ before_install:
   - docker network create web
 
 script:
+  - pytest discord/variable_store.py
   - docker-compose build
   - docker-compose up -d
+
 
 after_script:
   - docker-compose stop
