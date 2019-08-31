@@ -85,7 +85,10 @@ class Youtube:
                         dictionary["stream"] = item["url"]
                 dictionary["duration"] = info_dict["duration"]
             dictionary["loadtime"] = time.time() - start
-            dictionary["error"] = False
+            if "manifest.googlevideo.com" in dictionary["stream"]:
+                return {"error": True, "reason": "Malformed Stream. Trying again.", "link": url}
+            else:
+                dictionary["error"] = False
             dictionary["title"] = strip_youtube_title(dictionary["title"])
             self.cache[dictionary["id"]] = dictionary
             return dictionary

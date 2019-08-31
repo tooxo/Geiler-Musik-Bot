@@ -176,7 +176,7 @@ class DiscordBot(commands.Cog):
             if "reason" in small_dict:
                 error_message = small_dict["reason"]
             await self.send_error_message(ctx, error_message)
-            return
+            small_dict = await self.youtube.youtube_url(small_dict['link'])
 
         try:
             self.dictionary[ctx.guild.id]["now_playing_song"] = small_dict
@@ -184,8 +184,9 @@ class DiscordBot(commands.Cog):
             self.dictionary[ctx.guild.id]["now_playing_song"]["is_paused"] = False
             self.dictionary[ctx.guild.id]["now_playing_song"]["pause_duration"] = 0
             if "title" in small_dict:
-                await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.playing,
-                                                                         name=small_dict["title"]))
+                await self.bot.change_presence(
+                    activity=discord.Activity(type=discord.ActivityType.playing, name=small_dict["title"])
+                )
             volume = await self.mongo.get_volume(ctx.guild.id)
             source = discord.PCMVolumeTransformer(
                 discord.FFmpegPCMAudio(
@@ -250,6 +251,7 @@ class DiscordBot(commands.Cog):
             self.dictionary[ctx.guild.id]["new_song_queue"] = Queue()
         yt_pattern = VariableStore.youtube_url_pattern
         spotify_pattern = VariableStore.spotify_url_pattern
+        spotify_uri_pattern = VariableStore.spotify_uri_pattern
 
         small_dict = dict()
         small_dict["user"] = ctx.message.author
@@ -268,7 +270,7 @@ class DiscordBot(commands.Cog):
                     track["user"] = ctx.message.author
                     small_dicts.append(track)
                 _multiple = True
-        elif re.match(spotify_pattern, url) is not None:
+        elif re.match(spotify_pattern, url) is not None or re.match(spotify_uri_pattern, url) is not None:
             if "playlist" in url:
                 song_list = await self.spotify.spotify_playlist(url)
                 if len(song_list) == 0:
