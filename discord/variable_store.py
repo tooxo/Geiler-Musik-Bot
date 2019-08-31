@@ -4,6 +4,14 @@ import re
 import unittest
 
 
+def strip_youtube_title(title):
+    title = re.sub(VariableStore.youtube_title_pattern, '', title)
+    title = re.sub(VariableStore.space_cut_pattern, '', title)
+    while "  " in title:
+        title = title.replace("  ", " ")
+    return title
+
+
 class VariableStore:
     spotify_url_pattern = re.compile(
         r".*open\.spotify\.com/playlist.*|"
@@ -23,6 +31,24 @@ class VariableStore:
 
     url_pattern = re.compile(
         r"^(?:http(s)?://)?[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]+$", re.IGNORECASE
+    )
+
+    youtube_title_pattern = re.compile(
+        r"lyrics|\(lyrics\)|\[lyrics\]|"
+        r"official lyric(s)? video|"
+        r"\(official lyric(s)? video\)|\[official lyric(s)? video\]|"
+        r"lyric(s)? video|"
+        r"\(lyric(s)? video\)|"
+        r"\[lyric(s)? video\]|"
+        r"official video|official music video|"
+        r"\[official video\]|\(official video\)|"
+        r"\[official music video\]|\(official music video\)"
+        , re.IGNORECASE
+    )
+
+    space_cut_pattern = re.compile(
+        r"\s*$|^\s*",
+        re.IGNORECASE
     )
 
 
@@ -50,49 +76,40 @@ class Test(unittest.TestCase):
         ("https://youtu.be/k2qgadSvNy U", False)
     ]
 
+    youtube_titles = [
+        ("Ariana Grande - One Last Time (Lyric Video)", "Ariana Grande - One Last Time"),
+        ("Maroon 5 - Girls Like You (Lyrics) ft. Cardi B", "Maroon 5 - Girls Like You ft. Cardi B"),
+        ("bad guy - Billie Eilish (Lyrics)", "bad guy - Billie Eilish"),
+        ("Shawn Mendes, Camila Cabello - Señorita (Lyrics)", "Shawn Mendes, Camila Cabello - Señorita"),
+        ("benny blanco, Juice WRLD - Graduation (Official Music Video)", "benny blanco, Juice WRLD - Graduation"),
+        ("Madcon - Beggin", "Madcon - Beggin"),
+        ("Arctic Monkeys - Do I Wanna Know? (Official Video)", "Arctic Monkeys - Do I Wanna Know?")
+    ]
+
     def test_spotify_pattern(self):
         """
         Tests the Spotify Patterns with different Spotify URLS
         """
         for url, expected in Test.spotify_urls:
-            if expected is True:
-                if re.match(VariableStore.spotify_url_pattern, url) is not None:
-                    continue
-                else:
-                    print("Failure at", url)
-                    break
-            if expected is False:
-                if re.match(VariableStore.spotify_url_pattern, url) is None:
-                    continue
-                else:
-                    print("Failure at", url)
-                    break
-        else:
-            assert True
-            return
-        assert False
+            if re.match(VariableStore.spotify_url_pattern, url) is not None:
+                self.assertEqual(expected, True)
+            else:
+                self.assertEqual(expected, False)
 
     def test_youtube_pattern(self):
         """
         Tests the Youtube URL pattern with diffrent urls
         """
         for url, expected in Test.youtube_urls:
-            if expected is True:
-                if re.match(VariableStore.youtube_url_pattern, url) is not None:
-                    continue
-                else:
-                    print("Failure at", url)
-                    break
-            if expected is False:
-                if re.match(VariableStore.youtube_url_pattern, url) is None:
-                    continue
-                else:
-                    print("Failure at", url)
-                    break
-        else:
-            assert True
-            return
-        assert False
+            if re.match(VariableStore.youtube_url_pattern, url) is not None:
+                self.assertEqual(expected, True)
+            else:
+                self.assertEqual(expected, False)
+
+    def test_strip_title(self):
+        for title, expected in Test.youtube_titles:
+            stripped = strip_youtube_title(title)
+            self.assertEqual(expected, stripped)
 
 
 if __name__ is '__main__':

@@ -8,7 +8,7 @@ from multiprocessing import Queue
 from expiringdict import ExpiringDict
 from bs4 import BeautifulSoup
 import aiohttp
-from variable_store import VariableStore
+from variable_store import VariableStore, strip_youtube_title
 
 log = logging_manager.LoggingManager()
 
@@ -86,6 +86,7 @@ class Youtube:
                 dictionary["duration"] = info_dict["duration"]
             dictionary["loadtime"] = time.time() - start
             dictionary["error"] = False
+            dictionary["title"] = strip_youtube_title(dictionary["title"])
             self.cache[dictionary["id"]] = dictionary
             return dictionary
         except Exception as e:
