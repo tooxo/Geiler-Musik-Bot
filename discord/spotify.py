@@ -32,6 +32,7 @@ class Spotify:
                 try:
                     await asyncio.sleep(x)
                 except InterruptedError:
+                    self.token = ""
                     break
             self.token = ""
 
@@ -83,6 +84,8 @@ class Spotify:
                     js = JSON.loads(result)
             except KeyError as key_error:
                 self.log.warning(logging_manager.debug_info(str(key_error) + " " + str(js)))
+                if hasattr(js, "error"):
+                    self.token = ""
                 more = False
         return t_list
 

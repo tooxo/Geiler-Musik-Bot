@@ -1,10 +1,14 @@
-from youtube_dl import YoutubeDL, DownloadError
+from youtube_dl import YoutubeDL
 import time
 import asyncio
-import datetime
 import mongo
-import requests
 import logging_manager
+import re
+from multiprocessing import Queue
+from expiringdict import ExpiringDict
+from bs4 import BeautifulSoup
+import aiohttp
+from variable_store import VariableStore
 
 log = logging_manager.LoggingManager()
 
@@ -26,78 +30,66 @@ class YoutubeDLLogger(object):
 class Youtube:
     def __init__(self):
         log.debug("[Startup]: Initializing YouTube Module . . .")
-        self.epoch = time.time()
         self.mongo = mongo.Mongo()
+        self.queue = Queue()
+        self.cache = ExpiringDict(max_age_seconds=10800, max_len=1000)
+        self.search_cache = dict()
+        self.session = aiohttp.ClientSession()
 
-    def youtube_term_sync(self, term):
-        now = time.time()
-        if " - " in term:
-            term = term.replace(" - ", " ")
-        if now - self.epoch < 1:
-            time.sleep(1)
-        youtube_dl_opts = {"format": "bestaudio/best", "logger": YoutubeDLLogger()}
-        dictionary = dict()
+    async def search_youtube(self, query):
+        if query in self.search_cache:
+            return self.search_cache[query]
         try:
-            with YoutubeDL(youtube_dl_opts) as ydl:
-                info_dict = ydl.extract_info("ytsearch:" + term, download=False)
-                dictionary["link"] = info_dict["entries"][0]["webpage_url"]
-                dictionary["title"] = info_dict["entries"][0]["title"]
-                for audio_format in info_dict["entries"][0]["formats"]:
-                    if "audio only" in audio_format["format"]:
-                        dictionary["stream"] = audio_format["url"]
-                dictionary["duration"] = str(datetime.timedelta(seconds=info_dict["entries"][0]["duration"]))
-        except DownloadError and KeyError as de:
-            log.error(logging_manager.debug_info("DownloadError: " + str(de)))
-            return {"error": True, "title": term}
-        end = time.time() - now
-        dictionary["loadtime"] = end
-        dictionary["term"] = term
-        dictionary["error"] = False
-        self.epoch = time.time()
-        re = requests.head(dictionary["stream"])
-        if re.status_code == 302 or re.status_code == 200:
-            return dictionary
-        else:
-            with YoutubeDL(youtube_dl_opts) as ydl:
-                info_dict = ydl.extract_info("ytsearch:" + term, download=False)
-                dictionary["link"] = info_dict["entries"][0]["webpage_url"]
-                dictionary["title"] = info_dict["entries"][0]["title"]
-                for item in info_dict["formats"]:
-                    if "audio only" in item["format"]:
-                        dictionary["stream"] = item["url"]
-                dictionary["duration"] = str(datetime.timedelta(seconds=info_dict["entries"][0]["duration"]))
-            re = requests.head(dictionary["stream"])
-            if re.status_code == 302 or re.status_code == 200:
-                return dictionary
-            else:
-                dictionary["error"] = True
-                return dictionary
+            log.debug("[YouTube Search] Searched Term: '" + query + "'")
+            url = "https://www.youtube.com/results?search_query=" + query + "&sp=EgIQAQ%253D%253D"  # SP = Video only
+            url_list = []
+            await asyncio.get_event_loop().run_in_executor(None, self.queue.put, query)
+            async with self.session.get(url) as res:
+                text = await res.text()
+                soup = BeautifulSoup(text, "html.parser")
+                for vid in soup.findAll(attrs={"class": "yt-uix-tile-link"}):
+                    url_list.append(vid["href"])
+            self.search_cache[query] = "https://www.youtube.com" + url_list[0]
+            for url in url_list:
+                if url.startswith("/watch"):
+                    return "https://www.youtube.com" + url
+        except (IndexError, KeyError) as e:
+            return "NO RESULTS FOUND"
 
     async def youtube_term(self, term):
         loop = asyncio.get_event_loop()
-        youtube = await loop.run_in_executor(None, self.youtube_term_sync, term)
+        url = await self.search_youtube(term)
+        if url is "NO RESULTS FOUND":
+            return {"error": True, "reason": "No results found."}
+        youtube = await loop.run_in_executor(None, self.youtube_url_sync, url)
         if youtube["error"] is False:
             asyncio.run_coroutine_threadsafe(self.mongo.append_response_time(youtube["loadtime"]), loop)
         return youtube
 
     def youtube_url_sync(self, url):
-        start = time.time()
-        if (start - self.epoch) < 1:
-            time.sleep(1)
-        ydl_opts = {"skip_download": True, "format": "bestaudio/best", "logger": YoutubeDLLogger()}
-        dictionary = dict()
-        with YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(url, download=False)
-            dictionary["link"] = url
-            dictionary["title"] = info_dict["title"]
-            for item in info_dict["formats"]:
-                if "audio only" in item["format"]:
-                    dictionary["stream"] = item["url"]
-            dictionary["duration"] = info_dict["duration"]
-        dictionary["loadtime"] = time.time() - start
-        dictionary["error"] = False
-        self.epoch = time.time()
-        return dictionary
+        try:
+            video_id = re.search(VariableStore.youtube_verify_pattern, url).group(1)
+            if self.cache.get(video_id) is not None:
+                return self.cache.get(video_id)
+            start = time.time()
+            self.queue.put(url)
+            dictionary = dict()
+            with YoutubeDL({"logger": YoutubeDLLogger()}) as ydl:
+                info_dict = ydl.extract_info(url, download=False)
+                dictionary["link"] = url
+                dictionary["id"] = info_dict["id"]
+                dictionary["title"] = info_dict["title"]
+                dictionary["term"] = url
+                for item in info_dict["formats"]:
+                    if "audio only" in item["format"]:
+                        dictionary["stream"] = item["url"]
+                dictionary["duration"] = info_dict["duration"]
+            dictionary["loadtime"] = time.time() - start
+            dictionary["error"] = False
+            self.cache[dictionary["id"]] = dictionary
+            return dictionary
+        except Exception as e:
+            return {"error": True, "reason": str(e)}
 
     async def youtube_url(self, url):
         loop = asyncio.get_event_loop()
@@ -106,8 +98,7 @@ class Youtube:
         return youtube
 
     def youtube_playlist_sync(self, url):
-        if (time.time() - self.epoch) < 1:
-            time.sleep(1)
+        self.queue.put(url)
         youtube_dl_opts = {"ignoreerrors": True, "extract_flat": True, "logger": YoutubeDLLogger()}
         output = []
         with YoutubeDL(youtube_dl_opts) as ydl:
@@ -119,7 +110,6 @@ class Youtube:
                 dic["title"] = video["title"]
                 dic["link"] = "https://youtube.com/watch?v=" + video["url"]
                 output.append(dic)
-        self.epoch = time.time()
         return output
 
     async def youtube_playlist(self, url):

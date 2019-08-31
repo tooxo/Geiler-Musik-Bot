@@ -8,6 +8,7 @@ env:
 
 
 before_install:
+  - pip install pytest
   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
   - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
   - sudo apt-get update
@@ -24,12 +25,13 @@ before_install:
   - echo "SPOTIFY_ID=spotify" >> sysenv.txt
   - echo "SPOTIFY_SECRET=spotify" >> sysenv.txt
   - echo "PORT=8001" >> sysenv.txt
+  - docker network create web
 
 script:
+  - pytest discord/variable_store.py
   - docker-compose build
   - docker-compose up -d
-  - sleep 5
-  - curl http://localhost:8001
+
 
 after_script:
   - docker-compose stop

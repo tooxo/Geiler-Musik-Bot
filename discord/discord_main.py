@@ -26,6 +26,13 @@ async def on_command_error(ctx, error):
     if "not found" in str(error):
         embed = discord.Embed(title=str(error), color=0x00FFCC, url="https://github.com/tooxo/Geiler-Musik-Bot/issues")
         await ctx.send(embed=embed)
+    elif "Invalid Data" in str(error):
+        embed = discord.Embed(
+            title="Error while playback. Try again.",
+            color=0x00FFCC,
+            url="https://github.com/tooxo/Geiler-Musik-Bot/issues",
+        )
+        await ctx.send(embed=embed)
     else:
         log.error(logging_manager.debug_info(str(error)))
 
