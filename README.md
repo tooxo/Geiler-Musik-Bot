@@ -1,40 +1,118 @@
 [![Build Status](https://travis-ci.com/tooxo/Geiler-Musik-Bot.svg?branch=master)](https://travis-ci.com/tooxo/Geiler-Musik-Bot)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
+# Geiler-Musik-Bot - Discord Music Playing
 
-# Geiler-Musik-Bot
-A discord-bot for playing music in discord.
-
-# What services are supported?
-Spotify Titles, Playlists, Artists & Albums; Youtube Links & Playlists; Search by Term [All Songs are played via YouTube]
-
-# Gimme the invite link
-Its on the statistics site of the bot: https://d.chulte.de
-
-# Getting Started
+## What services are supported?
 ```sh
-> .help for basic help
-> .play <thing to play> to play smth.
-> .queue for viewing the queue
-> .shuffle to shuffle the coming up songs
-> .info to view information about the current song
+  Spotify:
+    - Tracks
+    - Playlists
+    - Artist Pages
+    - Albums
+  YouTube:
+    - Direct Links
+    - Playlists
+  
+  + Simple Search by Term
 ```
-# Can i host it for myself?
-Sure, its a docker-compose container. You can for example host it via heroku. Visit https://dockhero.io/ for help.
+
+## Invitation Link
+It's found on the website for the bot: https://d.chulte.de
+
+## Can i host it for myself?
+Sure, its a docker-compose container. You can for example host it on amazon aws free services.
+
+Installation:
 ```sh
-#Startup
-docker-compose up
-#Startup detached
-docker-compose up -d
+git clone https://github.com/tooxo/Geiler-Musik-Bot
+cd Geiler-Musik-Bot
 ```
-You also need to set this environment variables in the sysenv.txt.example file and rename it to sysenv.txt before starting the container the first time.
+Then you need to setup the environment Variables for the bot. This is simply done by editing the sysenv.txt.example and renaming it to sysenv.txt afterwards.
+
+Here are all the tokens explained:
 ```sh
 > BOT_TOKEN=<your discord bot token>
 > SPOTIFY_ID=<spotify app id>
 > SPOTIFY_SECRET=<spotify app secret>
-> DJANGO_SECRET=<a key from this site https://www.miniwebtool.com/django-secret-key-generator/>
-> PORT=<port for the webserver (not needed on heroku)>
+> PORT=<port for the webserver to run, defaults to 80>
 
 Optional:
 > MONGODB_URI=<for stats>
 > MONGODB_USER=<mongodb user>
+> LASTFM_KEY=<key for lastfm api. only needed if you want album covers to be displayed>
 ```
+
+##Usage
+
+* Play music:
+
+    `.play <song link/playlist link/song name>`
+    
+    Aliases: `.p`<br>
+    Example: `.play new rules dua lipa`
+    
+
+* Play music directly after the song currently playing (skip the Queue):
+    
+    ```.playnext <song link/playlist link/song name>```
+    
+    Aliases: `.pn`<br>
+    Example: `.pn nice for what drake`
+    
+* Play music and skip to it instantly:
+
+    `.playskip <song link/playlist link/song name>`
+    
+    Aliases: `.ps`<br>
+    Example: `.ps do i wanna know? arctic monkeys`
+    
+* Skip one / multiple song:
+
+    `.skip <(optional parameter) number of songs to skip, defaults to 1>`
+    
+    Aliases: `.s, .next`<br>
+    Example: `.skip 10`, `.skip`
+
+* Show the current Queue:
+
+    `.queue`
+    
+    Aliases: `.q`
+    
+* Shuffle the Queue:
+
+    `.shuffle`
+    
+* Show Information about the current song playing:
+
+    `.info`
+    
+* Pauses the song:
+
+    `.pause`
+    
+* Resumes if paused:
+
+    `.resume`
+    
+* Changes the Volume:
+
+    `.volume <value between 0.0 and 2.0>`
+    
+    Example: `.volume 1.2`
+    
+    _Volume gets applied on song changes._
+    
+* Change the Characters used for the Song Progress Bar
+
+    `.chars <full> <empty>`<br>
+    `.chars reset` (Resets the Chars to Default)
+    
+    Example: `.chars █ ░` (This are also the example chars)<br>
+    _For some example chars visit: https://changaco.oy.lc/unicode-progress-bars/_ 
+    
+## Found a bug?
+File an issue here at github.
+
+## Want different services supported?
+File an issue, and I might implement it.

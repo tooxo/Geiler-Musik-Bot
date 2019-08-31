@@ -182,6 +182,9 @@ class DiscordBot(commands.Cog):
             self.dictionary[ctx.guild.id]["now_playing_song"]["start_time"] = int(time.time())
             self.dictionary[ctx.guild.id]["now_playing_song"]["is_paused"] = False
             self.dictionary[ctx.guild.id]["now_playing_song"]["pause_duration"] = 0
+            if "title" in small_dict:
+                await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.playing,
+                                                                         name=small_dict["title"]))
             volume = await self.mongo.get_volume(ctx.guild.id)
             source = discord.PCMVolumeTransformer(
                 discord.FFmpegPCMAudio(
@@ -198,7 +201,6 @@ class DiscordBot(commands.Cog):
             asyncio.ensure_future(
                 self.messaging(self.dictionary[ctx.guild.id]["now_playing_message"], ctx, full, empty)
             )
-        #        break
         except Exception as e:
             print(e)
             x += 1

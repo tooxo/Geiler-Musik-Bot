@@ -40,7 +40,7 @@ class Youtube:
             return self.search_cache[query]
         try:
             log.debug("[YouTube Search] Searched Term: '" + query + "'")
-            url = "https://www.youtube.com/results?search_query=" + query
+            url = "https://www.youtube.com/results?search_query=" + query + "&sp=EgIQAQ%253D%253D"  # SP = Video only
             url_list = []
             await asyncio.get_event_loop().run_in_executor(None, self.queue.put, query)
             async with self.session.get(url) as res:
