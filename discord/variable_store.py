@@ -48,3 +48,11 @@ class VariableStore:
     )
 
     space_cut_pattern = re.compile(r"\s*$|^\s*", re.IGNORECASE)
+
+
+class Errors:
+    no_results_found = "No Results found."
+    default = "An Error has occurred."
+    info_check = "An Error has occurred while checking Info."
+    spotify_pull = "**There was an error pulling the Spotify Playlist, 0 Songs were added.**"
+    cant_reach_youtube = "Can't reach YouTube. Server Error on their side maybe?"

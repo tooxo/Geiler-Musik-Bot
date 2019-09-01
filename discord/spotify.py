@@ -6,6 +6,7 @@ import base64
 import os
 import logging_manager
 from url_parser import SpotifyType
+from song_store import SpotifyObj
 
 
 class Spotify:
@@ -60,7 +61,10 @@ class Spotify:
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
         result = JSON.loads(result)
-        return result["artists"][0]["name"] + " - " + result["name"]
+        return SpotifyObj(
+            title=result["artists"][0]["name"] + " - " + result["name"], image_url=result["album"]["images"][0]["url"]
+        )
+        # return result["artists"][0]["name"] + " - " + result["name"]
 
     async def spotify_playlist(self, playlist_url):
         token = await self.request_token()

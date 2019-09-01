@@ -32,20 +32,34 @@ class TextResponse(commands.Cog):
         embed = (
             discord.Embed(title="Help", color=0x00FFCC, url="https://d.chulte.de")
             .add_field(
-                name="Music Commands",
-                value=".play [songname/link] - Plays a song, Spotify and YouTube are supported. \n.stop - Stops the Playback \n.pause - Pauses the Music \n.resume - Resumes the music \n.shuffle - Shuffles the Queue \n.queue - Shows the coming up songs. \n.volume <num between 0.0 and 2.0> - Changes the playback volume, only updates on song changes. \n.chars <full> <empty> - Changes the characters of the progress-bar.",
-                inline=False,
+                name="Play Music",
+                value="`.play [songname | link]` - `Plays / Queues a song.`\n"
+                "`.ps [songname | link]` - `Queues a song and instantly skips to it.`\n"
+                "`.pn [songname | link]` - `Queues a song at first position in queue.`\n",
             )
             .add_field(
-                name="Debug Commands",
-                value=".ping - Shows the bot's ping \n.echo - [text] - Echoes the text back.\n.rename [name] - Renames the Bot",
-                inline=False,
+                name="Music Control",
+                value="`.pause` - `Pauses the music`\n"
+                "`.resume` - `Resumes the music`\n"
+                "`.stop` - `Stops the playback.`\n"
+                "`.skip [songs (optional)]` - `Skips a specific amount of songs.`\n"
+                "`.info` - `Shows General Information about the current song.`\n",
             )
             .add_field(
-                name="Version Commands", value=".support - Shows the supported services\n.issue - File a bug report."
+                name="Queue Control",
+                value="`.queue` - `Displays the Queue.`\n"
+                "`.shuffle` - `Shuffles the Queue`\n"
+                "`.clear` - `Empties the Queue`\n",
             )
-            .set_footer(text="despacito")
+            .add_field(
+                name="General",
+                value="`.volume <num between 0.0 and 2.0>` - `Changes the Volume.`\n"
+                "`.rename <new name>` - `Renames the Bot`\n"
+                "`.chars <full> <empty>` - `Changes the Characters used for the Song Progress Bar.`\n"
+                "",
+            )
         )
+
         await ctx.send(embed=embed)
 
     # // //#

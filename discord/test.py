@@ -16,6 +16,7 @@ class Test(unittest.TestCase):
         ("https://open.spotify.com/track/60eOMEt3WNVX1m1jmApmnX?si=6CP45EzJTGyBkKLRmhHmfw", True),
         ("https://open.spotify.com/album/4VzzEviJGYUtAeSsJlI9QB?si=hGIGlO4KSSyt8eO-QJ2VIw", True),
         ("https://open.spotify.com/artist/4kI8Ie27vjvonwaB2ePh8T?si=jyC9eGIiQbupvk0E2EE-vA", True),
+        ("https://open.spotify.com/artist/4kI8Ie27v%vonwaB2ePh8T?si=jyC9eGIiQbupvk0E2EE-vA", False),
         ("https://open.spotify.com/artist/4kI8Ie27vjvonwaB2ePh8T?si=jyC9eGIiQbupvk0E2EE-vAa", False),
         ("https://oe.spotify.co/artist/JOSADJ98erwjoiasdoisjd(§sadjsdoi", False),
         ("https://open.spotify.com/artist/4kI8Ie27vjvonwaB2ePh8T?si=IVfCdRMFSauVtOIN9gEPnA", True),
@@ -71,7 +72,7 @@ class Test(unittest.TestCase):
 
     def test_youtube_pattern(self):
         """
-        Tests the Youtube URL pattern with diffrent urls
+        Tests the Youtube URL pattern with different urls
         """
         for url, expected in Test.youtube_urls:
             if re.match(VariableStore.youtube_video_pattern, url) is not None:
