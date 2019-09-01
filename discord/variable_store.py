@@ -1,99 +1,58 @@
 # -*- coding: utf-8 -*-
 
 import re
-import unittest
+
+
+def strip_youtube_title(title):
+    title = re.sub(VariableStore.youtube_title_pattern, "", title)
+    title = re.sub(VariableStore.space_cut_pattern, "", title)
+    while "  " in title:
+        title = title.replace("  ", " ")
+    return title
 
 
 class VariableStore:
     spotify_url_pattern = re.compile(
-        r".*open\.spotify\.com/playlist.*|"
-        r".*open\.spotify\.com/track.*|"
-        r".*open\.spotify\.com/album.*|"
-        r".*open\.spotify\.com/artist.*",
+        r"^(http(s)?://)?"
+        r"(open\.|play\.)"
+        r"spotify\.com/(user/.{,32}/)?(playlist|track|album|artist)/"
+        r"(?P<id>[A-Za-z0-9]{22})(\?|$)(si=.{22})?$",
         re.IGNORECASE,
     )
 
+    spotify_uri_pattern = re.compile(r"^spotify:(track|playlist|album|artist):(?P<id>[A-Za-z0-9]{22})$", re.IGNORECASE)
+
     youtube_verify_pattern = re.compile(r"watch\?v=([a-zA-Z0-9]*)")
+    #
+    # youtube_url_pattern = re.compile(
+    #     r"^(http(s)?://)?(www.)?youtube.com/watch\?(\S*&)?v=[A-Za-z0-9]{11}($|&)(\S*)?|"
+    #     r"^(http(s)?://)?(www.)?youtube.com/playlist\?([\S]*&)?list=[\S]{34}($|&)\S*|"
+    #     r"^(http(s)?://)?youtu\.be/[A-Za-z0-9]{11}($|\?)\S*",
+    #     re.IGNORECASE,
+    # )
 
-    youtube_url_pattern = re.compile(
-        r".*youtube.com/watch\?.*v=[A-Za-z0-9]{11}(&.*)?|"
-        r".*youtube.com/playlist\?[\S]*list=[\S]{34}|"
-        r"(http(s)?://)?youtu\.be/[A-Za-z0-9]{11}", re.IGNORECASE | re.MULTILINE
+    youtube_video_pattern = re.compile(
+        r"^(http(s)?://)?(www.)?"
+        r"(youtube.com/|youtu.be/)(watch|playlist)?\??([\S]*&)?(list=|v=)?"
+        r"(?P<id>[\S]{11}|[\S]{34})($|&|\?)\S*",
+        re.IGNORECASE,
     )
 
-    url_pattern = re.compile(
-        r"^(?:http(s)?://)?[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]+$", re.IGNORECASE
+    url_pattern = re.compile(r"^(?:http(s)?://)?[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=]+$", re.IGNORECASE)
+
+    youtube_title_pattern = re.compile(
+        r"[\[(]?"
+        r"((official )?lyric(s)?( video)?|of(f)?icial (music )?video|video oficial|[2|4]K|(FULL[ |-]?)?HD)"
+        r"[\])]?",
+        re.IGNORECASE,
     )
 
-
-class Test(unittest.TestCase):
-    spotify_urls = [
-        ("https://www.google.com", False),
-        ("https://open.spotify.com/playlist/2ZKAnbi8ZG7mmiI0dJKrOg?si=jRVkuCJUREeljEOqUBqpLQ", True),
-        ("https://open.spotify.com/playl ist/2ZKAnbi8ZG7mmiI0dJKrOg?si=jRVkuCJUREeljEOqUBqpLQ", False),
-        ("https://open.spotify.com/track/384TqRlwlMfeUAODhXfF3O?si=PvtDF281TjWX0f6YvkhXOg", True),
-        ("https://open.spotify.com/album/4VzzEviJGYUtAeSsJlI9QB?si=hGIGlO4KSSyt8eO-QJ2VIw", True),
-        ("https://open.spotify.com/artist/4kI8Ie27vjvonwaB2ePh8T?si=jyC9eGIiQbupvk0E2EE-vA", True),
-        ("https://oe.spotify.co/artist/JOSADJ98erwjoiasdoisjd(§sadjsdoi", False)
-    ]
-
-    youtube_urls = [
-        ("https://youtube.com", False),
-        ("https://www.youtube.com/watch?v=0", False),
-        ("https://www.youtube.com/watch?v=zrFI2gJSuwA", True),
-        ("https://www.youtube.com/watch?v=zrFI2gJSuA", False),
-        ("https://www.youtube.com/playlist?list=PLMC9KNkIncKtPzgY-5rmhvj7fax8fdxoj", True),
-        ("https://www.youtube.com/plablist?list=PLMC9KNkIncKtPzgY-5rmhvj7fax8fdxoj", False),
-        ("https://www.youtube.com/playlist?list=PLMC9KNk       IncKtPzgY-5rmhvj7fax8fdxoj", False),
-        ("https://youtu.be/k2qgadSvNyU", True),
-        ("https://youtu.be/k2qgadyU", False),
-        ("https://youtu.be/k2qgadSvNy U", False)
-    ]
-
-    def test_spotify_pattern(self):
-        """
-        Tests the Spotify Patterns with different Spotify URLS
-        """
-        for url, expected in Test.spotify_urls:
-            if expected is True:
-                if re.match(VariableStore.spotify_url_pattern, url) is not None:
-                    continue
-                else:
-                    print("Failure at", url)
-                    break
-            if expected is False:
-                if re.match(VariableStore.spotify_url_pattern, url) is None:
-                    continue
-                else:
-                    print("Failure at", url)
-                    break
-        else:
-            assert True
-            return
-        assert False
-
-    def test_youtube_pattern(self):
-        """
-        Tests the Youtube URL pattern with diffrent urls
-        """
-        for url, expected in Test.youtube_urls:
-            if expected is True:
-                if re.match(VariableStore.youtube_url_pattern, url) is not None:
-                    continue
-                else:
-                    print("Failure at", url)
-                    break
-            if expected is False:
-                if re.match(VariableStore.youtube_url_pattern, url) is None:
-                    continue
-                else:
-                    print("Failure at", url)
-                    break
-        else:
-            assert True
-            return
-        assert False
+    space_cut_pattern = re.compile(r"\s*$|^\s*", re.IGNORECASE)
 
 
-if __name__ is '__main__':
-    unittest.main()
+class Errors:
+    no_results_found = "No Results found."
+    default = "An Error has occurred."
+    info_check = "An Error has occurred while checking Info."
+    spotify_pull = "**There was an error pulling the Spotify Playlist, 0 Songs were added.**"
+    cant_reach_youtube = "Can't reach YouTube. Server Error on their side maybe?"

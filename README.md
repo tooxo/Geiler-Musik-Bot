@@ -4,16 +4,21 @@
 
 ## What services are supported?
 ```sh
-  Spotify:
-    - Tracks
-    - Playlists
-    - Artist Pages
-    - Albums
-  YouTube:
-    - Direct Links
-    - Playlists
+Spotify:
+  - Tracks
+  - Playlists
+  - Artist Pages
+  - Albums
+    
+Spotify URLs and Spotify URIs are supported!
+
+YouTube:
+  - Direct Links
+  - Playlists
   
-  + Simple Search by Term
+YouTube.com aswell as youtu.be URLs are supported. 
+
++ Youtube Search by Term
 ```
 
 ## Invitation Link
@@ -57,7 +62,7 @@ Optional:
     ```.playnext <song link/playlist link/song name>```
     
     Aliases: `.pn`<br>
-    Example: `.pn nice for what drake`
+Plays    Example: `.pn nice for what drake`
     
 * Play music and skip to it instantly:
 
@@ -71,7 +76,7 @@ Optional:
     `.skip <(optional parameter) number of songs to skip, defaults to 1>`
     
     Aliases: `.s, .next`<br>
-    Example: `.skip 10`, `.skip`
+    Example:  `.skip 10`, `.skip`
 
 * Show the current Queue:
 
@@ -82,6 +87,10 @@ Optional:
 * Shuffle the Queue:
 
     `.shuffle`
+    
+* Clears the Queue:
+
+    `.clear`
     
 * Show Information about the current song playing:
 
@@ -94,6 +103,10 @@ Optional:
 * Resumes if paused:
 
     `.resume`
+
+* Stop playback
+
+    `.stop`
     
 * Changes the Volume:
 
@@ -103,6 +116,10 @@ Optional:
     
     _Volume gets applied on song changes._
     
+* Renames the Bot:
+
+    `.rename <new name>`
+    
 * Change the Characters used for the Song Progress Bar
 
     `.chars <full> <empty>`<br>
@@ -110,6 +127,7 @@ Optional:
     
     Example: `.chars █ ░` (This are also the example chars)<br>
     _For some example chars visit: https://changaco.oy.lc/unicode-progress-bars/_ 
+
     
 ## Found a bug?
 File an issue here at github.

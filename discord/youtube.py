@@ -3,12 +3,14 @@ import time
 import asyncio
 import mongo
 import logging_manager
-import re
 from multiprocessing import Queue
 from expiringdict import ExpiringDict
 from bs4 import BeautifulSoup
 import aiohttp
-from variable_store import VariableStore
+from variable_store import strip_youtube_title, Errors
+from url_parser import YouTubeType
+from song_store import Song, Error
+from urllib.parse import quote
 
 log = logging_manager.LoggingManager()
 
@@ -41,6 +43,7 @@ class Youtube:
             return self.search_cache[query]
         try:
             log.debug("[YouTube Search] Searched Term: '" + query + "'")
+            query = quote(query)
             url = "https://www.youtube.com/results?search_query=" + query + "&sp=EgIQAQ%253D%253D"  # SP = Video only
             url_list = []
             await asyncio.get_event_loop().run_in_executor(None, self.queue.put, query)
@@ -54,47 +57,71 @@ class Youtube:
                 if url.startswith("/watch"):
                     return "https://www.youtube.com" + url
         except (IndexError, KeyError) as e:
-            return "NO RESULTS FOUND"
+            e = Error(True)
+            e.reason = Errors.no_results_found
+            return e
+        except (aiohttp.ServerTimeoutError, aiohttp.ServerDisconnectedError, aiohttp.ClientConnectionError) as e:
+            e = Error(True)
+            e.reason = Errors.cant_reach_youtube
+            return e
 
     async def youtube_term(self, term):
         loop = asyncio.get_event_loop()
         url = await self.search_youtube(term)
-        if url is "NO RESULTS FOUND":
-            return {"error": True, "reason": "No results found."}
+
+        if type(url) is Error:
+            return url
+
         youtube = await loop.run_in_executor(None, self.youtube_url_sync, url)
-        if youtube["error"] is False:
-            asyncio.run_coroutine_threadsafe(self.mongo.append_response_time(youtube["loadtime"]), loop)
+        if youtube.error.error is False:
+            asyncio.run_coroutine_threadsafe(self.mongo.append_response_time(youtube.loadtime), loop)
+        youtube.term = term
         return youtube
 
     def youtube_url_sync(self, url):
         try:
-            video_id = re.search(VariableStore.youtube_verify_pattern, url).group(1)
+            video = YouTubeType(url)
+            if not video.valid:
+                e = Error(True)
+                e.reason = "Invalid YouTube Url"
+                return e
+            video_id = video.id
             if self.cache.get(video_id) is not None:
                 return self.cache.get(video_id)
             start = time.time()
             self.queue.put(url)
-            dictionary = dict()
+            song = Song()
             with YoutubeDL({"logger": YoutubeDLLogger()}) as ydl:
                 info_dict = ydl.extract_info(url, download=False)
-                dictionary["link"] = url
-                dictionary["id"] = info_dict["id"]
-                dictionary["title"] = info_dict["title"]
-                dictionary["term"] = url
+                song.link = url
+                song.id = info_dict["id"]
+                song.title = info_dict["title"]
+                song.term = url
                 for item in info_dict["formats"]:
                     if "audio only" in item["format"]:
-                        dictionary["stream"] = item["url"]
-                dictionary["duration"] = info_dict["duration"]
-            dictionary["loadtime"] = time.time() - start
-            dictionary["error"] = False
-            self.cache[dictionary["id"]] = dictionary
-            return dictionary
+                        song.stream = item["url"]
+                song.duration = info_dict["duration"]
+            song.loadtime = time.time() - start
+            for n in info_dict["thumbnails"]:
+                song.thumbnail = n["url"]
+            if "manifest.googlevideo.com" in song.stream:
+                err = Error(True)
+                err.reason = "Malformed Stream. Trying again."
+                err.link = url
+                return err
+            song.title = strip_youtube_title(song.title)
+            self.cache[song.id] = song
+            return song
         except Exception as e:
-            return {"error": True, "reason": str(e)}
+            e = Error(True)
+            e.reason = str(e)
+            return e
 
     async def youtube_url(self, url):
         loop = asyncio.get_event_loop()
         youtube = await loop.run_in_executor(None, self.youtube_url_sync, url)
-        asyncio.run_coroutine_threadsafe(self.mongo.append_response_time(youtube["loadtime"]), loop)
+        if not youtube.error.error:
+            asyncio.run_coroutine_threadsafe(self.mongo.append_response_time(youtube.loadtime), loop)
         return youtube
 
     def youtube_playlist_sync(self, url):
@@ -106,10 +133,10 @@ class Youtube:
             for video in info_dict["entries"]:
                 if not video:
                     continue
-                dic = dict()
-                dic["title"] = video["title"]
-                dic["link"] = "https://youtube.com/watch?v=" + video["url"]
-                output.append(dic)
+                song = Song()
+                song.title = video["title"]
+                song.link = "https://youtube.com/watch?v=" + video["url"]
+                output.append(song)
         return output
 
     async def youtube_playlist(self, url):

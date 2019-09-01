@@ -28,7 +28,7 @@ before_install:
   - docker network create web
 
 script:
-  - pytest discord/variable_store.py
+  - pytest discord/test.py
   - docker-compose build
   - docker-compose up -d
 
@@ -36,3 +36,6 @@ script:
 after_script:
   - docker-compose stop
   - docker-compose rm -f
+
+notifications:
+    webhooks: https://www.travisbuddy.com/

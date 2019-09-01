@@ -27,7 +27,9 @@ class LastFM:
                 + "&format=json"
             )
 
-            with async_timeout.timeout(3):
+            print("SEARCHING COVER")
+
+            with async_timeout.timeout(5):
                 async with self.session.get(search_url) as response:
                     json = await response.json()
 
@@ -44,7 +46,7 @@ class LastFM:
                 + "&format=json"
             )
 
-            with async_timeout.timeout(3):
+            with async_timeout.timeout(5):
                 async with self.session.get(art_url) as response:
                     art_json = await response.json()
 

@@ -5,6 +5,8 @@ import aiohttp
 import base64
 import os
 import logging_manager
+from url_parser import SpotifyType
+from song_store import SpotifyObj
 
 
 class Spotify:
@@ -52,21 +54,24 @@ class Spotify:
 
     async def spotify_track(self, track_url):
         token = await self.request_token()
-        track_id = track_url.split("track/")[1]
-        if "?" in track_id:
-            track_id = track_id.split("?")[0]
-        url = "https://api.spotify.com/v1/tracks/" + track_id
+        track = SpotifyType(track_url)
+        if not track.valid:
+            return None
+        url = "https://api.spotify.com/v1/tracks/" + track.id
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
         result = JSON.loads(result)
-        return result["artists"][0]["name"] + " - " + result["name"]
+        return SpotifyObj(
+            title=result["artists"][0]["name"] + " - " + result["name"], image_url=result["album"]["images"][0]["url"]
+        )
+        # return result["artists"][0]["name"] + " - " + result["name"]
 
     async def spotify_playlist(self, playlist_url):
         token = await self.request_token()
-        playlist_id = playlist_url.split("playlist/")[1]
-        if "?" in playlist_id:
-            playlist_id = playlist_id.split("?si")[0]
-        url = "https://api.spotify.com/v1/playlists/" + playlist_id + "/tracks?limit=100&offset=0"
+        playlist = SpotifyType(playlist_url)
+        if not playlist.valid:
+            return []
+        url = "https://api.spotify.com/v1/playlists/" + playlist.id + "/tracks?limit=100&offset=0"
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
         js = JSON.loads(result)
@@ -91,10 +96,10 @@ class Spotify:
 
     async def spotify_album(self, album_url):
         token = await self.request_token()
-        album_id = album_url.split("album/")[1]
-        if "?" in album_id:
-            album_id = album_id.split("?")[0]
-        url = "https://api.spotify.com/v1/albums/" + album_id + "/tracks?limit=50"
+        album = SpotifyType(album_url)
+        if not album.valid:
+            return []
+        url = "https://api.spotify.com/v1/albums/" + album.id + "/tracks?limit=50"
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
         js = JSON.loads(result)
@@ -107,10 +112,10 @@ class Spotify:
 
     async def spotify_artist(self, artist_url):
         token = await self.request_token()
-        artist_id = artist_url.split("artist/")[1]
-        if "?" in artist_id:
-            artist_id = artist_id.split("?")[0]
-        url = "https://api.spotify.com/v1/artists/" + artist_id + "/top-tracks?country=DE"
+        artist = SpotifyType(artist_url)
+        if not artist.valid:
+            return []
+        url = "https://api.spotify.com/v1/artists/" + artist.id + "/top-tracks?country=DE"
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
         js = JSON.loads(result)

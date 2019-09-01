@@ -1,7 +1,6 @@
 from discord.ext import commands
 import os
 import discord
-import asyncio
 import logging_manager
 
 if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
@@ -37,18 +36,4 @@ async def on_command_error(ctx, error):
         log.error(logging_manager.debug_info(str(error)))
 
 
-loop = asyncio.get_event_loop()
-
-try:
-    loop.run_until_complete(client.start(os.environ["BOT_TOKEN"]))
-except KeyboardInterrupt or SystemExit:
-
-    def yikes(f):
-        print(f)
-        loop.stop()
-
-    future = asyncio.ensure_future(client.logout(), loop=loop)
-    future.add_done_callback(yikes)
-    loop.run_forever()
-finally:
-    client.loop.stop()
+client.run(os.environ.get("BOT_TOKEN", ""))
