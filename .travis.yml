@@ -29,6 +29,7 @@ before_install:
 
 script:
   - pytest discord/test.py
+  - coveralls
   - docker-compose build
   - docker-compose up -d
 
@@ -38,4 +39,5 @@ after_script:
   - docker-compose rm -f
 
 notifications:
-    webhooks: https://www.travisbuddy.com/
+    webhooks:
+      - https://www.travisbuddy.com/

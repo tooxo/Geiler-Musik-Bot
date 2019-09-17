@@ -1,5 +1,6 @@
 [![Build Status](https://travis-ci.com/tooxo/Geiler-Musik-Bot.svg?branch=master)](https://travis-ci.com/tooxo/Geiler-Musik-Bot)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
+[![Coverage Status](https://coveralls.io/repos/github/tooxo/Geiler-Musik-Bot/badge.svg?branch=master)](https://coveralls.io/github/tooxo/Geiler-Musik-Bot?branch=master)
 # Geiler-Musik-Bot - Discord Music Playing
 
 ## What services are supported?
@@ -62,7 +63,7 @@ Optional:
     ```.playnext <song link/playlist link/song name>```
     
     Aliases: `.pn`<br>
-Plays    Example: `.pn nice for what drake`
+    Example: `.pn nice for what drake`
     
 * Play music and skip to it instantly:
 
