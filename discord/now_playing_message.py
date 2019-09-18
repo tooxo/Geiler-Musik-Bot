@@ -33,12 +33,18 @@ class NowPlayingMessage:
         try:
             if self.discord_music.dictionary[self.ctx.guild.id].now_playing.is_paused is False:
                 now_time = (
-                    int(time.time())
-                    - self.discord_music.dictionary[self.ctx.guild.id].now_playing.start_time
-                    - self.discord_music.dictionary[self.ctx.guild.id].now_playing.pause_duration
+                    int(time.time()) -
+                    self.discord_music.dictionary[self.ctx.guild.id].now_playing.start_time -
+                    self.discord_music.dictionary[self.ctx.guild.id].now_playing.pause_duration
                 )
                 finish_second = int(self.discord_music.dictionary[self.ctx.guild.id].now_playing.duration)
                 description = (
+                    "`" +
+                    time.strftime("%H:%M:%S", time.gmtime(now_time)) +
+                    " / " +
+                    time.strftime(
+                        "%H:%M:%S", time.gmtime(self.discord_music.dictionary[self.ctx.guild.id].now_playing.duration)
+                    ) +
                     "`"
                     + time.strftime("%H:%M:%S", time.gmtime(now_time))
                     + " / "
