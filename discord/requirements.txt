@@ -14,3 +14,4 @@ pytube
 aiohttp
 bs4
 expiringdict
+dblpy

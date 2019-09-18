@@ -16,6 +16,8 @@ client.load_extension("discord_text")
 
 @client.event
 async def on_ready():
+    client.load_extension("discord_music")
+    client.load_extension("discord_text")
     log.debug("[Startup]: Finished.")
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=".help"))
 
@@ -36,4 +38,12 @@ async def on_command_error(ctx, error):
         log.error(logging_manager.debug_info(str(error)))
 
 
+@client.event
+async def on_error(error):
+    print("ERROR HANDLER", error)
+    if error is "on_ready":
+        exit(1)
+
+
+log.debug("[Startup]: Starting Up!")
 client.run(os.environ.get("BOT_TOKEN", ""))

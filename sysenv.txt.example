@@ -6,3 +6,4 @@ SPOTIFY_SECRET=spotify app secret
 PORT=stats port
 RESTART_PASSWORD=password to restart the bot from discord.
 LASTFM_KEY=lastfm api key
+DBL_KEY=dbl key

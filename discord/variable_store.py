@@ -23,13 +23,6 @@ class VariableStore:
     spotify_uri_pattern = re.compile(r"^spotify:(track|playlist|album|artist):(?P<id>[A-Za-z0-9]{22})$", re.IGNORECASE)
 
     youtube_verify_pattern = re.compile(r"watch\?v=([a-zA-Z0-9]*)")
-    #
-    # youtube_url_pattern = re.compile(
-    #     r"^(http(s)?://)?(www.)?youtube.com/watch\?(\S*&)?v=[A-Za-z0-9]{11}($|&)(\S*)?|"
-    #     r"^(http(s)?://)?(www.)?youtube.com/playlist\?([\S]*&)?list=[\S]{34}($|&)\S*|"
-    #     r"^(http(s)?://)?youtu\.be/[A-Za-z0-9]{11}($|\?)\S*",
-    #     re.IGNORECASE,
-    # )
 
     youtube_video_pattern = re.compile(
         r"^(http(s)?://)?(www.)?"
@@ -41,11 +34,20 @@ class VariableStore:
     url_pattern = re.compile(r"^(?:http(s)?://)?[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=]+$", re.IGNORECASE)
 
     youtube_title_pattern = re.compile(
+        r"([\[(]?"
+        r"(((official )?lyric(s)?( video)?)|of(f)?icial (music )?video|video oficial|[24]K|((FULL[ -]?)HD)|(MV))"
+        r"[\])]?)",
+        re.MULTILINE | re.IGNORECASE
+    )
+
+    '''
+    youtube_title_pattern = re.compile(
         r"[\[(]?"
-        r"((official )?lyric(s)?( video)?|of(f)?icial (music )?video|video oficial|[2|4]K|(FULL[ |-]?)?HD)"
+        r"(((official )?lyric(s)?( video)?|of(f)?icial (music )?video|video oficial|[24]K|(FULL[ -]?)?HD)|(MV)?)+"
         r"[\])]?",
         re.IGNORECASE,
     )
+    '''
 
     space_cut_pattern = re.compile(r"\s*$|^\s*", re.IGNORECASE)
 

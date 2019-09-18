@@ -1,4 +1,4 @@
-import json as JSON
+import json
 import asyncio
 import async_timeout
 import aiohttp
@@ -47,7 +47,7 @@ class Spotify:
             payload = "grant_type=client_credentials&undefined="
             test = await self.request_post(url, header, payload)
             asyncio.ensure_future(self.invalidate_token())
-            self.token = JSON.loads(test)["access_token"]
+            self.token = json.loads(test)["access_token"]
             return self.token
         else:
             return self.token
@@ -60,7 +60,7 @@ class Spotify:
         url = "https://api.spotify.com/v1/tracks/" + track.id
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
-        result = JSON.loads(result)
+        result = json.loads(result)
         return SpotifyObj(
             title=result["artists"][0]["name"] + " - " + result["name"], image_url=result["album"]["images"][0]["url"]
         )
@@ -74,7 +74,7 @@ class Spotify:
         url = "https://api.spotify.com/v1/playlists/" + playlist.id + "/tracks?limit=100&offset=0"
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
-        js = JSON.loads(result)
+        js = json.loads(result)
         t_list = []
         more = True
         while more is True:
@@ -86,10 +86,10 @@ class Spotify:
                 else:
                     url = js["next"]
                     result = await self.request_get(url, header)
-                    js = JSON.loads(result)
+                    js = json.loads(result)
             except KeyError as key_error:
                 self.log.warning(logging_manager.debug_info(str(key_error) + " " + str(js)))
-                if hasattr(js, "error"):
+                if "error" in js:
                     self.token = ""
                 more = False
         return t_list
@@ -102,7 +102,7 @@ class Spotify:
         url = "https://api.spotify.com/v1/albums/" + album.id + "/tracks?limit=50"
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
-        js = JSON.loads(result)
+        js = json.loads(result)
         track_list = []
         for item in js["items"]:
             artist = item["artists"][0]["name"]
@@ -118,7 +118,7 @@ class Spotify:
         url = "https://api.spotify.com/v1/artists/" + artist.id + "/top-tracks?country=DE"
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
-        js = JSON.loads(result)
+        js = json.loads(result)
         track_list = []
         for item in js["tracks"]:
             artist = item["artists"][0]["name"]
