@@ -62,8 +62,8 @@ class DiscordBot(commands.Cog):
                             return
 
                 if (
-                        self.dictionary[guild_id].voice_channel is before.channel
-                        and self.dictionary[guild_id].voice_channel is not after.channel
+                    self.dictionary[guild_id].voice_channel is before.channel
+                    and self.dictionary[guild_id].voice_channel is not after.channel
                 ):
                     if len(before.channel.members) == 1:
                         asyncio.ensure_future(self.check_my_channel(before.channel, guild_id))
@@ -84,6 +84,7 @@ class DiscordBot(commands.Cog):
             self.dictionary[_guild.id] = Guild()
             if _guild.me.voice is not None:
                 if hasattr(_guild.me.voice, "channel"):
+
                     async def reconnect(_guild):
                         """
                         Reconnects disconnected clients after restart
@@ -93,9 +94,7 @@ class DiscordBot(commands.Cog):
                         self.log.debug("[Reconnect] Reconnecting " + str(_guild))
                         self.dictionary[_guild.id].voice_channel = _guild.me.voice.channel
                         t = await _guild.me.voice.channel.connect(timeout=5, reconnect=False)
-                        await t.disconnect(
-                            force=True
-                        )
+                        await t.disconnect(force=True)
                         self.dictionary[_guild.id].voice_client = await _guild.me.voice.channel.connect(
                             timeout=5, reconnect=True
                         )
@@ -110,7 +109,7 @@ class DiscordBot(commands.Cog):
                 while not self.bot.is_closed():
                     try:
                         await self.dbl_client.post_guild_count()
-                        self.log.debug('[SERVER COUNT] Posted server count ({})'.format(self.dbl_client.guild_count()))
+                        self.log.debug("[SERVER COUNT] Posted server count ({})".format(self.dbl_client.guild_count()))
                     except Exception as e:
                         self.log.warning(logging_manager.debug_info(e))
                     await asyncio.sleep(1800)
@@ -156,9 +155,9 @@ class DiscordBot(commands.Cog):
                     pass
         except discord.NotFound:
             self.dictionary[ctx.guild.id].now_playing_message = None
-        '''
+        """
         await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=".help"))
-        '''
+        """
 
     async def send_error_message(self, ctx, message):
         """
@@ -236,32 +235,32 @@ class DiscordBot(commands.Cog):
         try:
             if self.dictionary[ctx.guild.id].now_playing.is_paused is False:
                 now_time = (
-                        int(time.time())
-                        - self.dictionary[ctx.guild.id].now_playing.start_time
-                        - self.dictionary[ctx.guild.id].now_playing.pause_duration
+                    int(time.time())
+                    - self.dictionary[ctx.guild.id].now_playing.start_time
+                    - self.dictionary[ctx.guild.id].now_playing.pause_duration
                 )
 
                 if ":" in str(self.dictionary[ctx.guild.id].now_playing.duration):
                     finish_second = (
-                            int(str(self.dictionary[ctx.guild.id].now_playing.duration).split(":")[0]) * 3600
-                            + int(str(self.dictionary[ctx.guild.id].now_playing.duration).split(":")[1]) * 60
-                            + int(str(self.dictionary[ctx.guild.id].now_playing.duration).split(":")[2])
+                        int(str(self.dictionary[ctx.guild.id].now_playing.duration).split(":")[0]) * 3600
+                        + int(str(self.dictionary[ctx.guild.id].now_playing.duration).split(":")[1]) * 60
+                        + int(str(self.dictionary[ctx.guild.id].now_playing.duration).split(":")[2])
                     )
                     description = (
-                            "`"
-                            + time.strftime("%H:%M:%S", time.gmtime(now_time))
-                            + " / "
-                            + str(self.dictionary[ctx.guild.id].now_playing.duration)
-                            + "`"
+                        "`"
+                        + time.strftime("%H:%M:%S", time.gmtime(now_time))
+                        + " / "
+                        + str(self.dictionary[ctx.guild.id].now_playing.duration)
+                        + "`"
                     )
                 else:
                     finish_second = int(self.dictionary[ctx.guild.id].now_playing.duration)
                     description = (
-                            "`"
-                            + time.strftime("%H:%M:%S", time.gmtime(now_time))
-                            + " / "
-                            + time.strftime("%H:%M:%S", time.gmtime(self.dictionary[ctx.guild.id].now_playing.duration))
-                            + "`"
+                        "`"
+                        + time.strftime("%H:%M:%S", time.gmtime(now_time))
+                        + " / "
+                        + time.strftime("%H:%M:%S", time.gmtime(self.dictionary[ctx.guild.id].now_playing.duration))
+                        + "`"
                     )
 
                 percentage = int((now_time / finish_second) * 100)
@@ -313,12 +312,12 @@ class DiscordBot(commands.Cog):
         try:
             self.dictionary[ctx.guild.id].now_playing = small_dict
             self.dictionary[ctx.guild.id].now_playing.start_time = int(time.time())
-            '''
+            """
             if small_dict.title is not None:
                 await self.bot.change_presence(
                     activity=discord.Activity(type=discord.ActivityType.playing, name=small_dict.title)
                 )
-            '''
+            """
             volume = await self.mongo.get_volume(ctx.guild.id)
             source = discord.PCMVolumeTransformer(
                 discord.FFmpegPCMAudio(
@@ -334,9 +333,13 @@ class DiscordBot(commands.Cog):
             full, empty = await self.mongo.get_chars(ctx.guild.id)
             print(self.dictionary[ctx.guild.id].now_playing_message)
             self.dictionary[ctx.guild.id].now_playing_message = NowPlayingMessage(
-                song=self.dictionary[ctx.guild.id].now_playing, ctx=ctx,
+                song=self.dictionary[ctx.guild.id].now_playing,
+                ctx=ctx,
                 message=self.dictionary[ctx.guild.id].now_playing_message,
-                full=full, empty=empty, discord_music=self)
+                full=full,
+                empty=empty,
+                discord_music=self,
+            )
             await self.dictionary[ctx.guild.id].now_playing_message.send()
             asyncio.ensure_future(self.dictionary[ctx.guild.id].now_playing_message.update())
 
@@ -524,8 +527,8 @@ class DiscordBot(commands.Cog):
         if self.dictionary[ctx.guild.id].voice_client is None:
             try:
                 if (
-                        ctx.author.voice.channel.user_limit <= len(ctx.author.voice.channel.members)
-                        and ctx.author.voice.channel.user_limit != 0
+                    ctx.author.voice.channel.user_limit <= len(ctx.author.voice.channel.members)
+                    and ctx.author.voice.channel.user_limit != 0
                 ):
                     if ctx.guild.me.guild_permissions.administrator is True:
                         self.dictionary[ctx.guild.id].voice_client = await ctx.author.voice.channel.connect(
@@ -553,7 +556,7 @@ class DiscordBot(commands.Cog):
                 return False
         return True
 
-    @commands.cooldown(1, .5, commands.BucketType.guild)
+    @commands.cooldown(1, 0.5, commands.BucketType.guild)
     @commands.command(aliases=["p"])
     async def play(self, ctx, *, url: str = None):
         if not await self.play_check(ctx, url):
@@ -731,18 +734,18 @@ class DiscordBot(commands.Cog):
             embed = discord.Embed(
                 title="Information",
                 description="Name: "
-                            + str(self.dictionary[ctx.guild.id].now_playing.title)
-                            + "\nStreamed from: "
-                            + str(self.dictionary[ctx.guild.id].now_playing.link)
-                            + "\nDuration: "
-                            + str(self.dictionary[ctx.guild.id].now_playing.duration)
-                            + "\nRequested by: <@!"
-                            + str(self.dictionary[ctx.guild.id].now_playing.user.id)
-                            + ">\nLoaded in: "
-                            + str(round(self.dictionary[ctx.guild.id].now_playing.loadtime, 2))
-                            + " sec."
-                            + "\nSearched Term: "
-                            + str(self.dictionary[ctx.guild.id].now_playing.term),
+                + str(self.dictionary[ctx.guild.id].now_playing.title)
+                + "\nStreamed from: "
+                + str(self.dictionary[ctx.guild.id].now_playing.link)
+                + "\nDuration: "
+                + str(self.dictionary[ctx.guild.id].now_playing.duration)
+                + "\nRequested by: <@!"
+                + str(self.dictionary[ctx.guild.id].now_playing.user.id)
+                + ">\nLoaded in: "
+                + str(round(self.dictionary[ctx.guild.id].now_playing.loadtime, 2))
+                + " sec."
+                + "\nSearched Term: "
+                + str(self.dictionary[ctx.guild.id].now_playing.term),
                 color=0x00FFCC,
                 url="https://d.chulte.de",
             )
@@ -892,8 +895,8 @@ class DiscordBot(commands.Cog):
             )
             self.dictionary[ctx.guild.id].voice_client.play(source)
             if (
-                    self.dictionary[ctx.guild.id].voice_client is not None
-                    and self.dictionary[ctx.guild.id].voice_client.is_playing()
+                self.dictionary[ctx.guild.id].voice_client is not None
+                and self.dictionary[ctx.guild.id].voice_client.is_playing()
             ):
                 embed = discord.Embed(title="Music Stopped! 🛑", color=0x00FFCC, url="https://d.chulte.de")
                 await ctx.send(embed=embed)
@@ -1014,8 +1017,8 @@ class DiscordBot(commands.Cog):
                     if count > self.dictionary[ctx.guild.id].song_queue.qsize():
                         embed = discord.Embed(
                             title="Skipped "
-                                  + str(self.dictionary[ctx.guild.id].song_queue.qsize())
-                                  + " Tracks! :track_next:",
+                            + str(self.dictionary[ctx.guild.id].song_queue.qsize())
+                            + " Tracks! :track_next:",
                             url="https://d.chulte.de",
                             color=0x00FFCC,
                         )
@@ -1023,7 +1026,7 @@ class DiscordBot(commands.Cog):
                         self.dictionary[ctx.guild.id].voice_client.stop()
                     else:
                         queue = self.dictionary[ctx.guild.id].song_queue._queue
-                        self.dictionary[ctx.guild.id].song_queue._queue = collections.deque(list(queue)[(count - 1):])
+                        self.dictionary[ctx.guild.id].song_queue._queue = collections.deque(list(queue)[(count - 1) :])
                     self.dictionary[ctx.guild.id].voice_client.stop()
                     embed = discord.Embed(
                         title="Skipped " + str(count) + " Tracks! :track_next:",
@@ -1058,7 +1061,7 @@ class DiscordBot(commands.Cog):
             try:
                 if self.dictionary[ctx.guild.id].now_playing.pause_time is not None:
                     self.dictionary[ctx.guild.id].now_playing.pause_duration += (
-                            int(time.time()) - self.dictionary[ctx.guild.id].now_playing.pause_time
+                        int(time.time()) - self.dictionary[ctx.guild.id].now_playing.pause_time
                     )
                     self.dictionary[ctx.guild.id].now_playing.is_paused = False
                 self.dictionary[ctx.guild.id].voice_client.resume()
@@ -1139,8 +1142,10 @@ class DiscordBot(commands.Cog):
         if len(songs) == 1:
             embed = discord.Embed(title="`>` `" + song.title + "`", description="There is currently 1 Server playing!")
         else:
-            embed = discord.Embed(title="`>` `" + song.title + "`",
-                                  description="There are currently " + str(len(songs)) + " Servers playing!")
+            embed = discord.Embed(
+                title="`>` `" + song.title + "`",
+                description="There are currently " + str(len(songs)) + " Servers playing!",
+            )
         await ctx.send(embed=embed)
 
 

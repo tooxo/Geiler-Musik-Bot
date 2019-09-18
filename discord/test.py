@@ -54,8 +54,10 @@ class Test(unittest.TestCase):
         ("Madcon - Beggin", "Madcon - Beggin"),
         ("Arctic Monkeys - Do I Wanna Know? (Official Video)", "Arctic Monkeys - Do I Wanna Know?"),
         ("Daddy Yankee & Snow - Con Calma (Video Oficial)", "Daddy Yankee & Snow - Con Calma"),
-        ("Bruno Mars - Finesse (Remix) (feat. Cardi B] [Official Video]",
-         "Bruno Mars - Finesse (Remix) (feat. Cardi B]")
+        (
+            "Bruno Mars - Finesse (Remix) (feat. Cardi B] [Official Video]",
+            "Bruno Mars - Finesse (Remix) (feat. Cardi B]",
+        ),
     ]
 
     def test_spotify_pattern(self):

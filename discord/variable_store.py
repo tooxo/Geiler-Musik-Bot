@@ -37,17 +37,17 @@ class VariableStore:
         r"([\[(]?"
         r"(((official )?lyric(s)?( video)?)|of(f)?icial (music )?video|video oficial|[24]K|((FULL[ -]?)HD)|(MV))"
         r"[\])]?)",
-        re.MULTILINE | re.IGNORECASE
+        re.MULTILINE | re.IGNORECASE,
     )
 
-    '''
+    """
     youtube_title_pattern = re.compile(
         r"[\[(]?"
         r"(((official )?lyric(s)?( video)?|of(f)?icial (music )?video|video oficial|[24]K|(FULL[ -]?)?HD)|(MV)?)+"
         r"[\])]?",
         re.IGNORECASE,
     )
-    '''
+    """
 
     space_cut_pattern = re.compile(r"\s*$|^\s*", re.IGNORECASE)
 

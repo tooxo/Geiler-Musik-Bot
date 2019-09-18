@@ -33,20 +33,19 @@ class NowPlayingMessage:
         try:
             if self.discord_music.dictionary[self.ctx.guild.id].now_playing.is_paused is False:
                 now_time = (
-                        int(time.time())
-                        - self.discord_music.dictionary[self.ctx.guild.id].now_playing.start_time
-                        - self.discord_music.dictionary[self.ctx.guild.id].now_playing.pause_duration
+                    int(time.time())
+                    - self.discord_music.dictionary[self.ctx.guild.id].now_playing.start_time
+                    - self.discord_music.dictionary[self.ctx.guild.id].now_playing.pause_duration
                 )
                 finish_second = int(self.discord_music.dictionary[self.ctx.guild.id].now_playing.duration)
                 description = (
-                        "`"
-                        + time.strftime("%H:%M:%S", time.gmtime(now_time))
-                        + " / "
-                        + time.strftime(
-                            "%H:%M:%S",
-                            time.gmtime(self.discord_music.dictionary[self.ctx.guild.id].now_playing.duration)
-                        )
-                        + "`"
+                    "`"
+                    + time.strftime("%H:%M:%S", time.gmtime(now_time))
+                    + " / "
+                    + time.strftime(
+                        "%H:%M:%S", time.gmtime(self.discord_music.dictionary[self.ctx.guild.id].now_playing.duration)
+                    )
+                    + "`"
                 )
 
                 percentage = int((now_time / finish_second) * 100)
@@ -65,21 +64,21 @@ class NowPlayingMessage:
                 embed2 = discord.Embed(title=self.title, color=0x00FFCC, url=self.song.link)
                 embed2.set_author(name="Currently Playing:")
                 embed2.add_field(name=hashes, value=description)
-                '''
+                """
                 try:
                     if self.song.image is not None:
                         embed2.set_thumbnail(url=self.song.image)
                         # self.dictionary[ctx.guild.id]['now_playing_song']['image_url'] = ""
                 except Exception as e:
                     self.log.error(logging_manager.debug_info(str(e)))
-                '''
+                """
                 try:
                     await self.message.edit(embed=embed2)
                 except (discord.NotFound, TypeError):
                     return
             else:
                 if self._stop is False:
-                    await asyncio.sleep(.1)
+                    await asyncio.sleep(0.1)
                     await self.update()
         except (TypeError, AttributeError, aiohttp.ServerDisconnectedError) as e:
             return
