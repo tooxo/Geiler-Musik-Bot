@@ -1,12 +1,19 @@
 # -*- coding: utf-8 -*-
 
+"""
+Used to test the used regex patterns.
+"""
+
 import unittest
+import re
 from url_parser import SpotifyType
 from variable_store import VariableStore, strip_youtube_title
-import re
 
 
 class Test(unittest.TestCase):
+    """
+    Runs the tests
+    """
     spotify_urls = [
         ("https://www.google.com", False),
         ("http://open.spotify.com/user/tootallnate/playlist/0Lt5S4hGarhtZmtz7BNTeX", True),
@@ -66,8 +73,8 @@ class Test(unittest.TestCase):
         """
         for url, expected in Test.spotify_urls:
             if (
-                re.match(VariableStore.spotify_url_pattern, url) is not None
-                or re.match(VariableStore.spotify_uri_pattern, url) is not None
+                    re.match(VariableStore.spotify_url_pattern, url) is not None
+                    or re.match(VariableStore.spotify_uri_pattern, url) is not None
             ):
                 self.assertEqual(expected, True)
             else:
@@ -85,6 +92,10 @@ class Test(unittest.TestCase):
                 self.assertEqual(expected, False)
 
     def test_strip_title(self):
+        """
+        Tests the Title Strip RegEX
+        :return:
+        """
         for title, expected in Test.youtube_titles:
             stripped = strip_youtube_title(title)
             self.assertEqual(expected, stripped)

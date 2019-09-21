@@ -46,12 +46,6 @@ class NowPlayingMessage:
                         "%H:%M:%S", time.gmtime(self.discord_music.dictionary[self.ctx.guild.id].now_playing.duration)
                     ) +
                     "`"
-                    + time.strftime("%H:%M:%S", time.gmtime(now_time))
-                    + " / "
-                    + time.strftime(
-                        "%H:%M:%S", time.gmtime(self.discord_music.dictionary[self.ctx.guild.id].now_playing.duration)
-                    )
-                    + "`"
                 )
 
                 percentage = int((now_time / finish_second) * 100)
