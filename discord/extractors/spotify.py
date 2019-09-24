@@ -43,7 +43,10 @@ class Spotify:
             string = self.client_id + ":" + self.client_secret
             enc = base64.b64encode(string.encode())
             url = "https://accounts.spotify.com/api/token"
-            header = {"Authorization": "Basic " + enc.decode(), "Content-Type": "application/x-www-form-urlencoded"}
+            header = {
+                "Authorization": "Basic " + enc.decode(),
+                "Content-Type": "application/x-www-form-urlencoded",
+            }
             payload = "grant_type=client_credentials&undefined="
             test = await self.request_post(url, header, payload)
             asyncio.ensure_future(self.invalidate_token())
@@ -62,7 +65,8 @@ class Spotify:
         result = await self.request_get(url, header)
         result = json.loads(result)
         return SpotifyObj(
-            title=result["artists"][0]["name"] + " - " + result["name"], image_url=result["album"]["images"][0]["url"]
+            title=result["artists"][0]["name"] + " - " + result["name"],
+            image_url=result["album"]["images"][0]["url"],
         )
         # return result["artists"][0]["name"] + " - " + result["name"]
 
@@ -71,7 +75,11 @@ class Spotify:
         playlist = SpotifyType(playlist_url)
         if not playlist.valid:
             return []
-        url = "https://api.spotify.com/v1/playlists/" + playlist.id + "/tracks?limit=100&offset=0"
+        url = (
+            "https://api.spotify.com/v1/playlists/"
+            + playlist.id
+            + "/tracks?limit=100&offset=0"
+        )
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
         js = json.loads(result)
@@ -80,7 +88,11 @@ class Spotify:
         while more is True:
             try:
                 for track in js["items"]:
-                    t_list.append(track["track"]["album"]["artists"][0]["name"] + " - " + track["track"]["name"])
+                    t_list.append(
+                        track["track"]["album"]["artists"][0]["name"]
+                        + " - "
+                        + track["track"]["name"]
+                    )
                 if js["next"] is None:
                     more = False
                 else:
@@ -88,7 +100,9 @@ class Spotify:
                     result = await self.request_get(url, header)
                     js = json.loads(result)
             except KeyError as key_error:
-                self.log.warning(logging_manager.debug_info(str(key_error) + " " + str(js)))
+                self.log.warning(
+                    logging_manager.debug_info(str(key_error) + " " + str(js))
+                )
                 if "error" in js:
                     self.token = ""
                 more = False
@@ -115,7 +129,9 @@ class Spotify:
         artist = SpotifyType(artist_url)
         if not artist.valid:
             return []
-        url = "https://api.spotify.com/v1/artists/" + artist.id + "/top-tracks?country=DE"
+        url = (
+            "https://api.spotify.com/v1/artists/" + artist.id + "/top-tracks?country=DE"
+        )
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
         js = json.loads(result)

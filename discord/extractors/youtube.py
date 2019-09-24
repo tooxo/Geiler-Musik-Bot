@@ -19,7 +19,11 @@ class YoutubeDLLogger(object):
     def debug(self, msg):
         if "youtube:search" in msg and "query" in msg:
             log.debug(
-                logging_manager.debug_info("[YouTube Search] Searched Term: '" + msg.split('"')[1].split('"')[-1] + "'")
+                logging_manager.debug_info(
+                    "[YouTube Search] Searched Term: '"
+                    + msg.split('"')[1].split('"')[-1]
+                    + "'"
+                )
             )
 
     def warning(self, msg):
@@ -44,7 +48,11 @@ class Youtube:
         try:
             log.debug("[YouTube Search] Searched Term: '" + query + "'")
             query = quote(query)
-            url = "https://www.youtube.com/results?search_query=" + query + "&sp=EgIQAQ%253D%253D"  # SP = Video only
+            url = (
+                "https://www.youtube.com/results?search_query="
+                + query
+                + "&sp=EgIQAQ%253D%253D"
+            )  # SP = Video only
             url_list = []
             await asyncio.get_event_loop().run_in_executor(None, self.queue.put, query)
             async with self.session.get(url) as res:
@@ -60,7 +68,11 @@ class Youtube:
             e = Error(True)
             e.reason = Errors.no_results_found
             return e
-        except (aiohttp.ServerTimeoutError, aiohttp.ServerDisconnectedError, aiohttp.ClientConnectionError) as e:
+        except (
+            aiohttp.ServerTimeoutError,
+            aiohttp.ServerDisconnectedError,
+            aiohttp.ClientConnectionError,
+        ) as e:
             e = Error(True)
             e.reason = Errors.cant_reach_youtube
             return e
@@ -74,7 +86,9 @@ class Youtube:
 
         youtube = await loop.run_in_executor(None, self.youtube_url_sync, url)
         if youtube.error.error is False:
-            asyncio.run_coroutine_threadsafe(self.mongo.append_response_time(youtube.loadtime), loop)
+            asyncio.run_coroutine_threadsafe(
+                self.mongo.append_response_time(youtube.loadtime), loop
+            )
         youtube.term = term
         return youtube
 
@@ -124,12 +138,18 @@ class Youtube:
         if type(youtube) is Error:
             return youtube
 
-        asyncio.run_coroutine_threadsafe(self.mongo.append_response_time(youtube.loadtime), loop)
+        asyncio.run_coroutine_threadsafe(
+            self.mongo.append_response_time(youtube.loadtime), loop
+        )
         return youtube
 
     def youtube_playlist_sync(self, url):
         self.queue.put(url)
-        youtube_dl_opts = {"ignoreerrors": True, "extract_flat": True, "logger": YoutubeDLLogger()}
+        youtube_dl_opts = {
+            "ignoreerrors": True,
+            "extract_flat": True,
+            "logger": YoutubeDLLogger(),
+        }
         output = []
         with YoutubeDL(youtube_dl_opts) as ydl:
             info_dict = ydl.extract_info(url, download=False)

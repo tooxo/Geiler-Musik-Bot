@@ -6,7 +6,15 @@ import aiohttp
 
 
 class NowPlayingMessage:
-    def __init__(self, song=None, ctx=None, message=None, full=None, empty=None, discord_music=None):
+    def __init__(
+        self,
+        song=None,
+        ctx=None,
+        message=None,
+        full=None,
+        empty=None,
+        discord_music=None,
+    ):
         self.discord_music = discord_music
         self.log = logging_manager.LoggingManager()
         self.song = song
@@ -31,21 +39,37 @@ class NowPlayingMessage:
         if self._stop is True:
             return
         try:
-            if self.discord_music.dictionary[self.ctx.guild.id].now_playing.is_paused is False:
+            if (
+                self.discord_music.dictionary[self.ctx.guild.id].now_playing.is_paused
+                is False
+            ):
                 now_time = (
-                    int(time.time()) -
-                    self.discord_music.dictionary[self.ctx.guild.id].now_playing.start_time -
-                    self.discord_music.dictionary[self.ctx.guild.id].now_playing.pause_duration
+                    int(time.time())
+                    - self.discord_music.dictionary[
+                        self.ctx.guild.id
+                    ].now_playing.start_time
+                    - self.discord_music.dictionary[
+                        self.ctx.guild.id
+                    ].now_playing.pause_duration
                 )
-                finish_second = int(self.discord_music.dictionary[self.ctx.guild.id].now_playing.duration)
+                finish_second = int(
+                    self.discord_music.dictionary[
+                        self.ctx.guild.id
+                    ].now_playing.duration
+                )
                 description = (
-                    "`" +
-                    time.strftime("%H:%M:%S", time.gmtime(now_time)) +
-                    " / " +
-                    time.strftime(
-                        "%H:%M:%S", time.gmtime(self.discord_music.dictionary[self.ctx.guild.id].now_playing.duration)
-                    ) +
                     "`"
+                    + time.strftime("%H:%M:%S", time.gmtime(now_time))
+                    + " / "
+                    + time.strftime(
+                        "%H:%M:%S",
+                        time.gmtime(
+                            self.discord_music.dictionary[
+                                self.ctx.guild.id
+                            ].now_playing.duration
+                        ),
+                    )
+                    + "`"
                 )
 
                 percentage = int((now_time / finish_second) * 100)
@@ -61,7 +85,9 @@ class NowPlayingMessage:
                     hashes += self.empty
                 hashes += " " + str(percentage) + "%"
 
-                embed2 = discord.Embed(title=self.title, color=0x00FFCC, url=self.song.link)
+                embed2 = discord.Embed(
+                    title=self.title, color=0x00FFCC, url=self.song.link
+                )
                 embed2.set_author(name="Currently Playing:")
                 embed2.add_field(name=hashes, value=description)
                 """
@@ -88,5 +114,7 @@ class NowPlayingMessage:
 
     async def stop(self):
         self._stop = True
-        embed = discord.Embed(title="_`" + self.song.title + "`_", color=0x00FF00, url=self.song.link)
+        embed = discord.Embed(
+            title="_`" + self.song.title + "`_", color=0x00FF00, url=self.song.link
+        )
         await self.message.edit(embed=embed)

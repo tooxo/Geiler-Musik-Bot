@@ -20,7 +20,10 @@ class VariableStore:
         re.IGNORECASE,
     )
 
-    spotify_uri_pattern = re.compile(r"^spotify:(track|playlist|album|artist):(?P<id>[A-Za-z0-9]{22})$", re.IGNORECASE)
+    spotify_uri_pattern = re.compile(
+        r"^spotify:(track|playlist|album|artist):(?P<id>[A-Za-z0-9]{22})$",
+        re.IGNORECASE,
+    )
 
     youtube_verify_pattern = re.compile(r"watch\?v=([a-zA-Z0-9]*)")
 
@@ -31,7 +34,10 @@ class VariableStore:
         re.IGNORECASE,
     )
 
-    url_pattern = re.compile(r"^(?:http(s)?://)?[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=]+$", re.IGNORECASE)
+    url_pattern = re.compile(
+        r"^(?:http(s)?://)?[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=]+$",
+        re.IGNORECASE,
+    )
 
     youtube_title_pattern = re.compile(
         r"([\[(]?"
@@ -56,5 +62,7 @@ class Errors:
     no_results_found = "No Results found."
     default = "An Error has occurred."
     info_check = "An Error has occurred while checking Info."
-    spotify_pull = "**There was an error pulling the Spotify Playlist, 0 Songs were added.**"
+    spotify_pull = (
+        "**There was an error pulling the Spotify Playlist, 0 Songs were added.**"
+    )
     cant_reach_youtube = "Can't reach YouTube. Server Error on their side maybe?"

@@ -39,7 +39,9 @@ class Mongo:
         song_name = song_name.replace("'", "")
         song = await self.most_played_collection.find_one({"name": song_name})
         if song is not None:
-            await self.most_played_collection.update_one({"_id": song["_id"]}, {"$inc": {"val": 1}})
+            await self.most_played_collection.update_one(
+                {"_id": song["_id"]}, {"$inc": {"val": 1}}
+            )
         else:
             obj = {"name": song_name, "val": 1}
             await self.most_played_collection.insert_one(obj)
@@ -66,7 +68,9 @@ class Mongo:
         if doc is None:
             await collection.insert_one({"id": guild_id, "full": full, "empty": empty})
         else:
-            await collection.update_one({"id": guild_id}, {"$set": {"full": full, "empty": empty}})
+            await collection.update_one(
+                {"id": guild_id}, {"$set": {"full": full, "empty": empty}}
+            )
 
     async def get_chars(self, guild_id):
         collection = self.alternative_db.chars
@@ -82,7 +86,9 @@ class Mongo:
         if x is None:
             await collection.insert_one({"type": "restart_code", "code": restart_key})
         else:
-            await collection.update_one({"type": "restart_code"}, {"$set": {"code": restart_key}})
+            await collection.update_one(
+                {"type": "restart_code"}, {"$set": {"code": restart_key}}
+            )
 
     async def get_restart_key(self):
         collection = self.alternative_db.secure

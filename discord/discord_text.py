@@ -11,7 +11,9 @@ class TextResponse(commands.Cog):
 
     @commands.command(aliases=["clemi", "god", "gott"])
     async def cool(self, ctx):
-        await ctx.send("https://cdn.discordapp.com/attachments/357956193093812234/563063266457288714/Unbenanntw2.jpg")
+        await ctx.send(
+            "https://cdn.discordapp.com/attachments/357956193093812234/563063266457288714/Unbenanntw2.jpg"
+        )
 
     @commands.command()
     async def dani(self, ctx):
@@ -21,11 +23,15 @@ class TextResponse(commands.Cog):
 
     @commands.command()
     async def anstalt(self, ctx):
-        await ctx.send("https://media.discordapp.net/attachments/357956193093812234/566329884386000896/HTL.png")
+        await ctx.send(
+            "https://media.discordapp.net/attachments/357956193093812234/566329884386000896/HTL.png"
+        )
 
     @commands.command()
     async def niki(self, ctx):
-        await ctx.send("https://cdn.discordapp.com/attachments/561858486430859266/563436218914701322/Niki_Nasa.png")
+        await ctx.send(
+            "https://cdn.discordapp.com/attachments/561858486430859266/563436218914701322/Niki_Nasa.png"
+        )
 
     @commands.command()
     async def help(self, ctx):
@@ -69,16 +75,27 @@ class TextResponse(commands.Cog):
     @commands.command()
     async def support(self, ctx):
         embed = (
-            discord.Embed(title="Supported Services", color=0x00FFCC, url="https://d.chulte.de")
-            .add_field(name="YouTube", value="Video Urls\nVideo Search Terms\nPlaylist Urls")
-            .add_field(name="Spotify", value="Track Links\nAlbum Links\nArtist Top-Tracks\nPlaylists")
+            discord.Embed(
+                title="Supported Services", color=0x00FFCC, url="https://d.chulte.de"
+            )
+            .add_field(
+                name="YouTube", value="Video Urls\nVideo Search Terms\nPlaylist Urls"
+            )
+            .add_field(
+                name="Spotify",
+                value="Track Links\nAlbum Links\nArtist Top-Tracks\nPlaylists",
+            )
         )
         await ctx.send(embed=embed)
 
     @commands.command(aliases=["error"])
     async def issue(self, ctx):
         embed = (
-            discord.Embed(title="Found a bug?", color=0x00FFCC, url="https://github.com/tooxo/Geiler-Musik-Bot/issues")
+            discord.Embed(
+                title="Found a bug?",
+                color=0x00FFCC,
+                url="https://github.com/tooxo/Geiler-Musik-Bot/issues",
+            )
             .add_field(
                 name="What should I do?",
                 value="Create a new Issue or responde to an existing one, describing your issue.",
