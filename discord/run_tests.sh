@@ -1,5 +1,6 @@
 #!/bin/bash
 
+sudo apt install libopus0
 git clone https://github.com/tooxo/distest.git --depth 1
 cd distest
 pip3 install -r requirements-dev.txt
