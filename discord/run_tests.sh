@@ -5,4 +5,4 @@ cd distest
 pip install -r requirements-dev.txt
 pip install .
 cd ./../discord
-python3 discord_tests.py "$TARGET_NAME" "$TESTER_TOKEN" --channel "$CHANNEL" --run all
+python3 -u discord_tests.py "$TARGET_NAME" "$TESTER_TOKEN" --channel "$CHANNEL" --run all
