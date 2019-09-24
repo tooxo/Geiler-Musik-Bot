@@ -23,6 +23,7 @@ before_install:
   - echo "MONGODB_USER=$MONGODB_USER" >> sysenv.txt
   - echo "SPOTIFY_ID=$SPOTIFY_ID" >> sysenv.txt
   - echo "SPOTIFY_SECRET=$SPOTIFY_SECRET" >> sysenv.txt
+  - echo "TEST_ENVIRONMENT=True" >> sysenv.txt
   - echo "PORT=8001" >> sysenv.txt
   - docker network create web
 
