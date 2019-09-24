@@ -231,6 +231,8 @@ class DiscordBot(commands.Cog):
                 i += 1
 
     def song_conclusion(self, ctx, error=None):
+        if len(self.dictionary[ctx.guild.id].song_queue._queue) == 0:
+            self.dictionary[ctx.guild.id].now_playing = None
         if error is not None:
             self.log.error(str(error))
             function = asyncio.run_coroutine_threadsafe(
@@ -259,7 +261,7 @@ class DiscordBot(commands.Cog):
             function.result()
         except Exception as e:
             self.log.error(logging_manager.debug_info(str(e)))
-        self.dictionary[ctx.guild.id].now_playing = None
+
 
     async def messaging(self, message, ctx, full, empty):
         try:

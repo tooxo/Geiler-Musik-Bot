@@ -31,7 +31,7 @@ async def test_wrong_command(interface):
 
 
 @test_collector()
-async def connect_to_channel(interface: TestInterface):
+async def test_song_play(interface: TestInterface):
     await interface.connect(598919254359932928)
     await asyncio.sleep(1)
     try:
@@ -44,6 +44,30 @@ async def connect_to_channel(interface: TestInterface):
         await interface.send_message(",exit")
         await interface.disconnect()
         raise ResponseDidNotMatchError()
+    await interface.send_message(",exit")
+    await interface.disconnect()
+
+
+@test_collector()
+async def test_queue_check(interface: TestInterface):
+    await asyncio.sleep(3)
+    await interface.connect(598919254359932928)
+    await asyncio.sleep(1)
+    try:
+        await interface.send_message(",play despacito luis fonsi")
+        embed = Embed() \
+            .add_field(name="**Currently Playing...**", value="`Luis Fonsi - Despacito ft. Daddy Yankee`") \
+            .add_field(
+            name="**Coming up:**",
+            value="Nothing in Queue. Use .play to add something.",
+            inline=False,
+        )
+        await asyncio.sleep(5)
+        await interface.assert_reply_embed_equals(",queue", embed, ["fields"])
+    except Exception as e:
+        await interface.send_message(",exit")
+        await interface.disconnect()
+        raise ResponseDidNotMatchError
     await interface.send_message(",exit")
     await interface.disconnect()
 
