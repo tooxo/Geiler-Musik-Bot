@@ -18,12 +18,11 @@ before_install:
   - chmod +x docker-compose
   - sudo mv docker-compose /usr/local/bin
   - docker-compose --version
-  - echo "BOT_TOKEN=not_needed" >> sysenv.txt
-  - echo "DJANGO_SECRET=*#j*p5%e151d@+_#92^qhh4iqqq^3v!nzhci6gf6i_yzi!^#!(" >> sysenv.txt
-  - echo "MONGODB_URI=not_needed" >> sysenv.txt
-  - echo "MONGODB_USER=user" >> sysenv.txt
-  - echo "SPOTIFY_ID=spotify" >> sysenv.txt
-  - echo "SPOTIFY_SECRET=spotify" >> sysenv.txt
+  - echo "BOT_TOKEN=$BOT_TOKEN" >> sysenv.txt
+  - echo "MONGODB_URI=$MONGODB_URI" >> sysenv.txt
+  - echo "MONGODB_USER=$MONGODB_USER" >> sysenv.txt
+  - echo "SPOTIFY_ID=$SPOTIFY_ID" >> sysenv.txt
+  - echo "SPOTIFY_SECRET=$SPOTIFY_SECRET" >> sysenv.txt
   - echo "PORT=8001" >> sysenv.txt
   - docker network create web
 
