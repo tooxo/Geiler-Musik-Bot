@@ -31,6 +31,8 @@ script:
   - coveralls
   - docker-compose build
   - docker-compose up -d
+  - sleep 10s
+  - docker-compose logs
   - bash ./discord/run_tests.sh
 
 after_script:
