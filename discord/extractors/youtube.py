@@ -11,6 +11,8 @@ from variable_store import strip_youtube_title, Errors
 from url_parser import YouTubeType
 from song_store import Song, Error
 from urllib.parse import quote
+import re
+import async_timeout
 
 log = logging_manager.LoggingManager()
 
@@ -41,6 +43,26 @@ class Youtube:
         self.cache = ExpiringDict(max_age_seconds=10800, max_len=1000)
         self.search_cache = dict()
         self.session = aiohttp.ClientSession()
+
+    async def extract_manifest(self, manifest_url):
+        log.debug("[YouTube Extraction] Found a Manifest instead of a video url. Extracting.")
+        manifest_pattern = re.compile(
+            r"<Representation id=\"\d+\" codecs=\"\S+\" audioSamplingRate=\"(\d+)\" startWithSAP=\"\d\" "
+            r"bandwidth=\"\d+\">(<AudioChannelConfiguration[^/]+/>)?<BaseURL>(\S+)</BaseURL>"
+        )
+        with async_timeout.timeout(5):
+            async with self.session.get(manifest_url) as res:
+                text = await res.text()
+                it = re.finditer(manifest_pattern, text)
+                return_stream_url = ""
+                return_sample_rate = 0
+                for match in it:
+                    if int(match.group(1)) >= return_sample_rate:
+                        return_stream_url = match.group(3)
+                        return_sample_rate = int(match.group(1))
+
+                return return_stream_url
+        return ""
 
     async def search_youtube(self, query):
         if query in self.search_cache:
@@ -76,6 +98,12 @@ class Youtube:
             e = Error(True)
             e.reason = Errors.cant_reach_youtube
             return e
+        except Exception as er:
+            import traceback
+
+            print(traceback.format_exc(er.__traceback__))
+            return Error(True)
+        return Error(True)
 
     async def youtube_term(self, term):
         loop = asyncio.get_event_loop()
@@ -85,10 +113,16 @@ class Youtube:
             return url
 
         youtube = await loop.run_in_executor(None, self.youtube_url_sync, url)
-        if youtube.error.error is False:
-            asyncio.run_coroutine_threadsafe(
-                self.mongo.append_response_time(youtube.loadtime), loop
-            )
+
+        if type(youtube) is Error:
+            return youtube
+
+        if "manifest.googlevideo" in youtube.stream:
+            youtube.stream = await self.extract_manifest(youtube.stream)
+
+        asyncio.run_coroutine_threadsafe(
+            self.mongo.append_response_time(youtube.loadtime), loop
+        )
         youtube.term = term
         return youtube
 
@@ -118,17 +152,15 @@ class Youtube:
             song.loadtime = time.time() - start
             for n in info_dict["thumbnails"]:
                 song.thumbnail = n["url"]
-            if "manifest.googlevideo.com" in song.stream:
-                err = Error(True)
-                err.reason = "Malformed Stream. Trying again."
-                err.link = url
-                return err
             song.title = strip_youtube_title(song.title)
             self.cache[song.id] = song
             return song
-        except Exception as e:
+        except Exception as ex:
+            import traceback
+
+            print(traceback.format_exc(ex.__traceback__))
             e = Error(True)
-            e.reason = str(e)
+            e.reason = str(ex)
             return e
 
     async def youtube_url(self, url):
@@ -137,6 +169,9 @@ class Youtube:
 
         if type(youtube) is Error:
             return youtube
+
+        if "manifest.googlevideo" in youtube.stream:
+            youtube.stream = await self.extract_manifest(youtube.stream)
 
         asyncio.run_coroutine_threadsafe(
             self.mongo.append_response_time(youtube.loadtime), loop
