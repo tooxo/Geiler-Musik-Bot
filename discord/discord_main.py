@@ -76,6 +76,7 @@ async def on_command_error(ctx, error):
 async def on_error(error):
     print("ERROR HANDLER", error)
 
+
 discord_version = discord.__version__ + "-" + discord.version_info.releaselevel
 youtube_version = youtube_dl.version.__version__
 

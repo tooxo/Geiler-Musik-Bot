@@ -45,7 +45,9 @@ class Youtube:
         self.session = aiohttp.ClientSession()
 
     async def extract_manifest(self, manifest_url):
-        log.debug("[YouTube Extraction] Found a Manifest instead of a video url. Extracting.")
+        log.debug(
+            "[YouTube Extraction] Found a Manifest instead of a video url. Extracting."
+        )
         manifest_pattern = re.compile(
             r"<Representation id=\"\d+\" codecs=\"\S+\" audioSamplingRate=\"(\d+)\" startWithSAP=\"\d\" "
             r"bandwidth=\"\d+\">(<AudioChannelConfiguration[^/]+/>)?<BaseURL>(\S+)</BaseURL>"
