@@ -1,8 +1,10 @@
 from discord.ext import commands
 import os
-import discord
 import logging_manager
+import logging
 from discord.ext.commands.bot import BotBase
+import discord
+import youtube_dl
 
 if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
 
@@ -73,9 +75,14 @@ async def on_command_error(ctx, error):
 @client.event
 async def on_error(error):
     print("ERROR HANDLER", error)
-    if error is "on_ready":
-        exit(1)
 
+discord_version = discord.__version__ + "-" + discord.version_info.releaselevel
+youtube_version = youtube_dl.version.__version__
+
+log.debug("")
+log.debug("[Startup]: Using Discord.Py Version " + discord_version)
+log.debug("[Startup]: Using Youtube_DL Version " + youtube_version)
+log.debug("")
 
 log.debug("[Startup]: Starting Up!")
 client.run(os.environ.get("BOT_TOKEN", ""))

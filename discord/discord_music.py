@@ -1,3 +1,4 @@
+import traceback
 from asyncio import Queue
 from discord.ext import commands
 import discord
@@ -43,11 +44,21 @@ class DiscordBot(commands.Cog):
             self.mongo.set_restart_key(restart_key), self.bot.loop
         )
 
+        """
+        Fix for OpusNotLoaded Error.
+        """
         if not discord.opus.is_loaded():
             discord.opus.load_opus("/usr/lib/libopus.so")
 
         @self.bot.event
         async def on_voice_state_update(member, before, after):
+            """
+            Check for user leaving or joining your channel.
+            :param member: Member, which joined
+            :param before: Channel before
+            :param after: Channel after
+            :return:
+            """
             try:
                 if before.channel is not None:
                     guild_id = before.channel.guild.id
@@ -262,7 +273,6 @@ class DiscordBot(commands.Cog):
         except Exception as e:
             self.log.error(logging_manager.debug_info(str(e)))
 
-
     async def messaging(self, message, ctx, full, empty):
         try:
             if self.dictionary[ctx.guild.id].now_playing.is_paused is False:
@@ -370,6 +380,11 @@ class DiscordBot(commands.Cog):
                 return
             small_dict = await self.youtube.youtube_url(small_dict.link)
 
+            if type(small_dict) is Error:
+                self.log.error(small_dict.reason)
+                await self.send_error_message(ctx, small_dict.reason)
+                return
+
         try:
             self.dictionary[ctx.guild.id].now_playing = small_dict
             self.dictionary[ctx.guild.id].now_playing.start_time = int(time.time())
@@ -392,7 +407,6 @@ class DiscordBot(commands.Cog):
                 source, after=lambda error: self.song_conclusion(ctx, error=error)
             )
             full, empty = await self.mongo.get_chars(ctx.guild.id)
-            print(self.dictionary[ctx.guild.id].now_playing_message)
             self.dictionary[ctx.guild.id].now_playing_message = NowPlayingMessage(
                 song=self.dictionary[ctx.guild.id].now_playing,
                 ctx=ctx,
@@ -571,6 +585,7 @@ class DiscordBot(commands.Cog):
                 await self.pre_player(ctx)
             await self.preload_song(ctx)
         except Exception as e:
+            print(traceback.format_exc())
             self.log.error(logging_manager.debug_info(str(e)))
 
     async def join_check(self, ctx, url):
@@ -1407,8 +1422,15 @@ class DiscordBot(commands.Cog):
             s = str(eval(code))
         except Exception as e:
             s = str(e)
-        embed = discord.Embed(title=s)
-        await ctx.send(embed=embed)
+        if len(s) < 256:
+            embed = discord.Embed(title=s)
+            await ctx.send(embed=embed)
+        elif len(s) < 1994:
+            sa = "```" + s + "```"
+            await ctx.send(sa)
+        else:
+            sa = "```" + s[:1994] + "```"
+            await ctx.send(sa)
 
     @commands.command(aliases=["np", "nowplaying"])
     async def now_playing(self, ctx):
@@ -1428,15 +1450,19 @@ class DiscordBot(commands.Cog):
             await ctx.send(embed=embed)
             return
 
-        song = random.choice(songs)
+        song: Song = random.choice(songs)
+
+        time_run = round((time.time() - song.start_time) / 60)
+        s = " `(Streaming since " + str(time_run) + " Minute[s])`"
+
         if len(songs) == 1:
             embed = discord.Embed(
-                title="`>` `" + song.title + "`",
+                title="`>` `" + song.title + "`" + s,
                 description="There is currently 1 Server playing!",
             )
         else:
             embed = discord.Embed(
-                title="`>` `" + song.title + "`",
+                title="`>` `" + song.title + "`" + s,
                 description="There are currently "
                 + str(len(songs))
                 + " Servers playing!",

@@ -55,12 +55,17 @@ async def test_queue_check(interface: TestInterface):
     await asyncio.sleep(1)
     try:
         await interface.send_message(",play despacito luis fonsi")
-        embed = Embed() \
-            .add_field(name="**Currently Playing...**", value="`Luis Fonsi - Despacito ft. Daddy Yankee`") \
+        embed = (
+            Embed()
             .add_field(
-            name="**Coming up:**",
-            value="Nothing in Queue. Use .play to add something.",
-            inline=False,
+                name="**Currently Playing...**",
+                value="`Luis Fonsi - Despacito ft. Daddy Yankee`",
+            )
+            .add_field(
+                name="**Coming up:**",
+                value="Nothing in Queue. Use .play to add something.",
+                inline=False,
+            )
         )
         await asyncio.sleep(5)
         await interface.assert_reply_embed_equals(",queue", embed, ["fields"])
