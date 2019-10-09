@@ -18,7 +18,6 @@ log = logging_manager.LoggingManager()
 
 
 class YoutubeDLLogger(object):
-    @staticmethod
     def debug(self, msg):
         if "youtube:search" in msg and "query" in msg:
             log.debug(
@@ -29,11 +28,9 @@ class YoutubeDLLogger(object):
                 )
             )
 
-    @staticmethod
     def warning(self, msg):
         log.warning(logging_manager.debug_info(msg))
 
-    @staticmethod
     def error(self, msg):
         log.error(logging_manager.debug_info(msg))
 
