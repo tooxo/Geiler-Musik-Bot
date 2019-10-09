@@ -66,3 +66,4 @@ class Errors:
         "**There was an error pulling the Spotify Playlist, 0 Songs were added.**"
     )
     cant_reach_youtube = "Can't reach YouTube. Server Error on their side maybe?"
+    youtube_url_invalid = "This YouTube Url is invalid."

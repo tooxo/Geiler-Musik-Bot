@@ -56,13 +56,13 @@ class Guild:
 
 
 class Error:
-    def __init__(self, error):
+    def __init__(self, error: bool, reason: str = Errors.default):
         self.error = error
-        self.reason = Errors.default
+        self.reason = reason
         self.link = ""
 
 
 class SpotifyObj:
-    def __init__(self, title, image_url):
+    def __init__(self, title: str, image_url: str):
         self.title = title
         self.image_url = image_url

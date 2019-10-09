@@ -32,7 +32,6 @@ class NowPlayingMessage:
         embed = discord.Embed(title=self.title, color=0x00FFCC, url=self.song.link)
         embed.set_author(name="Currently Playing:")
         embed.add_field(name="░░░░░░░░░░░░░░░░░░░░░░░░░", value=" 0%")
-        print(self.song.title, embed.title, embed.color, embed.url)
         await self.message.edit(embed=embed)
 
     async def update(self):

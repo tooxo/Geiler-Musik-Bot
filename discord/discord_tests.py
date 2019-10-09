@@ -64,7 +64,6 @@ async def test_queue_check(interface: TestInterface):
             .add_field(
                 name="**Coming up:**",
                 value="Nothing in Queue. Use .play to add something.",
-                inline=False,
             )
         )
         await asyncio.sleep(5)

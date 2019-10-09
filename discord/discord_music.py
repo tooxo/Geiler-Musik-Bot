@@ -1413,8 +1413,6 @@ class DiscordBot(commands.Cog):
     @commands.command()
     async def eval(self, ctx, *, code: str = None):
         if ctx.author.id != 322807058254528522:
-            print(type(ctx.author.id))
-            print(ctx.author.id)
             embed = discord.Embed(title="No permission.", color=0xFF0000)
             await ctx.send(embed=embed)
             return

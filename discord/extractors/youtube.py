@@ -18,6 +18,7 @@ log = logging_manager.LoggingManager()
 
 
 class YoutubeDLLogger(object):
+    @staticmethod
     def debug(self, msg):
         if "youtube:search" in msg and "query" in msg:
             log.debug(
@@ -28,9 +29,11 @@ class YoutubeDLLogger(object):
                 )
             )
 
+    @staticmethod
     def warning(self, msg):
         log.warning(logging_manager.debug_info(msg))
 
+    @staticmethod
     def error(self, msg):
         log.error(logging_manager.debug_info(msg))
 
@@ -89,17 +92,13 @@ class Youtube:
                 if url.startswith("/watch"):
                     return "https://www.youtube.com" + url
         except (IndexError, KeyError) as e:
-            e = Error(True)
-            e.reason = Errors.no_results_found
-            return e
+            return Error(True, reason=Errors.no_results_found)
         except (
             aiohttp.ServerTimeoutError,
             aiohttp.ServerDisconnectedError,
             aiohttp.ClientConnectionError,
         ) as e:
-            e = Error(True)
-            e.reason = Errors.cant_reach_youtube
-            return e
+            return Error(True, reason=Errors.cant_reach_youtube)
         except Exception as er:
             import traceback
 
@@ -108,33 +107,18 @@ class Youtube:
         return Error(True)
 
     async def youtube_term(self, term):
-        loop = asyncio.get_event_loop()
         url = await self.search_youtube(term)
 
         if type(url) is Error:
             return url
 
-        youtube = await loop.run_in_executor(None, self.youtube_url_sync, url)
-
-        if type(youtube) is Error:
-            return youtube
-
-        if "manifest.googlevideo" in youtube.stream:
-            youtube.stream = await self.extract_manifest(youtube.stream)
-
-        asyncio.run_coroutine_threadsafe(
-            self.mongo.append_response_time(youtube.loadtime), loop
-        )
-        youtube.term = term
-        return youtube
+        return await self.youtube_url(url, term=term)
 
     def youtube_url_sync(self, url):
         try:
             video = YouTubeType(url)
             if not video.valid:
-                e = Error(True)
-                e.reason = "Invalid YouTube Url"
-                return e
+                return Error(True, reason=Errors.youtube_url_invalid)
             video_id = video.id
             if self.cache.get(video_id) is not None:
                 return self.cache.get(video_id)
@@ -161,11 +145,9 @@ class Youtube:
             import traceback
 
             print(traceback.format_exc(ex.__traceback__))
-            e = Error(True)
-            e.reason = str(ex)
-            return e
+            return Error(True, reason=str(ex))
 
-    async def youtube_url(self, url):
+    async def youtube_url(self, url, term=None):
         loop = asyncio.get_event_loop()
         youtube = await loop.run_in_executor(None, self.youtube_url_sync, url)
 
@@ -178,12 +160,15 @@ class Youtube:
         asyncio.run_coroutine_threadsafe(
             self.mongo.append_response_time(youtube.loadtime), loop
         )
+
+        if term is not None:
+            youtube.term = term
+
         return youtube
 
     def youtube_playlist_sync(self, url):
         self.queue.put(url)
         youtube_dl_opts = {
-            "ignoreerrors": True,
             "extract_flat": True,
             "logger": YoutubeDLLogger(),
         }
