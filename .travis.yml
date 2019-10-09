@@ -26,6 +26,11 @@ before_install:
   - echo "TEST_ENVIRONMENT=True" >> sysenv.txt
   - echo "PORT=8001" >> sysenv.txt
   - docker network create web
+  - sudo apt-get install libopus0
+  - bash -c "git clone https://github.com/tooxo/distest.git --depth 1 -b test && cd distest"
+  - pip3 install -r requirements-dev.txt
+  - pip3 install .
+  - pip3 install pynacl
 
 script:
   - pytest discord/test.py
