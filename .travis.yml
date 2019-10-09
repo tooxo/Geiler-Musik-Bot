@@ -27,7 +27,8 @@ before_install:
   - echo "PORT=8001" >> sysenv.txt
   - docker network create web
   - sudo apt-get install libopus0
-  - bash -c "git clone https://github.com/tooxo/distest.git --depth 1 -b test && cd distest"
+  - git clone https://github.com/tooxo/distest.git --depth 1 -b test
+  - cd distest/
   - pip3 install -r requirements-dev.txt
   - pip3 install .
   - pip3 install pynacl
