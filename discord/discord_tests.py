@@ -38,7 +38,7 @@ async def test_song_play(interface: TestInterface):
         await interface.send_message(",play despacito luis fonsi")
         embed = Embed(title="`Luis Fonsi - Despacito ft. Daddy Yankee`")
         await interface.get_delayed_reply(
-            5, interface.assert_embed_equals, [embed, ["title"]]
+            10, interface.assert_embed_equals, [embed, ["title"]]
         )
     except Exception as e:
         await interface.send_message(",exit")
@@ -66,7 +66,7 @@ async def test_queue_check(interface: TestInterface):
                 value="Nothing in Queue. Use .play to add something.",
             )
         )
-        await asyncio.sleep(5)
+        await asyncio.sleep(10)
         await interface.assert_reply_embed_equals(",queue", embed, ["fields"])
     except Exception as e:
         await interface.send_message(",exit")
