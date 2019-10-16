@@ -8,6 +8,8 @@ import youtube_dl
 
 if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
 
+    logging.basicConfig(level=logging.INFO)
+
     async def process_commands_n(self, message):
         """|coro|
         This function processes the commands that have been registered

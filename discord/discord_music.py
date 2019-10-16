@@ -597,7 +597,6 @@ class DiscordBot(commands.Cog):
             )
             await ctx.send(embed=embed)
             return False
-        self.dictionary = self.dictionary
         try:
             if self.dictionary[ctx.guild.id].voice_channel is None:
                 self.dictionary[ctx.guild.id].voice_channel = ctx.author.voice.channel
@@ -650,13 +649,14 @@ class DiscordBot(commands.Cog):
                     self.dictionary[
                         ctx.guild.id
                     ].voice_client = await ctx.author.voice.channel.connect(
-                        timeout=60, reconnect=True
+                        timeout=10, reconnect=True
                     )
             except (
                 TimeoutError,
                 discord.HTTPException,
                 discord.ClientException,
                 discord.DiscordException,
+                Exception,
             ) as e:
                 self.log.warning(logging_manager.debug_info("channel_join " + str(e)))
                 self.dictionary[ctx.guild.id].voice_channel = None
@@ -669,7 +669,7 @@ class DiscordBot(commands.Cog):
                 return False
         return True
 
-    @commands.cooldown(1, 0.5, commands.BucketType.guild)
+    # @commands.cooldown(1, 0.5, commands.BucketType.guild)
     @commands.command(aliases=["p"])
     async def play(self, ctx, *, url: str = None):
         if not await self.play_check(ctx, url):

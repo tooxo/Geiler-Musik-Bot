@@ -165,10 +165,7 @@ class Youtube:
 
     def youtube_playlist_sync(self, url):
         self.queue.put(url)
-        youtube_dl_opts = {
-            "extract_flat": True,
-            "logger": YoutubeDLLogger(),
-        }
+        youtube_dl_opts = {"extract_flat": True, "logger": YoutubeDLLogger()}
         output = []
         with YoutubeDL(youtube_dl_opts) as ydl:
             info_dict = ydl.extract_info(url, download=False)
