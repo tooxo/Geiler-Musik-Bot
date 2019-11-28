@@ -20,7 +20,7 @@ before_install:
   - docker-compose --version
   - echo "BOT_TOKEN=$BOT_TOKEN" >> sysenv.env
   - echo "MONGODB_URI=$MONGODB_URI" >> sysenv.env
-  - echo "MONGODB_USER=$MONGODB_USER" >> sysenv.env
+  - echo "MONGODB_DATABASE_NAME=$MONGODB_DATABASE_NAME" >> sysenv.env
   - echo "SPOTIFY_ID=$SPOTIFY_ID" >> sysenv.env
   - echo "SPOTIFY_SECRET=$SPOTIFY_SECRET" >> sysenv.env
   - echo "TEST_ENVIRONMENT=True" >> sysenv.env
