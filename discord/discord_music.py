@@ -1,24 +1,32 @@
 import traceback
+print("Import Done!")
 from asyncio import Queue
 from discord.ext import commands
 import discord
 import random
+print("Import Done!")
 import asyncio
 from extractors import spotify, youtube, mongo, lastfm, youtube_old
+print("Import Done!")
 import time
 import string
 import logging_manager
 import collections
+print("Import Done!")
 import aiohttp
 import re
 from variable_store import VariableStore, Errors
+print("Import Done!")
 from url_parser import YouTubeType, SpotifyType
 from song_store import Song, Guild, Error
+print("Import Done!")
 import async_timeout
 from now_playing_message import NowPlayingMessage
+print("Import Done!")
 import dbl
+print("Import Done!")
 from os import environ
-
+print("Import Done!")
 
 class DiscordBot(commands.Cog):
     def __init__(self, bot):
