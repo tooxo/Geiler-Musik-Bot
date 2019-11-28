@@ -8,31 +8,26 @@ class Mongo:
     def __init__(self):
         self.log = logging_manager.LoggingManager()
         self.log.debug("[Startup]: Initializing Mongo Module . . .")
-        try:
-            self.host = os.environ["MONGODB_URI"]
-        except KeyError:
-            self.host = ""
-        self.client = motor.motor_asyncio.AsyncIOMotorClient(self.host)
-        try:
-            self.db = eval("self.client." + os.environ["MONGODB_USER"])
-        except Exception as e:
-            self.log.error(logging_manager.debug_info(str(e)))
-            self.db = ""
-        self.collection = self.db.connectiontime
-        self.most_played_collection = self.db.most_played_collection
+        self.host = os.environ.get("MONGODB_URI", "")
 
-        alternative_host = "mongodb://database:27017"
-        alternative_client = motor.motor_asyncio.AsyncIOMotorClient(alternative_host)
-        self.alternative_db = alternative_client.discordbot
+        self.client: motor.motor_asyncio.AsyncIOMotorClient = motor.motor_asyncio.AsyncIOMotorClient(
+            self.host
+        )
+        self.db = self.client.get_database(
+            os.environ.get("MONGODB_DATABASE_NAME", "discordbot")
+        )
+
+        self.connection_time_collection = self.db.connectiontime
+        self.most_played_collection = self.db.most_played_collection
 
     async def append_response_time(self, response_time):
         current_time = time.time()
-        every = self.collection.find()
+        every = self.connection_time_collection.find()
         async for item in every:
             if item["x"] < current_time * 1000 - 86400000:
-                await self.collection.delete_one({"_id": item["_id"]})
+                await self.connection_time_collection.delete_one({"_id": item["_id"]})
         obj = {"x": int(time.time()) * 1000, "y": response_time * 10}
-        await self.collection.insert_one(obj)
+        await self.connection_time_collection.insert_one(obj)
 
     async def append_most_played(self, song_name):
         song_name = song_name.replace('"', "")
@@ -47,7 +42,7 @@ class Mongo:
             await self.most_played_collection.insert_one(obj)
 
     async def set_volume(self, guild_id, volume):
-        collection = self.alternative_db.volume
+        collection = self.db.volume
         doc = await collection.find_one({"id": guild_id})
         if doc is None:
             await collection.insert_one({"id": guild_id, "volume": volume})
@@ -55,7 +50,7 @@ class Mongo:
             await collection.update_one({"id": guild_id}, {"$set": {"volume": volume}})
 
     async def get_volume(self, guild_id):
-        collection = self.alternative_db.volume
+        collection = self.db.volume
         doc = await collection.find_one({"id": guild_id})
         if doc is None:
             return 0.5
@@ -63,7 +58,7 @@ class Mongo:
             return doc["volume"]
 
     async def set_chars(self, guild_id, full, empty):
-        collection = self.alternative_db.chars
+        collection = self.db.chars
         doc = await collection.find_one({"id": guild_id})
         if doc is None:
             await collection.insert_one({"id": guild_id, "full": full, "empty": empty})
@@ -73,7 +68,7 @@ class Mongo:
             )
 
     async def get_chars(self, guild_id):
-        collection = self.alternative_db.chars
+        collection = self.db.chars
         doc = await collection.find_one({"id": guild_id})
         if doc is None:
             return "█", "░"
@@ -81,7 +76,7 @@ class Mongo:
             return doc["full"], doc["empty"]
 
     async def set_restart_key(self, restart_key):
-        collection = self.alternative_db.secure
+        collection = self.db.secure
         x = await collection.find_one({"type": "restart_code"})
         if x is None:
             await collection.insert_one({"type": "restart_code", "code": restart_key})
@@ -91,6 +86,6 @@ class Mongo:
             )
 
     async def get_restart_key(self):
-        collection = self.alternative_db.secure
+        collection = self.db.secure
         x = await collection.find_one({"type": "restart_code"})
         return x["code"]

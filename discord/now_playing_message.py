@@ -74,7 +74,8 @@ class NowPlayingMessage:
                 percentage = int((now_time / finish_second) * 100)
 
                 if percentage > 100:
-                    percentage = 100
+                    await self.stop()
+                    return
                 count = percentage / 4
                 hashes = ""
                 while count > 0:

@@ -28,9 +28,9 @@ class VariableStore:
     youtube_verify_pattern = re.compile(r"watch\?v=([a-zA-Z0-9]*)")
 
     youtube_video_pattern = re.compile(
-        r"^(http(s)?://)?(www.)?"
-        r"(youtube.com/|youtu.be/)(watch|playlist)?\??([\S]*&)?(list=|v=)?"
-        r"(?P<id>[\S]{11}|[\S]{34})($|&|\?)\S*",
+        r"^(http(s)?://)?(www.)?(youtube.com/|youtu.be/)"
+        r"(watch|playlist)?\??(v=(?P<id2>[\S]{11})&)?"
+        r"([\S]*&)?(v=|list=)?(?P<id>[\S]{11}|[\S]{34})($|&|\?)\S*",
         re.IGNORECASE,
     )
 
@@ -46,6 +46,8 @@ class VariableStore:
         re.MULTILINE | re.IGNORECASE,
     )
 
+    watch_url_pattern = re.compile(r"^[\S]{11}$", re.IGNORECASE)
+
     """
     youtube_title_pattern = re.compile(
         r"[\[(]?"
@@ -57,6 +59,16 @@ class VariableStore:
 
     space_cut_pattern = re.compile(r"\s*$|^\s*", re.IGNORECASE)
 
+    @staticmethod
+    def youtube_url_to_id(url):
+        if VariableStore.watch_url_pattern.match(url) is not None:
+            return url
+        m = VariableStore.youtube_video_pattern.match(url)
+        if "id2" in m.groupdict() and m.groupdict()["id2"] is not None:
+            return m.group("id2")
+        else:
+            return m.group("id")
+
 
 class Errors:
     no_results_found = "No Results found."
@@ -67,3 +79,14 @@ class Errors:
     )
     cant_reach_youtube = "Can't reach YouTube. Server Error on their side maybe?"
     youtube_url_invalid = "This YouTube Url is invalid."
+    youtube_video_not_available = "The requested YouTube Video is not available."
+    error_please_retry = "error_please_retry"
+    backend_down = "Our backend seems to be down right now, try again in a few minutes."
+
+    @staticmethod
+    def as_list():
+        l = []
+        for att in Errors.__dict__:
+            if type(Errors.__dict__[att]) == list:
+                l.append(Errors.__dict__[att])
+        return l

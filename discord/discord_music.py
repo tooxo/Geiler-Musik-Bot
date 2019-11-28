@@ -4,7 +4,7 @@ from discord.ext import commands
 import discord
 import random
 import asyncio
-from extractors import spotify, youtube, mongo, lastfm
+from extractors import spotify, youtube, mongo, lastfm, youtube_old
 import time
 import string
 import logging_manager
@@ -26,7 +26,10 @@ class DiscordBot(commands.Cog):
         self.bot = bot
         self.log = logging_manager.LoggingManager()
         self.spotify = spotify.Spotify()
-        self.youtube = youtube.Youtube()
+        if environ.get("OLD_BACKEND", False) is True:
+            self.youtube = youtube_old.Youtube()
+        else:
+            self.youtube = youtube.Youtube()
         self.lastfm = lastfm.LastFM()
         self.mongo = mongo.Mongo()
         bot.remove_command("help")
@@ -375,9 +378,13 @@ class DiscordBot(commands.Cog):
         if type(small_dict) is Error:
             error_message = small_dict.reason
             await self.send_error_message(ctx, error_message)
-            if error_message == Errors.no_results_found:
+            if (
+                error_message == Errors.no_results_found
+                or error_message == Errors.default
+            ):
                 await self.dictionary[ctx.guild.id].now_playing_message.delete()
                 return
+
             small_dict = await self.youtube.youtube_url(small_dict.link)
 
             if type(small_dict) is Error:
@@ -422,7 +429,7 @@ class DiscordBot(commands.Cog):
 
             # asyncio.ensure_future(self.messaging(self.dictionary[ctx.guild.id].now_playing_message, ctx, full, empty))
         except (Exception, discord.ClientException) as e:
-            self.log.warning(logging_manager.debug_info(str(e)))
+            self.log.debug(logging_manager.debug_info(traceback.format_exc(e)))
             x += 1
             pass
 
@@ -445,9 +452,12 @@ class DiscordBot(commands.Cog):
         except (IndexError, TypeError, KeyError, NameError) as e:
             self.log.warning(logging_manager.debug_info(str(e)))
 
-    async def pre_player(self, ctx):
-        if self.dictionary[ctx.guild.id].song_queue.qsize() > 0:
-            small_dict = await self.dictionary[ctx.guild.id].song_queue.get()
+    async def pre_player(self, ctx, bypass=None):
+        if self.dictionary[ctx.guild.id].song_queue.qsize() > 0 or bypass is not None:
+            if bypass is None:
+                small_dict = await self.dictionary[ctx.guild.id].song_queue.get()
+            else:
+                small_dict = bypass
             embed = discord.Embed(
                 title="🔁 Loading ... 🔁", color=0x00FFCC, url="https://d.chulte.de"
             )
@@ -464,6 +474,16 @@ class DiscordBot(commands.Cog):
                     # term
                     youtube_dict = await self.youtube.youtube_term(small_dict.title)
                     # youtube_dict = await self.youtube_t.youtube_term(small_dict['title'])
+                if type(youtube_dict) == Error:
+                    if youtube_dict.reason != Errors.error_please_retry:
+                        await self.send_error_message(ctx, youtube_dict.reason)
+                        await self.dictionary[ctx.guild.id].now_playing_message.delete()
+                        await self.pre_player(ctx)
+                        return
+                    else:
+                        await self.dictionary[ctx.guild.id].now_playing_message.delete()
+                        await self.pre_player(ctx, bypass=small_dict)
+                        return
                 youtube_dict.user = small_dict.user
                 youtube_dict.image_url = small_dict.image_url
                 await self.player(ctx, youtube_dict)
@@ -489,9 +509,11 @@ class DiscordBot(commands.Cog):
 
         if re.match(yt_pattern, url) is not None:
             if "watch?" in url.lower() or "youtu.be" in url.lower():
+                print("I FOUND A VIDEO", url)
                 small_dict.link = url
                 _multiple = False
             elif "playlist" in url:
+                print("I FOUND A PLAYLIST", url)
                 song_list = await self.youtube.youtube_playlist(url)
                 for track in song_list:
                     track.user = ctx.message.author
@@ -601,7 +623,7 @@ class DiscordBot(commands.Cog):
             if self.dictionary[ctx.guild.id].voice_channel is None:
                 self.dictionary[ctx.guild.id].voice_channel = ctx.author.voice.channel
         except Exception as e:
-            self.log.warning(logging_manager.debug_info("channel_join " + str(e)))
+            # self.log.warning(logging_manager.debug_info("channel_join " + str(e)))
             embed = discord.Embed(
                 title="You need to be in a channel.",
                 color=0x00FFCC,

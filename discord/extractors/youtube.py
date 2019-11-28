@@ -1,18 +1,10 @@
-from youtube_dl import YoutubeDL
-import time
-import asyncio
-from extractors import mongo
-import logging_manager
-from multiprocessing import Queue
-from expiringdict import ExpiringDict
-from bs4 import BeautifulSoup
 import aiohttp
-from variable_store import strip_youtube_title, Errors
-from url_parser import YouTubeType
-from song_store import Song, Error
-from urllib.parse import quote
-import re
 import async_timeout
+import logging_manager
+from extractors import mongo
+from variable_store import Errors, VariableStore
+from song_store import Error, Song
+import json
 
 log = logging_manager.LoggingManager()
 
@@ -38,146 +30,68 @@ class YoutubeDLLogger(object):
 class Youtube:
     def __init__(self):
         log.debug("[Startup]: Initializing YouTube Module . . .")
-        self.mongo = mongo.Mongo()
-        self.queue = Queue()
-        self.cache = ExpiringDict(max_age_seconds=10800, max_len=1000)
-        self.search_cache = dict()
         self.session = aiohttp.ClientSession()
+        self.mongo = mongo.Mongo()
 
-    async def extract_manifest(self, manifest_url):
-        log.debug(
-            "[YouTube Extraction] Found a Manifest instead of a video url. Extracting."
-        )
-        manifest_pattern = re.compile(
-            r"<Representation id=\"\d+\" codecs=\"\S+\" audioSamplingRate=\"(\d+)\" startWithSAP=\"\d\" "
-            r"bandwidth=\"\d+\">(<AudioChannelConfiguration[^/]+/>)?<BaseURL>(\S+)</BaseURL>"
-        )
+        self.term_url = "http://parent:8008/research/youtube_search"
+        self.url_url = "http://parent:8008/research/youtube_video"
+        self.playlist_url = "http://parent:8008/research/youtube_playlist"
+
+    async def http_get(self, url):
         with async_timeout.timeout(5):
-            async with self.session.get(manifest_url) as res:
-                text = await res.text()
-                it = re.finditer(manifest_pattern, text)
-                return_stream_url = ""
-                return_sample_rate = 0
-                for match in it:
-                    if int(match.group(1)) >= return_sample_rate:
-                        return_stream_url = match.group(3)
-                        return_sample_rate = int(match.group(1))
+            async with self.session.get(url=url) as re:
+                return re.text()
 
-                return return_stream_url
-        return ""
-
-    async def search_youtube(self, query):
-        if query in self.search_cache:
-            return self.search_cache[query]
-        try:
-            log.debug("[YouTube Search] Searched Term: '" + query + "'")
-            query = quote(query)
-            url = (
-                "https://www.youtube.com/results?search_query="
-                + query
-                + "&sp=EgIQAQ%253D%253D"
-            )  # SP = Video only
-            url_list = []
-            await asyncio.get_event_loop().run_in_executor(None, self.queue.put, query)
-            async with self.session.get(url) as res:
-                text = await res.text()
-                soup = BeautifulSoup(text, "html.parser")
-                for vid in soup.findAll(attrs={"class": "yt-uix-tile-link"}):
-                    url_list.append(vid["href"])
-            self.search_cache[query] = "https://www.youtube.com" + url_list[0]
-            for url in url_list:
-                if url.startswith("/watch"):
-                    return "https://www.youtube.com" + url
-        except (IndexError, KeyError) as e:
-            return Error(True, reason=Errors.no_results_found)
-        except (
-            aiohttp.ServerTimeoutError,
-            aiohttp.ServerDisconnectedError,
-            aiohttp.ClientConnectionError,
-        ) as e:
-            return Error(True, reason=Errors.cant_reach_youtube)
-        except Exception as er:
-            import traceback
-
-            print(traceback.format_exc(er.__traceback__))
-            return Error(True)
-        return Error(True)
+    async def http_post(self, url, data):
+        with async_timeout.timeout(10):
+            async with self.session.post(url=url, data=data) as re:
+                if re.status is not 200:
+                    if re.status is 500:
+                        return Error(True, Errors.backend_down)
+                    return Error(True, await re.text())
+                return await re.text()
 
     async def youtube_term(self, term):
-        url = await self.search_youtube(term)
+        url = await self.http_post(self.term_url, term)
 
-        if type(url) is Error:
+        if type(url) == Error:
             return url
 
-        return await self.youtube_url(url, term=term)
+        url = VariableStore.youtube_url_to_id(url)
 
-    def youtube_url_sync(self, url):
-        try:
-            video = YouTubeType(url)
-            if not video.valid:
-                return Error(True, reason=Errors.youtube_url_invalid)
-            video_id = video.id
-            if self.cache.get(video_id) is not None:
-                return self.cache.get(video_id)
-            start = time.time()
-            self.queue.put(url)
-            song = Song()
-            with YoutubeDL({"logger": YoutubeDLLogger()}) as ydl:
-                info_dict = ydl.extract_info(url, download=False)
-                song.link = url
-                song.id = info_dict["id"]
-                song.title = info_dict["title"]
-                song.term = url
-                for item in info_dict["formats"]:
-                    if "audio only" in item["format"]:
-                        song.stream = item["url"]
-                song.duration = info_dict["duration"]
-            song.loadtime = time.time() - start
-            for n in info_dict["thumbnails"]:
-                song.thumbnail = n["url"]
-            song.title = strip_youtube_title(song.title)
-            self.cache[song.id] = song
-            return song
-        except Exception as ex:
-            import traceback
+        sd = await self.http_post(url=self.url_url, data=url)
+        song_dict: dict = json.loads(sd)
+        song_dict["term"] = term
 
-            print(traceback.format_exc(ex.__traceback__))
-            return Error(True, reason=str(ex))
+        song: Song = Song.from_dict(song_dict)
+        return song
 
-    async def youtube_url(self, url, term=None):
-        loop = asyncio.get_event_loop()
-        youtube = await loop.run_in_executor(None, self.youtube_url_sync, url)
+    async def youtube_url(self, url):
+        url = VariableStore.youtube_url_to_id(url)
+        sd = await self.http_post(url=self.url_url, data=url)
 
-        if type(youtube) is Error:
-            return youtube
+        if type(sd) == Error:
+            return sd
 
-        if "manifest.googlevideo" in youtube.stream:
-            youtube.stream = await self.extract_manifest(youtube.stream)
+        song_dict: dict = json.loads(sd)
 
-        asyncio.run_coroutine_threadsafe(
-            self.mongo.append_response_time(youtube.loadtime), loop
-        )
-
-        if term is not None:
-            youtube.term = term
-
-        return youtube
-
-    def youtube_playlist_sync(self, url):
-        self.queue.put(url)
-        youtube_dl_opts = {"extract_flat": True, "logger": YoutubeDLLogger()}
-        output = []
-        with YoutubeDL(youtube_dl_opts) as ydl:
-            info_dict = ydl.extract_info(url, download=False)
-            for video in info_dict["entries"]:
-                if not video:
-                    continue
-                song = Song()
-                song.title = video["title"]
-                song.link = "https://youtube.com/watch?v=" + video["url"]
-                output.append(song)
-        return output
+        if song_dict == {}:
+            return Error(Errors.default)
+        song: Song = Song.from_dict(song_dict)
+        return song
 
     async def youtube_playlist(self, url):
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self.youtube_playlist_sync, url)
+        url = VariableStore.youtube_url_to_id(url)
+        sd = await self.http_post(url=self.playlist_url, data=url)
+
+        if type(sd) is Error:
+            return Errors
+
+        songs = []
+        for t in eval(sd):
+            s = Song()
+            s.title = t["title"]
+            s.link = t["link"]
+            songs.append(s)
+
+        return songs

@@ -44,6 +44,19 @@ class Song:
             return self.thumbnail
         return None
 
+    @staticmethod
+    def from_dict(d):
+        song = Song()
+        song.title = d["title"]
+        song.term = d["term"]
+        song.id = d["id"]
+        song.link = d["link"]
+        song.stream = d["stream"]
+        song.duration = d["duration"]
+        song.loadtime = d["loadtime"]
+        song.thumbnail = d["thumbnail"]
+        return song
+
 
 class Guild:
     def __init__(self):

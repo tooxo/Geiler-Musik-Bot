@@ -18,13 +18,14 @@ before_install:
   - chmod +x docker-compose
   - sudo mv docker-compose /usr/local/bin
   - docker-compose --version
-  - echo "BOT_TOKEN=$BOT_TOKEN" >> sysenv.txt
-  - echo "MONGODB_URI=$MONGODB_URI" >> sysenv.txt
-  - echo "MONGODB_USER=$MONGODB_USER" >> sysenv.txt
-  - echo "SPOTIFY_ID=$SPOTIFY_ID" >> sysenv.txt
-  - echo "SPOTIFY_SECRET=$SPOTIFY_SECRET" >> sysenv.txt
-  - echo "TEST_ENVIRONMENT=True" >> sysenv.txt
-  - echo "PORT=8001" >> sysenv.txt
+  - echo "BOT_TOKEN=$BOT_TOKEN" >> sysenv.env
+  - echo "MONGODB_URI=$MONGODB_URI" >> sysenv.env
+  - echo "MONGODB_USER=$MONGODB_USER" >> sysenv.env
+  - echo "SPOTIFY_ID=$SPOTIFY_ID" >> sysenv.env
+  - echo "SPOTIFY_SECRET=$SPOTIFY_SECRET" >> sysenv.env
+  - echo "TEST_ENVIRONMENT=True" >> sysenv.env
+  - echo "PORT=8001" >> sysenv.env
+  - touch youtube/.env
   - docker network create web
   - sudo apt-get install libopus0
   - git clone https://github.com/tooxo/distest.git --depth 1 -b test
@@ -46,7 +47,3 @@ script:
 after_script:
   - docker-compose stop
   - docker-compose rm -f
-
-notifications:
-    webhooks:
-      - https://www.travisbuddy.com/
