@@ -1,0 +1,23 @@
+version: "2"
+
+services:
+  node:
+    build: node
+    command: "python3 -u /home/src/app/node.py"
+    restart: always
+    depends_on:
+      - parent
+    volumes:
+      - ./node/:/home/src/app
+    env_file:
+      - node/settings.env
+  parent:
+    build: .
+    command: "python3 -u /home/src/app/parent.py"
+    restart: always
+    ports:
+      - 8008:8008
+    volumes:
+      - .:/home/src/app
+    env_file:
+      - .env

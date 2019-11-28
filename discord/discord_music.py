@@ -1,15 +1,15 @@
+import traceback
 from asyncio import Queue
 from discord.ext import commands
 import discord
 import random
 import asyncio
-import spotify
-import youtube
-import mongo
+from extractors import spotify
+from extractors import mongo
+from extractors import lastfm
 import time
 import string
 import logging_manager
-import lastfm
 import collections
 import aiohttp
 import re
@@ -17,6 +17,9 @@ from variable_store import VariableStore, Errors
 from url_parser import YouTubeType, SpotifyType
 from song_store import Song, Guild, Error
 import async_timeout
+from now_playing_message import NowPlayingMessage
+import dbl
+from os import environ
 
 
 class DiscordBot(commands.Cog):
@@ -25,7 +28,14 @@ class DiscordBot(commands.Cog):
         self.bot = bot
         self.log = logging_manager.LoggingManager()
         self.spotify = spotify.Spotify()
-        self.youtube = youtube.Youtube()
+        if environ.get("OLD_BACKEND", False) is True:
+            from extractors import youtube_old
+
+            self.youtube = youtube_old.Youtube()
+        else:
+            from extractors import youtube
+
+            self.youtube = youtube.Youtube()
         self.lastfm = lastfm.LastFM()
         self.mongo = mongo.Mongo()
         bot.remove_command("help")
@@ -39,13 +49,25 @@ class DiscordBot(commands.Cog):
             return response
 
         restart_key = generate_key(64)
-        asyncio.run_coroutine_threadsafe(self.mongo.set_restart_key(restart_key), self.bot.loop)
+        asyncio.run_coroutine_threadsafe(
+            self.mongo.set_restart_key(restart_key), self.bot.loop
+        )
 
+        """
+        Fix for OpusNotLoaded Error.
+        """
         if not discord.opus.is_loaded():
             discord.opus.load_opus("/usr/lib/libopus.so")
 
         @self.bot.event
         async def on_voice_state_update(member, before, after):
+            """
+            Check for user leaving or joining your channel.
+            :param member: Member, which joined
+            :param before: Channel before
+            :param after: Channel after
+            :return:
+            """
             try:
                 if before.channel is not None:
                     guild_id = before.channel.guild.id
@@ -54,17 +76,95 @@ class DiscordBot(commands.Cog):
 
                 if self.dictionary[guild_id].voice_channel is None:
                     return
+                else:
+                    if member is self.bot.user:
+                        if self.bot.get_guild(guild_id).voice_client is not None:
+                            self.dictionary[guild_id].voice_channel = None
+                            self.dictionary[guild_id].voice_client = None
+                            return
 
                 if (
                     self.dictionary[guild_id].voice_channel is before.channel
                     and self.dictionary[guild_id].voice_channel is not after.channel
                 ):
                     if len(before.channel.members) == 1:
-                        asyncio.ensure_future(self.check_my_channel(before.channel, guild_id))
+                        asyncio.ensure_future(
+                            self.check_my_channel(before.channel, guild_id)
+                        )
             except KeyError:
-                pass  # Not yet initiated
+                pass
+
+        @self.bot.event
+        async def on_guild_join(guild):
+            """
+            Triggers if someone joins a guild and adds it to memory
+            :param guild: the server joined
+            :return:
+            """
+            self.log.debug("Joined a new Guild! Hello, " + guild.name)
+            self.dictionary[guild.id] = Guild()
+
+        for _guild in self.bot.guilds:
+            self.dictionary[_guild.id] = Guild()
+            if _guild.me.voice is not None:
+                if hasattr(_guild.me.voice, "channel"):
+
+                    async def reconnect(_guild):
+                        """
+                        Reconnects disconnected clients after restart
+                        :param _guild: guild
+                        :return:
+                        """
+                        self.log.debug("[Reconnect] Reconnecting " + str(_guild))
+                        self.dictionary[
+                            _guild.id
+                        ].voice_channel = _guild.me.voice.channel
+                        t = await _guild.me.voice.channel.connect(
+                            timeout=5, reconnect=False
+                        )
+                        await t.disconnect(force=True)
+                        self.dictionary[
+                            _guild.id
+                        ].voice_client = await _guild.me.voice.channel.connect(
+                            timeout=5, reconnect=True
+                        )
+
+                    asyncio.run_coroutine_threadsafe(reconnect(_guild), self.bot.loop)
+
+        self.dbl_key = environ.get("DBL_KEY", "")
+        if self.dbl_key is not "":
+            self.dbl_client = dbl.DBLClient(self.bot, self.dbl_key)
+
+            async def update_stats():
+                while not self.bot.is_closed():
+                    try:
+                        await self.dbl_client.post_guild_count()
+                        self.log.debug(
+                            "[SERVER COUNT] Posted server count ({})".format(
+                                self.dbl_client.guild_count()
+                            )
+                        )
+                        await self.bot.change_presence(
+                            activity=discord.Activity(
+                                type=discord.ActivityType.listening,
+                                name=".help on {} servers".format(
+                                    self.dbl_client.guild_count()
+                                ),
+                            )
+                        )
+                    except Exception as e:
+                        self.log.warning(logging_manager.debug_info(e))
+                    await asyncio.sleep(1800)
+
+            self.bot.loop.create_task(update_stats())
 
     async def check_my_channel(self, channel, guild_id):
+        """
+        Asynchronous function, checking if a bot is alone in a channel
+        :param channel:
+        :param guild_id:
+        :return:
+        """
         try:
             with async_timeout.timeout(300):
                 while 1:
@@ -82,37 +182,57 @@ class DiscordBot(commands.Cog):
                 self.dictionary[guild_id].voice_client.stop()
 
     async def clear_presence(self, ctx):
+        """
+        Stops message updating after a song finished
+        :param ctx:
+        :return:
+        """
         try:
             if self.dictionary[ctx.guild.id].now_playing_message is not None:
-                if self.dictionary[ctx.guild.id].now_playing is not None:
-                    embed = discord.Embed(
-                        title="_`" + self.dictionary[ctx.guild.id].now_playing.title + "`_", color=0x00FF00
-                    )
-                    await self.dictionary[ctx.guild.id].now_playing_message.edit(embed=embed)
-                # await self.dictionary[ctx.guild.id].now_playing_message.delete()
-                self.dictionary[ctx.guild.id].now_playing_message = None
+                await self.dictionary[ctx.guild.id].now_playing_message.stop()
+                # self.dictionary[ctx.guild.id].now_playing_message = None
                 try:
                     await ctx.message.delete()
                 except discord.NotFound:
                     pass
         except discord.NotFound:
             self.dictionary[ctx.guild.id].now_playing_message = None
+        """
         await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=".help"))
+        """
 
     async def send_error_message(self, ctx, message):
+        """
+        Sends an error message
+        :param ctx: discord.py context
+        :param message: the message to send
+        :return:
+        """
         embed = discord.Embed(title="Error", description=message, color=0xFF0000)
         await ctx.send(embed=embed)
 
     async def empty_channel(self, ctx):
+        """
+        Leaves the channel if the bot is alone
+        :param ctx:
+        :return:
+        """
         if len(self.dictionary[ctx.guild.id].voice_channel.members) == 1:
             self.dictionary[ctx.guild.id].song_queue = Queue()
             await self.dictionary[ctx.guild.id].voice_client.disconnect()
             embed = discord.Embed(
-                title="I've left the channel, because it was empty.", color=0x00FFCC, url="https://d.chulte.de"
+                title="I've left the channel, because it was empty.",
+                color=0x00FFCC,
+                url="https://d.chulte.de",
             )
             await ctx.send(embed=embed)
 
     async def preload_song(self, ctx):
+        """
+        Preload of the next song.
+        :param ctx:
+        :return:
+        """
         if self.dictionary[ctx.guild.id].song_queue.qsize() > 0:
             i = 0
             for item in self.dictionary[ctx.guild.id].song_queue._queue:
@@ -130,13 +250,28 @@ class DiscordBot(commands.Cog):
                     break
                 i += 1
 
-    def song_conclusion(self, ctx):
-        function = asyncio.run_coroutine_threadsafe(self.clear_presence(ctx), self.bot.loop)
+    def song_conclusion(self, ctx, error=None):
+        if len(self.dictionary[ctx.guild.id].song_queue._queue) == 0:
+            self.dictionary[ctx.guild.id].now_playing = None
+        if error is not None:
+            self.log.error(str(error))
+            function = asyncio.run_coroutine_threadsafe(
+                self.send_error_message(ctx, str(error)), self.bot.loop
+            )
+            try:
+                function.result()
+            except Exception as e:
+                self.log.error(e)
+        function = asyncio.run_coroutine_threadsafe(
+            self.clear_presence(ctx), self.bot.loop
+        )
         try:
             function.result()
         except Exception as e:
             self.log.error(logging_manager.debug_info(str(e)))
-        function = asyncio.run_coroutine_threadsafe(self.empty_channel(ctx), self.bot.loop)
+        function = asyncio.run_coroutine_threadsafe(
+            self.empty_channel(ctx), self.bot.loop
+        )
         try:
             function.result()
         except Exception as e:
@@ -146,7 +281,6 @@ class DiscordBot(commands.Cog):
             function.result()
         except Exception as e:
             self.log.error(logging_manager.debug_info(str(e)))
-        self.dictionary[ctx.guild.id].now_playing = None
 
     async def messaging(self, message, ctx, full, empty):
         try:
@@ -159,9 +293,23 @@ class DiscordBot(commands.Cog):
 
                 if ":" in str(self.dictionary[ctx.guild.id].now_playing.duration):
                     finish_second = (
-                        int(str(self.dictionary[ctx.guild.id].now_playing.duration).split(":")[0]) * 3600
-                        + int(str(self.dictionary[ctx.guild.id].now_playing.duration).split(":")[1]) * 60
-                        + int(str(self.dictionary[ctx.guild.id].now_playing.duration).split(":")[2])
+                        int(
+                            str(
+                                self.dictionary[ctx.guild.id].now_playing.duration
+                            ).split(":")[0]
+                        )
+                        * 3600
+                        + int(
+                            str(
+                                self.dictionary[ctx.guild.id].now_playing.duration
+                            ).split(":")[1]
+                        )
+                        * 60
+                        + int(
+                            str(
+                                self.dictionary[ctx.guild.id].now_playing.duration
+                            ).split(":")[2]
+                        )
                     )
                     description = (
                         "`"
@@ -171,12 +319,19 @@ class DiscordBot(commands.Cog):
                         + "`"
                     )
                 else:
-                    finish_second = int(self.dictionary[ctx.guild.id].now_playing.duration)
+                    finish_second = int(
+                        self.dictionary[ctx.guild.id].now_playing.duration
+                    )
                     description = (
                         "`"
                         + time.strftime("%H:%M:%S", time.gmtime(now_time))
                         + " / "
-                        + time.strftime("%H:%M:%S", time.gmtime(self.dictionary[ctx.guild.id].now_playing.duration))
+                        + time.strftime(
+                            "%H:%M:%S",
+                            time.gmtime(
+                                self.dictionary[ctx.guild.id].now_playing.duration
+                            ),
+                        )
                         + "`"
                     )
 
@@ -197,17 +352,24 @@ class DiscordBot(commands.Cog):
                 else:
                     title = "`" + self.dictionary[ctx.guild.id].now_playing.title + "`"
 
-                embed2 = discord.Embed(title=title, color=0x00FFCC, url=self.dictionary[ctx.guild.id].now_playing.link)
+                embed2 = discord.Embed(
+                    title=title,
+                    color=0x00FFCC,
+                    url=self.dictionary[ctx.guild.id].now_playing.link,
+                )
                 embed2.set_author(name="Currently Playing:")
                 embed2.add_field(name=hashes, value=description)
                 try:
                     if self.dictionary[ctx.guild.id].now_playing.image is not None:
-                        embed2.set_thumbnail(url=self.dictionary[ctx.guild.id].now_playing.image)
-                        # self.dictionary[ctx.guild.id]['now_playing_song']['image_url'] = ""
+                        embed2.set_thumbnail(
+                            url=self.dictionary[ctx.guild.id].now_playing.image
+                        )
                 except Exception as e:
                     self.log.error(logging_manager.debug_info(str(e)))
                 try:
-                    await self.dictionary[ctx.guild.id].now_playing_message.edit(embed=embed2)
+                    await self.dictionary[ctx.guild.id].now_playing_message.edit(
+                        embed=embed2
+                    )
                 except (discord.NotFound, TypeError):
                     return
         except (TypeError, AttributeError, aiohttp.ServerDisconnectedError) as e:
@@ -222,18 +384,29 @@ class DiscordBot(commands.Cog):
         if type(small_dict) is Error:
             error_message = small_dict.reason
             await self.send_error_message(ctx, error_message)
-            if error_message == Errors.no_results_found:
+            if (
+                error_message == Errors.no_results_found
+                or error_message == Errors.default
+            ):
                 await self.dictionary[ctx.guild.id].now_playing_message.delete()
                 return
+
             small_dict = await self.youtube.youtube_url(small_dict.link)
+
+            if type(small_dict) is Error:
+                self.log.error(small_dict.reason)
+                await self.send_error_message(ctx, small_dict.reason)
+                return
 
         try:
             self.dictionary[ctx.guild.id].now_playing = small_dict
             self.dictionary[ctx.guild.id].now_playing.start_time = int(time.time())
+            """
             if small_dict.title is not None:
                 await self.bot.change_presence(
                     activity=discord.Activity(type=discord.ActivityType.playing, name=small_dict.title)
                 )
+            """
             volume = await self.mongo.get_volume(ctx.guild.id)
             source = discord.PCMVolumeTransformer(
                 discord.FFmpegPCMAudio(
@@ -244,12 +417,25 @@ class DiscordBot(commands.Cog):
                 volume=volume,
             )
             self.dictionary[ctx.guild.id].voice_client.play(
-                source, after=lambda _: self.song_conclusion(ctx)
-            )  # do after
+                source, after=lambda error: self.song_conclusion(ctx, error=error)
+            )
             full, empty = await self.mongo.get_chars(ctx.guild.id)
-            asyncio.ensure_future(self.messaging(self.dictionary[ctx.guild.id].now_playing_message, ctx, full, empty))
+            self.dictionary[ctx.guild.id].now_playing_message = NowPlayingMessage(
+                song=self.dictionary[ctx.guild.id].now_playing,
+                ctx=ctx,
+                message=self.dictionary[ctx.guild.id].now_playing_message,
+                full=full,
+                empty=empty,
+                discord_music=self,
+            )
+            await self.dictionary[ctx.guild.id].now_playing_message.send()
+            asyncio.ensure_future(
+                self.dictionary[ctx.guild.id].now_playing_message.update()
+            )
+
+            # asyncio.ensure_future(self.messaging(self.dictionary[ctx.guild.id].now_playing_message, ctx, full, empty))
         except (Exception, discord.ClientException) as e:
-            self.log.warning(logging_manager.debug_info(str(e)))
+            self.log.debug(logging_manager.debug_info(traceback.format_exc(e)))
             x += 1
             pass
 
@@ -258,21 +444,32 @@ class DiscordBot(commands.Cog):
             song_title = self.dictionary[ctx.guild.id].now_playing.title
             search_term = self.dictionary[ctx.guild.id].now_playing.term
             if song_title == "_":
-                self.dictionary[ctx.guild.id].now_playing.image_url = await self.lastfm.get_album_art(
+                self.dictionary[
+                    ctx.guild.id
+                ].now_playing.image_url = await self.lastfm.get_album_art(
                     search_term, search_term
                 )
             else:
-                self.dictionary[ctx.guild.id].now_playing.image_url = await self.lastfm.get_album_art(
+                self.dictionary[
+                    ctx.guild.id
+                ].now_playing.image_url = await self.lastfm.get_album_art(
                     song_title, search_term
                 )
         except (IndexError, TypeError, KeyError, NameError) as e:
             self.log.warning(logging_manager.debug_info(str(e)))
 
-    async def pre_player(self, ctx):
-        if self.dictionary[ctx.guild.id].song_queue.qsize() > 0:
-            small_dict = await self.dictionary[ctx.guild.id].song_queue.get()
-            embed = discord.Embed(title="🔁 Loading ... 🔁", color=0x00FFCC, url="https://d.chulte.de")
-            self.dictionary[ctx.guild.id].now_playing_message = await ctx.send(embed=embed)
+    async def pre_player(self, ctx, bypass=None):
+        if self.dictionary[ctx.guild.id].song_queue.qsize() > 0 or bypass is not None:
+            if bypass is None:
+                small_dict = await self.dictionary[ctx.guild.id].song_queue.get()
+            else:
+                small_dict = bypass
+            embed = discord.Embed(
+                title="🔁 Loading ... 🔁", color=0x00FFCC, url="https://d.chulte.de"
+            )
+            self.dictionary[ctx.guild.id].now_playing_message = await ctx.send(
+                embed=embed
+            )
             if small_dict.stream is None:
                 if small_dict.link is not None:
                     # url
@@ -283,6 +480,16 @@ class DiscordBot(commands.Cog):
                     # term
                     youtube_dict = await self.youtube.youtube_term(small_dict.title)
                     # youtube_dict = await self.youtube_t.youtube_term(small_dict['title'])
+                if type(youtube_dict) == Error:
+                    if youtube_dict.reason != Errors.error_please_retry:
+                        await self.send_error_message(ctx, youtube_dict.reason)
+                        await self.dictionary[ctx.guild.id].now_playing_message.delete()
+                        await self.pre_player(ctx)
+                        return
+                    else:
+                        await self.dictionary[ctx.guild.id].now_playing_message.delete()
+                        await self.pre_player(ctx, bypass=small_dict)
+                        return
                 youtube_dict.user = small_dict.user
                 youtube_dict.image_url = small_dict.image_url
                 await self.player(ctx, youtube_dict)
@@ -308,15 +515,20 @@ class DiscordBot(commands.Cog):
 
         if re.match(yt_pattern, url) is not None:
             if "watch?" in url.lower() or "youtu.be" in url.lower():
+                print("I FOUND A VIDEO", url)
                 small_dict.link = url
                 _multiple = False
             elif "playlist" in url:
+                print("I FOUND A PLAYLIST", url)
                 song_list = await self.youtube.youtube_playlist(url)
                 for track in song_list:
                     track.user = ctx.message.author
                     small_dicts.append(track)
                 _multiple = True
-        elif re.match(spotify_pattern, url) is not None or re.match(spotify_uri_pattern, url) is not None:
+        elif (
+            re.match(spotify_pattern, url) is not None
+            or re.match(spotify_uri_pattern, url) is not None
+        ):
             if "playlist" in url:
                 song_list = await self.spotify.spotify_playlist(url)
                 if len(song_list) == 0:
@@ -334,9 +546,12 @@ class DiscordBot(commands.Cog):
                 _multiple = True
             elif "track" in url:
                 track = await self.spotify.spotify_track(url)
-                small_dict.title = track.title
-                small_dict.image_url = track.image_url
-                _multiple = False
+                if track is not None:
+                    small_dict.title = track.title
+                    small_dict.image_url = track.image_url
+                    _multiple = False
+                else:
+                    return
             elif "album" in url:
                 song_list = await self.spotify.spotify_album(url)
                 for track in song_list:
@@ -360,7 +575,9 @@ class DiscordBot(commands.Cog):
             for song in small_dicts:
                 self.dictionary[ctx.guild.id].song_queue.put_nowait(song)
             embed = discord.Embed(
-                title=":asterisk: Added " + str(len(small_dicts)) + " Tracks to Queue. :asterisk:",
+                title=":asterisk: Added "
+                + str(len(small_dicts))
+                + " Tracks to Queue. :asterisk:",
                 url="https://d.chulte.de",
                 color=0x00FFCC,
             )
@@ -379,39 +596,54 @@ class DiscordBot(commands.Cog):
                 except AttributeError:
                     pass
             embed = discord.Embed(
-                title=":asterisk: Added **" + title + "** to Queue.", url="https://d.chulte.de", color=0x00FFCC
+                title=":asterisk: Added **" + title + "** to Queue.",
+                url="https://d.chulte.de",
+                color=0x00FFCC,
             )
             if self.dictionary[ctx.guild.id].voice_client.is_playing():
                 if not playskip:
                     await ctx.send(embed=embed)
 
-        if playskip:
-            await self.dictionary[ctx.guild.id].voice_client.stop()
-        if not self.dictionary[ctx.guild.id].voice_client.is_playing():
-            await self.pre_player(ctx)
-        await self.preload_song(ctx)
+        try:
+            if playskip:
+                if self.dictionary[ctx.guild.id].voice_client is not None:
+                    if self.dictionary[ctx.guild.id].voice_client.is_playing():
+                        self.dictionary[ctx.guild.id].voice_client.stop()
+            if not self.dictionary[ctx.guild.id].voice_client.is_playing():
+                await self.pre_player(ctx)
+            await self.preload_song(ctx)
+        except Exception as e:
+            print(traceback.format_exc())
+            self.log.error(logging_manager.debug_info(str(e)))
 
     async def join_check(self, ctx, url):
         if url is None:
             embed = discord.Embed(
-                title="You need to enter something to play.", url="https://d.chulte.de", color=0x00FFCC
+                title="You need to enter something to play.",
+                url="https://d.chulte.de",
+                color=0x00FFCC,
             )
             await ctx.send(embed=embed)
             return False
-        self.dictionary = self.dictionary
         try:
             if self.dictionary[ctx.guild.id].voice_channel is None:
                 self.dictionary[ctx.guild.id].voice_channel = ctx.author.voice.channel
         except Exception as e:
-            self.log.warning(logging_manager.debug_info("channel_join " + str(e)))
-            embed = discord.Embed(title="You need to be in a channel.", color=0x00FFCC, url="https://d.chulte.de")
+            # self.log.warning(logging_manager.debug_info("channel_join " + str(e)))
+            embed = discord.Embed(
+                title="You need to be in a channel.",
+                color=0x00FFCC,
+                url="https://d.chulte.de",
+            )
             self.dictionary[ctx.guild.id].voice_channel = None
             await ctx.send(embed=embed)
             return False
         try:
             if ctx.me.voice.channel != ctx.author.voice.channel:
                 embed = discord.Embed(
-                    title="You need to be in the same channel as the bot.", color=0x00FFCC, url="https://d.chulte.de"
+                    title="You need to be in the same channel as the bot.",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
                 )
                 await ctx.send(embed=embed)
                 return False
@@ -423,11 +655,14 @@ class DiscordBot(commands.Cog):
         if self.dictionary[ctx.guild.id].voice_client is None:
             try:
                 if (
-                    ctx.author.voice.channel.user_limit <= len(ctx.author.voice.channel.members)
+                    ctx.author.voice.channel.user_limit
+                    <= len(ctx.author.voice.channel.members)
                     and ctx.author.voice.channel.user_limit != 0
                 ):
                     if ctx.guild.me.guild_permissions.administrator is True:
-                        self.dictionary[ctx.guild.id].voice_client = await ctx.author.voice.channel.connect(
+                        self.dictionary[
+                            ctx.guild.id
+                        ].voice_client = await ctx.author.voice.channel.connect(
                             timeout=60, reconnect=True
                         )
                     else:
@@ -439,19 +674,30 @@ class DiscordBot(commands.Cog):
                         await ctx.send(embed=embed)
                         return False
                 else:
-                    self.dictionary[ctx.guild.id].voice_client = await ctx.author.voice.channel.connect(
-                        timeout=60, reconnect=True
+                    self.dictionary[
+                        ctx.guild.id
+                    ].voice_client = await ctx.author.voice.channel.connect(
+                        timeout=10, reconnect=True
                     )
-            except (TimeoutError, discord.HTTPException, discord.ClientException, discord.DiscordException) as e:
+            except (
+                TimeoutError,
+                discord.HTTPException,
+                discord.ClientException,
+                discord.DiscordException,
+                Exception,
+            ) as e:
                 self.log.warning(logging_manager.debug_info("channel_join " + str(e)))
                 self.dictionary[ctx.guild.id].voice_channel = None
                 embed = discord.Embed(
-                    title="Error while joining your channel. :frowning: (2)", url="https://d.chulte.de", color=0x00FFCC
+                    title="Error while joining your channel. :frowning: (2)",
+                    url="https://d.chulte.de",
+                    color=0x00FFCC,
                 )
                 await ctx.send(embed=embed)
                 return False
         return True
 
+    # @commands.cooldown(1, 0.5, commands.BucketType.guild)
     @commands.command(aliases=["p"])
     async def play(self, ctx, *, url: str = None):
         if not await self.play_check(ctx, url):
@@ -484,25 +730,26 @@ class DiscordBot(commands.Cog):
         else:
             if re.match(VariableStore.url_pattern, url) is not None:
                 embed = discord.Embed(
-                    title="This is not a valid/supported url.", url="https://d.chulte.de", color=0x00FFCC
+                    title="This is not a valid/supported url.",
+                    url="https://d.chulte.de",
+                    color=0x00FFCC,
                 )
                 await ctx.send(embed=embed)
                 return False
             else:
                 return True
 
-    async def cog_before_invoke(self, ctx):
-        if ctx.guild.id not in self.dictionary:
-            self.dictionary[ctx.guild.id] = Guild()
-        if self.dictionary[ctx.guild.id].voice_channel is None:
-            if ctx.me.voice is not None:
-                if hasattr(ctx.me.voice, "channel"):
-                    self.dictionary[ctx.guild.id].voice_channel = ctx.me.voice.channel
-                    t = await ctx.me.voice.channel.connect(timeout=5, reconnect=False)
-                    await t.disconnect()
-                    self.dictionary[ctx.guild.id].voice_client = await ctx.me.voice.channel.connect(
-                        timeout=60, reconnect=True
-                    )
+    #
+    # async def cog_before_invoke(self, ctx):
+    #     if self.dictionary[ctx.guild.id].voice_channel is None:
+    #         if ctx.me.voice is not None:
+    #             if hasattr(ctx.me.voice, "channel"):
+    #                 self.dictionary[ctx.guild.id].voice_channel = ctx.me.voice.channel
+    #                 t = await ctx.me.voice.channel.connect(timeout=5, reconnect=False)
+    #                 await t.disconnect()
+    #                 self.dictionary[ctx.guild.id].voice_client = await ctx.me.voice.channel.connect(
+    #                     timeout=60, reconnect=True
+    #                 )
 
     @commands.command(aliases=["q"])
     async def queue(self, ctx):
@@ -511,13 +758,39 @@ class DiscordBot(commands.Cog):
         np_song = self.dictionary[ctx.guild.id].now_playing
         embed = discord.Embed(color=0x00FFCC, url="https://d.chulte.de")
         if np_song is not None:
-            embed.add_field(name="**Currently Playing...**", value="`" + np_song.title + "`\n", inline=False)
+            embed.add_field(
+                name="**Currently Playing...**",
+                value="`" + np_song.title + "`\n",
+                inline=False,
+            )
         else:
-            embed.add_field(name="**Currently Playing...**", value="Nothing.\n", inline=False)
+            embed.add_field(
+                name="**Currently Playing...**", value="Nothing.\n", inline=False
+            )
         if len(song_queue) > 0:
-            numbers = [":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:"]
+            numbers = [
+                ":one:",
+                ":two:",
+                ":three:",
+                ":four:",
+                ":five:",
+                ":six:",
+                ":seven:",
+                ":eight:",
+                ":nine:",
+            ]
 
-            numbers = ["`(1)`", "`(2)`", "`(3)`", "`(4)`", "`(5)`", "`(6)`", "`(7)`", "`(8)`", "`(9)`"]
+            numbers = [
+                "`(1)`",
+                "`(2)`",
+                "`(3)`",
+                "`(4)`",
+                "`(5)`",
+                "`(6)`",
+                "`(7)`",
+                "`(8)`",
+                "`(9)`",
+            ]
 
             queue = ""
             for x in range(0, 9):
@@ -534,7 +807,11 @@ class DiscordBot(commands.Cog):
                 queue = queue + "`(+)` `" + str(len(song_queue) - 9) + " Tracks...`"
             embed.add_field(name="**Coming up:**", value=queue, inline=False)
         else:
-            embed.add_field(name="**Coming up:**", value="Nothing in Queue. Use .play to add something.", inline=False)
+            embed.add_field(
+                name="**Coming up:**",
+                value="Nothing in Queue. Use .play to add something.",
+                inline=False,
+            )
 
         await ctx.send(embed=embed)
 
@@ -554,17 +831,25 @@ class DiscordBot(commands.Cog):
         try:
             if len(name) > 32:
                 embed = discord.Embed(
-                    title="Name too long. 32 chars is the limit.", url="https://d.chulte.de", color=0x00FFCC
+                    title="Name too long. 32 chars is the limit.",
+                    url="https://d.chulte.de",
+                    color=0x00FFCC,
                 )
                 await ctx.send(embed=embed)
             me = ctx.guild.me
             await me.edit(nick=name)
             embed = discord.Embed(
-                title="Rename to **" + name + "** successful.", url="https://d.chulte.de", color=0x00FFCC
+                title="Rename to **" + name + "** successful.",
+                url="https://d.chulte.de",
+                color=0x00FFCC,
             )
             await ctx.send(embed=embed)
         except Exception as e:
-            embed = discord.Embed(title="An Error occurred: " + str(e), url="https://d.chulte.de", color=0x00FFCC)
+            embed = discord.Embed(
+                title="An Error occurred: " + str(e),
+                url="https://d.chulte.de",
+                color=0x00FFCC,
+            )
             await ctx.send(embed=embed)
 
     @commands.command(aliases=["v"])
@@ -572,7 +857,9 @@ class DiscordBot(commands.Cog):
         try:
             if ctx.me.voice.channel != ctx.author.voice.channel:
                 embed = discord.Embed(
-                    title="You need to be in the same channel as the bot.", color=0x00FFCC, url="https://d.chulte.de"
+                    title="You need to be in the same channel as the bot.",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
                 )
                 await ctx.send(embed=embed)
                 return
@@ -580,19 +867,29 @@ class DiscordBot(commands.Cog):
             pass
         try:
             if not hasattr(ctx.author.voice, "channel"):
-                embed = discord.Embed(title="You need to be in a channel.", color=0x00FFCC, url="https://d.chulte.de")
+                embed = discord.Embed(
+                    title="You need to be in a channel.",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
+                )
                 await ctx.send(embed=embed)
                 return
         except AttributeError:
             pass
         if self.dictionary[ctx.guild.id].voice_channel is None:
-            embed = discord.Embed(title="The bot isn't connected.", color=0x00FFCC, url="https://d.chulte.de")
+            embed = discord.Embed(
+                title="The bot isn't connected.",
+                color=0x00FFCC,
+                url="https://d.chulte.de",
+            )
             await ctx.send(embed=embed)
             return
         current_volume = await self.mongo.get_volume(ctx.guild.id)
         if volume is None:
             embed = discord.Embed(
-                title="The current volume is: " + str(current_volume) + ". It only updates on song changes, so beware.",
+                title="The current volume is: "
+                + str(current_volume)
+                + ". It only updates on song changes, so beware.",
                 color=0x00FFCC,
                 url="https://d.chulte.de",
             )
@@ -601,17 +898,27 @@ class DiscordBot(commands.Cog):
         try:
             var = float(volume)
         except ValueError as e:
-            embed = discord.Embed(title="You need to enter a number.", color=0x00FFCC, url="https://d.chulte.de")
+            embed = discord.Embed(
+                title="You need to enter a number.",
+                color=0x00FFCC,
+                url="https://d.chulte.de",
+            )
             await ctx.send(embed=embed)
             return
         if var < 0 or var > 2:
             embed = discord.Embed(
-                title="The number needs to be between 0.0 and 2.0.", color=0x00FFCC, url="https://d.chulte.de"
+                title="The number needs to be between 0.0 and 2.0.",
+                color=0x00FFCC,
+                url="https://d.chulte.de",
             )
             await ctx.send(embed=embed)
             return
         await self.mongo.set_volume(ctx.guild.id, var)
-        embed = discord.Embed(title="The Volume was set to: " + str(var), color=0x00FFCC, url="https://d.chulte.de")
+        embed = discord.Embed(
+            title="The Volume was set to: " + str(var),
+            color=0x00FFCC,
+            url="https://d.chulte.de",
+        )
         await ctx.send(embed=embed)
 
     @commands.command()
@@ -651,7 +958,10 @@ class DiscordBot(commands.Cog):
         except (KeyError, TypeError) as e:
             self.log.warning(logging_manager.debug_info(str(e)))
             embed = discord.Embed(
-                title="Error", description=Errors.info_check, url="https://d.chulte.de", color=0x00FFCC
+                title="Error",
+                description=Errors.info_check,
+                url="https://d.chulte.de",
+                color=0x00FFCC,
             )
             await ctx.send(embed=embed)
 
@@ -660,7 +970,9 @@ class DiscordBot(commands.Cog):
         try:
             if ctx.me.voice.channel != ctx.author.voice.channel:
                 embed = discord.Embed(
-                    title="You need to be in the same channel as the bot.", color=0x00FFCC, url="https://d.chulte.de"
+                    title="You need to be in the same channel as the bot.",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
                 )
                 await ctx.send(embed=embed)
                 return
@@ -668,14 +980,22 @@ class DiscordBot(commands.Cog):
             pass
         try:
             if not hasattr(ctx.author.voice, "channel"):
-                embed = discord.Embed(title="You need to be in a channel.", color=0x00FFCC, url="https://d.chulte.de")
+                embed = discord.Embed(
+                    title="You need to be in a channel.",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
+                )
                 await ctx.send(embed=embed)
                 return
         except AttributeError:
             pass
         try:
             if self.dictionary[ctx.guild.id].voice_channel is None:
-                embed = discord.Embed(title="The bot isn't connected.", color=0x00FFCC, url="https://d.chulte.de")
+                embed = discord.Embed(
+                    title="The bot isn't connected.",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
+                )
                 await ctx.send(embed=embed)
                 return
             if self.dictionary[ctx.guild.id].voice_client is not None:
@@ -684,11 +1004,15 @@ class DiscordBot(commands.Cog):
                 await self.clear_presence(ctx)
                 await self.dictionary[ctx.guild.id].voice_client.disconnect()
                 self.dictionary[ctx.guild.id].voice_client = None
-                embed = discord.Embed(title="Goodbye! :wave:", url="https://d.chulte.de", color=0x00FFCC)
+                embed = discord.Embed(
+                    title="Goodbye! :wave:", url="https://d.chulte.de", color=0x00FFCC
+                )
                 await ctx.send(embed=embed)
             else:
                 embed = discord.Embed(
-                    title="I need to be in a channel to leave! :thinking:", url="https://d.chulte.de", color=0x00FFCC
+                    title="I need to be in a channel to leave! :thinking:",
+                    url="https://d.chulte.de",
+                    color=0x00FFCC,
                 )
                 await ctx.send(embed=embed)
         except Exception as e:
@@ -699,7 +1023,9 @@ class DiscordBot(commands.Cog):
         try:
             if ctx.me.voice.channel != ctx.author.voice.channel:
                 embed = discord.Embed(
-                    title="You need to be in the same channel as the bot.", color=0x00FFCC, url="https://d.chulte.de"
+                    title="You need to be in the same channel as the bot.",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
                 )
                 await ctx.send(embed=embed)
                 return
@@ -707,22 +1033,36 @@ class DiscordBot(commands.Cog):
             pass
         try:
             if not hasattr(ctx.author.voice, "channel"):
-                embed = discord.Embed(title="You need to be in a channel.", color=0x00FFCC, url="https://d.chulte.de")
+                embed = discord.Embed(
+                    title="You need to be in a channel.",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
+                )
                 await ctx.send(embed=embed)
                 return
         except AttributeError:
             pass
         if self.dictionary[ctx.guild.id].voice_channel is None:
-            embed = discord.Embed(title="The bot isn't connected.", color=0x00FFCC, url="https://d.chulte.de")
+            embed = discord.Embed(
+                title="The bot isn't connected.",
+                color=0x00FFCC,
+                url="https://d.chulte.de",
+            )
             await ctx.send(embed=embed)
             return
         if self.dictionary[ctx.guild.id].song_queue.qsize() is not 0:
             self.dictionary[ctx.guild.id].song_queue = Queue()
-            embed = discord.Embed(title="Cleared the Queue. :cloud:", color=0x00FFCC, url="https://d.chulte.de")
+            embed = discord.Embed(
+                title="Cleared the Queue. :cloud:",
+                color=0x00FFCC,
+                url="https://d.chulte.de",
+            )
             await ctx.send(embed=embed)
         else:
             embed = discord.Embed(
-                title="The Playlist was already empty! :cloud:", color=0x00FFCC, url="https://d.chulte.de"
+                title="The Playlist was already empty! :cloud:",
+                color=0x00FFCC,
+                url="https://d.chulte.de",
             )
             await ctx.send(embed=embed)
 
@@ -731,7 +1071,9 @@ class DiscordBot(commands.Cog):
         try:
             if ctx.me.voice.channel != ctx.author.voice.channel:
                 embed = discord.Embed(
-                    title="You need to be in the same channel as the bot.", color=0x00FFCC, url="https://d.chulte.de"
+                    title="You need to be in the same channel as the bot.",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
                 )
                 await ctx.send(embed=embed)
                 return
@@ -739,19 +1081,29 @@ class DiscordBot(commands.Cog):
             pass
         try:
             if not hasattr(ctx.author.voice, "channel"):
-                embed = discord.Embed(title="You need to be in a channel.", color=0x00FFCC, url="https://d.chulte.de")
+                embed = discord.Embed(
+                    title="You need to be in a channel.",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
+                )
                 await ctx.send(embed=embed)
                 return
         except AttributeError:
             pass
         if self.dictionary[ctx.guild.id].voice_channel is None:
-            embed = discord.Embed(title="The bot isn't connected.", color=0x00FFCC, url="https://d.chulte.de")
+            embed = discord.Embed(
+                title="The bot isn't connected.",
+                color=0x00FFCC,
+                url="https://d.chulte.de",
+            )
             await ctx.send(embed=embed)
             return
         if self.dictionary[ctx.guild.id].song_queue.qsize() > 0:
             random.shuffle(self.dictionary[ctx.guild.id].song_queue._queue)
             embed = discord.Embed(
-                title="Shuffled! :twisted_rightwards_arrows:", color=0x00FFCC, url="https://d.chulte.de"
+                title="Shuffled! :twisted_rightwards_arrows:",
+                color=0x00FFCC,
+                url="https://d.chulte.de",
             )
             await ctx.send(embed=embed)
             await self.preload_song(ctx)
@@ -761,7 +1113,9 @@ class DiscordBot(commands.Cog):
         try:
             if ctx.me.voice.channel != ctx.author.voice.channel:
                 embed = discord.Embed(
-                    title="You need to be in the same channel as the bot.", color=0x00FFCC, url="https://d.chulte.de"
+                    title="You need to be in the same channel as the bot.",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
                 )
                 await ctx.send(embed=embed)
                 return
@@ -769,13 +1123,21 @@ class DiscordBot(commands.Cog):
             pass
         try:
             if not hasattr(ctx.author.voice, "channel"):
-                embed = discord.Embed(title="You need to be in a channel.", color=0x00FFCC, url="https://d.chulte.de")
+                embed = discord.Embed(
+                    title="You need to be in a channel.",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
+                )
                 await ctx.send(embed=embed)
                 return
         except AttributeError:
             pass
         if self.dictionary[ctx.guild.id].voice_channel is None:
-            embed = discord.Embed(title="The bot isn't connected.", color=0x00FFCC, url="https://d.chulte.de")
+            embed = discord.Embed(
+                title="The bot isn't connected.",
+                color=0x00FFCC,
+                url="https://d.chulte.de",
+            )
             await ctx.send(embed=embed)
             return
         self.dictionary = self.dictionary
@@ -783,7 +1145,9 @@ class DiscordBot(commands.Cog):
             self.dictionary[ctx.guild.id].song_queue = Queue()
             self.dictionary[ctx.guild.id].now_playing = None
             self.dictionary[ctx.guild.id].voice_client.stop()
-            link = await self.youtube.youtube_url("https://www.youtube.com/watch?v=siLkbdVxntU")
+            link = await self.youtube.youtube_url(
+                "https://www.youtube.com/watch?v=siLkbdVxntU"
+            )
             source = discord.FFmpegPCMAudio(
                 link.stream,
                 executable="ffmpeg",
@@ -794,11 +1158,15 @@ class DiscordBot(commands.Cog):
                 self.dictionary[ctx.guild.id].voice_client is not None
                 and self.dictionary[ctx.guild.id].voice_client.is_playing()
             ):
-                embed = discord.Embed(title="Music Stopped! 🛑", color=0x00FFCC, url="https://d.chulte.de")
+                embed = discord.Embed(
+                    title="Music Stopped! 🛑", color=0x00FFCC, url="https://d.chulte.de"
+                )
                 await ctx.send(embed=embed)
         else:
             embed = discord.Embed(
-                title=":thinking: The Bot isn't connected. :thinking:", color=0x00FFCC, url="https://d.chulte.de"
+                title=":thinking: The Bot isn't connected. :thinking:",
+                color=0x00FFCC,
+                url="https://d.chulte.de",
             )
             await ctx.send(embed=embed)
 
@@ -807,32 +1175,48 @@ class DiscordBot(commands.Cog):
         if first is None:
             full, empty = await self.mongo.get_chars(ctx.guild.id)
             embed = discord.Embed(
-                title="You are currently using **" + full + "** for 'full' and **" + empty + "** for 'empty'",
+                title="You are currently using **"
+                + full
+                + "** for 'full' and **"
+                + empty
+                + "** for 'empty'",
                 color=0x00FFCC,
             )
             embed.add_field(
                 name="Syntax to add:",
-                value=".chars <full> <empty> \n" "Useful Website: https://changaco.oy.lc/unicode-progress-bars/",
+                value=".chars <full> <empty> \n"
+                "Useful Website: https://changaco.oy.lc/unicode-progress-bars/",
             )
             await ctx.send(embed=embed)
             return
         elif first == "reset" and last is None:
             await self.mongo.set_chars(ctx.guild.id, "█", "░")
-            embed = discord.Embed(title="Characters reset to: Full: **█** and Empty: **░**", color=0x00FFCC)
+            embed = discord.Embed(
+                title="Characters reset to: Full: **█** and Empty: **░**",
+                color=0x00FFCC,
+            )
             await ctx.send(embed=embed)
         elif last is None:
             embed = discord.Embed(
-                title="You need to provide 2 Unicode Characters separated with a blank space.", color=0x00FFCC
+                title="You need to provide 2 Unicode Characters separated with a blank space.",
+                color=0x00FFCC,
             )
             await ctx.send(embed=embed)
             return
         if len(first) > 1 or len(last) > 1:
-            embed = discord.Embed(title="The characters have a maximal length of 1.", color=0x00FFCC)
+            embed = discord.Embed(
+                title="The characters have a maximal length of 1.", color=0x00FFCC
+            )
             await ctx.send(embed=embed)
             return
         await self.mongo.set_chars(ctx.guild.id, first, last)
         embed = discord.Embed(
-            title="The characters got updated! Full: **" + first + "**, Empty: **" + last + "**", color=0x00FFCC
+            title="The characters got updated! Full: **"
+            + first
+            + "**, Empty: **"
+            + last
+            + "**",
+            color=0x00FFCC,
         )
         await ctx.send(embed=embed)
 
@@ -841,7 +1225,9 @@ class DiscordBot(commands.Cog):
         try:
             if ctx.me.voice.channel != ctx.author.voice.channel:
                 embed = discord.Embed(
-                    title="You need to be in the same channel as the bot.", color=0x00FFCC, url="https://d.chulte.de"
+                    title="You need to be in the same channel as the bot.",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
                 )
                 await ctx.send(embed=embed)
                 return
@@ -849,23 +1235,35 @@ class DiscordBot(commands.Cog):
             pass
         try:
             if not hasattr(ctx.author.voice, "channel"):
-                embed = discord.Embed(title="You need to be in a channel.", color=0x00FFCC, url="https://d.chulte.de")
+                embed = discord.Embed(
+                    title="You need to be in a channel.",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
+                )
                 await ctx.send(embed=embed)
                 return
         except AttributeError:
             pass
         if self.dictionary[ctx.guild.id].voice_channel is None:
-            embed = discord.Embed(title="The bot isn't connected.", color=0x00FFCC, url="https://d.chulte.de")
+            embed = discord.Embed(
+                title="The bot isn't connected.",
+                color=0x00FFCC,
+                url="https://d.chulte.de",
+            )
             await ctx.send(embed=embed)
             return
         self.dictionary = self.dictionary
         if self.dictionary[ctx.guild.id].now_playing.is_paused is True:
-            embed = discord.Embed(title="Already Paused.", color=0x00FFCC, url="https://d.chulte.de")
+            embed = discord.Embed(
+                title="Already Paused.", color=0x00FFCC, url="https://d.chulte.de"
+            )
             await ctx.send(embed=embed)
         if self.dictionary[ctx.guild.id].voice_client is not None:
             try:
                 self.dictionary[ctx.guild.id].voice_client.pause()
-                embed = discord.Embed(title="Paused! ⏸", color=0x00FFCC, url="https://d.chulte.de")
+                embed = discord.Embed(
+                    title="Paused! ⏸", color=0x00FFCC, url="https://d.chulte.de"
+                )
                 message = await ctx.send(embed=embed)
                 self.dictionary[ctx.guild.id].now_playing.pause_time = int(time.time())
                 self.dictionary[ctx.guild.id].now_playing.is_paused = True
@@ -875,7 +1273,9 @@ class DiscordBot(commands.Cog):
             except Exception as e:
                 self.log.error(logging_manager.debug_info(str(e)))
                 embed = discord.Embed(
-                    title=":thinking: Nothing is playing... :thinking:", color=0x00FFCC, url="https://d.chulte.de"
+                    title=":thinking: Nothing is playing... :thinking:",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
                 )
                 await ctx.send(embed=embed)
 
@@ -884,7 +1284,9 @@ class DiscordBot(commands.Cog):
         try:
             if ctx.me.voice.channel != ctx.author.voice.channel:
                 embed = discord.Embed(
-                    title="You need to be in the same channel as the bot.", color=0x00FFCC, url="https://d.chulte.de"
+                    title="You need to be in the same channel as the bot.",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
                 )
                 await ctx.send(embed=embed)
                 return
@@ -893,19 +1295,29 @@ class DiscordBot(commands.Cog):
         try:
             count = int(count)
         except ValueError:
-            embed = discord.Embed(title="Please provide a valid number.", url="https://d.chulte.de", color=0x00FFCC)
+            embed = discord.Embed(
+                title="Please provide a valid number.",
+                url="https://d.chulte.de",
+                color=0x00FFCC,
+            )
             await ctx.send(embed=embed)
             return
         self.dictionary = self.dictionary
         if self.dictionary[ctx.guild.id].voice_client is not None:
             if self.dictionary[ctx.guild.id].now_playing is not None:
                 if count == 1:
-                    embed = discord.Embed(title="Skipped! :track_next:", color=0x00FFCC, url="https://d.chulte.de")
+                    embed = discord.Embed(
+                        title="Skipped! :track_next:",
+                        color=0x00FFCC,
+                        url="https://d.chulte.de",
+                    )
                     await ctx.send(embed=embed, delete_after=10)
                     self.dictionary[ctx.guild.id].voice_client.stop()
                 elif count < 1:
                     embed = discord.Embed(
-                        title="Please provide a valid number.", url="https://d.chulte.de", color=0x00FFCC
+                        title="Please provide a valid number.",
+                        url="https://d.chulte.de",
+                        color=0x00FFCC,
                     )
                     await ctx.send(embed=embed)
                     return
@@ -922,7 +1334,11 @@ class DiscordBot(commands.Cog):
                         self.dictionary[ctx.guild.id].voice_client.stop()
                     else:
                         queue = self.dictionary[ctx.guild.id].song_queue._queue
-                        self.dictionary[ctx.guild.id].song_queue._queue = collections.deque(list(queue)[(count - 1) :])
+                        self.dictionary[
+                            ctx.guild.id
+                        ].song_queue._queue = collections.deque(
+                            list(queue)[(count - 1) :]
+                        )
                     self.dictionary[ctx.guild.id].voice_client.stop()
                     embed = discord.Embed(
                         title="Skipped " + str(count) + " Tracks! :track_next:",
@@ -931,11 +1347,17 @@ class DiscordBot(commands.Cog):
                     )
                     await ctx.send(embed=embed)
             else:
-                embed = discord.Embed(title="Nothing is playing right now!", color=0x00FFCC, url="https://d.chulte.de")
+                embed = discord.Embed(
+                    title="Nothing is playing right now!",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
+                )
                 await ctx.send(embed=embed, delete_after=10)
 
         else:
-            embed = discord.Embed(title="Not connected!", color=0x00FFCC, url="https://d.chulte.de")
+            embed = discord.Embed(
+                title="Not connected!", color=0x00FFCC, url="https://d.chulte.de"
+            )
             await ctx.send(embed=embed, delete_after=10)
 
         await asyncio.sleep(10)
@@ -946,7 +1368,9 @@ class DiscordBot(commands.Cog):
         try:
             if ctx.me.voice.channel != ctx.author.voice.channel:
                 embed = discord.Embed(
-                    title="You need to be in the same channel as the bot.", color=0x00FFCC, url="https://d.chulte.de"
+                    title="You need to be in the same channel as the bot.",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
                 )
                 await ctx.send(embed=embed)
                 return
@@ -957,15 +1381,20 @@ class DiscordBot(commands.Cog):
             try:
                 if self.dictionary[ctx.guild.id].now_playing.pause_time is not None:
                     self.dictionary[ctx.guild.id].now_playing.pause_duration += (
-                        int(time.time()) - self.dictionary[ctx.guild.id].now_playing.pause_time
+                        int(time.time())
+                        - self.dictionary[ctx.guild.id].now_playing.pause_time
                     )
                     self.dictionary[ctx.guild.id].now_playing.is_paused = False
                 self.dictionary[ctx.guild.id].voice_client.resume()
-                embed = discord.Embed(title="Unpaused! ⏯", color=0x00FFCC, url="https://d.chulte.de")
+                embed = discord.Embed(
+                    title="Unpaused! ⏯", color=0x00FFCC, url="https://d.chulte.de"
+                )
                 await ctx.send(embed=embed)
             except Exception as e:
                 embed = discord.Embed(
-                    title=":thinking: Nothing is running... :thinking:", color=0x00FFCC, url="https://d.chulte.de"
+                    title=":thinking: Nothing is running... :thinking:",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
                 )
                 await ctx.send(embed=embed)
 
@@ -998,12 +1427,73 @@ class DiscordBot(commands.Cog):
             return
         correct_string = await self.mongo.get_restart_key()
         if restart_string == correct_string:
-            embed = discord.Embed(title="Restarting!", url="https://d.chulte.de", color=0x00FFCC)
+            embed = discord.Embed(
+                title="Restarting!", url="https://d.chulte.de", color=0x00FFCC
+            )
             await ctx.send(embed=embed)
             await self.bot.logout()
         else:
-            embed = discord.Embed(title="Wrong token!", url="https://d.chulte.de", color=0x00FFCC)
+            embed = discord.Embed(
+                title="Wrong token!", url="https://d.chulte.de", color=0x00FFCC
+            )
             await ctx.send(embed=embed)
+
+    @commands.command()
+    async def eval(self, ctx, *, code: str = None):
+        if ctx.author.id != 322807058254528522:
+            embed = discord.Embed(title="No permission.", color=0xFF0000)
+            await ctx.send(embed=embed)
+            return
+        try:
+            s = str(eval(code))
+        except Exception as e:
+            s = str(e)
+        if len(s) < 256:
+            embed = discord.Embed(title=s)
+            await ctx.send(embed=embed)
+        elif len(s) < 1994:
+            sa = "```" + s + "```"
+            await ctx.send(sa)
+        else:
+            sa = "```" + s[:1994] + "```"
+            await ctx.send(sa)
+
+    @commands.command(aliases=["np", "nowplaying"])
+    async def now_playing(self, ctx):
+        songs = []
+        for server in self.dictionary:
+            if server == ctx.guild.id:
+                continue
+            server = self.dictionary[server]
+            if server.now_playing is not None:
+                songs.append(server.now_playing)
+        if len(songs) == 0:
+            embed = discord.Embed(
+                title="Nobody is streaming right now.",
+                url="https://d.chulte.de",
+                color=0x00FFCC,
+            )
+            await ctx.send(embed=embed)
+            return
+
+        song: Song = random.choice(songs)
+
+        time_run = round((time.time() - song.start_time) / 60)
+        s = " `(Streaming since " + str(time_run) + " Minute[s])`"
+
+        if len(songs) == 1:
+            embed = discord.Embed(
+                title="`>` `" + song.title + "`" + s,
+                description="There is currently 1 Server playing!",
+            )
+        else:
+            embed = discord.Embed(
+                title="`>` `" + song.title + "`" + s,
+                description="There are currently "
+                + str(len(songs))
+                + " Servers playing!",
+            )
+        await ctx.send(embed=embed)
 
 
 def setup(bot):

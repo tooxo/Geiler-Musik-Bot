@@ -1,44 +1,71 @@
 version: '3'
 services:
-  discord:
-    build:
-      context: discord/
-    restart: always
-    command: sh -c "cd /usr/src/app && python -u discord/discord_main.py"
-    volumes:
-      - .:/usr/src/app/
-    env_file:
-      - sysenv.txt
-    stop_grace_period: 15s
-    depends_on:
-      - database
-    networks:
-      - web
-  web:
-    hostname: web
-    build:
-      context: web/
-    command: sh -c "cd /usr/src/app/ && gunicorn --bind=0.0.0.0:80 wsgi:app"
-    volumes:
-      - ./web/:/usr/src/app
-    env_file:
-      - sysenv.txt
-    depends_on:
-      - database
-    networks:
-      - web
-    labels:
-      - traefik.frontend.rule=Host:f.chulte.de,d.chulte.de;PathPrefix:/
-      - traefik.enable=true
-      - traefik.frontend.priority=5
-      - traefik.port=80
-  database:
-    image: tooxo/alpine-mongo-silent
-    volumes:
-      - ./mongodb:/data/db
-    networks:
-      - web
+    discord:
+        build:
+            context: discord/
+        restart: always
+        working_dir: /usr/src/app/
+        command: python -u discord/discord_main.py
+        volumes:
+            - .:/usr/src/app/
+        env_file:
+            - sysenv.env
+        stop_grace_period: 15s
+        # depends_on:
+        #     - database
+        networks:
+            - web
+        stdin_open: true
+        tty: true
+    web:
+        hostname: web
+        build:
+            context: web/
+        command: sh -c "cd /usr/src/app/ && python -u server.py"
+        volumes:
+            - ./web/:/usr/src/app
+        env_file:
+            - sysenv.env
+        #   depends_on:
+        #       - database
+        networks:
+            - web
+        labels:
+            - traefik.frontend.rule=Host:f.chulte.de,d.chulte.de;PathPrefix:/
+            - traefik.enable=true
+            - traefik.frontend.priority=5
+            - traefik.port=80
+    #database:
+    #    image: tooxo/alpine-mongo-silent
+    #    volumes:
+    #        - ./mongodb:/data/db
+    #    networks:
+    #        - web
+    node:
+        build: youtube/node
+        command: "python3 -u /home/src/app/node.py"
+        restart: always
+        depends_on:
+            - parent
+        volumes:
+            - ./youtube/node/:/home/src/app
+        env_file:
+            - youtube/node/settings.env
+        networks:
+            - web
+    parent:
+        build: youtube
+        command: "python3 -u /home/src/app/parent.py"
+        restart: always
+        volumes:
+            - ./youtube/:/home/src/app
+        env_file:
+            - youtube/.env
+        networks:
+            - web
+        ports:
+            - 8008:8008
 
 networks:
-  web:
-    external: true
+    web:
+        external: true

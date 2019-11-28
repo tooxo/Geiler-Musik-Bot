@@ -8,7 +8,7 @@ env:
 
 
 before_install:
-  - pip install pytest
+  - pip install pytest python-coveralls
   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
   - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
   - sudo apt-get update
@@ -18,24 +18,33 @@ before_install:
   - chmod +x docker-compose
   - sudo mv docker-compose /usr/local/bin
   - docker-compose --version
-  - echo "BOT_TOKEN=not_needed" >> sysenv.txt
-  - echo "DJANGO_SECRET=*#j*p5%e151d@+_#92^qhh4iqqq^3v!nzhci6gf6i_yzi!^#!(" >> sysenv.txt
-  - echo "MONGODB_URI=not_needed" >> sysenv.txt
-  - echo "MONGODB_USER=user" >> sysenv.txt
-  - echo "SPOTIFY_ID=spotify" >> sysenv.txt
-  - echo "SPOTIFY_SECRET=spotify" >> sysenv.txt
-  - echo "PORT=8001" >> sysenv.txt
+  - echo "BOT_TOKEN=$BOT_TOKEN" >> sysenv.env
+  - echo "MONGODB_URI=$MONGODB_URI" >> sysenv.env
+  - echo "MONGODB_DATABASE_NAME=$MONGODB_DATABASE_NAME" >> sysenv.env
+  - echo "SPOTIFY_ID=$SPOTIFY_ID" >> sysenv.env
+  - echo "SPOTIFY_SECRET=$SPOTIFY_SECRET" >> sysenv.env
+  - echo "TEST_ENVIRONMENT=True" >> sysenv.env
+  - echo "PORT=8001" >> sysenv.env
+  - echo "MONGO_ENABLED=False" >> sysenv.env
+  - touch youtube/.env
   - docker network create web
+  - sudo apt-get install libopus0
+  - git clone https://github.com/tooxo/distest.git --depth 1 -b test
+  - cd distest/
+  - pip3 install -r requirements-dev.txt
+  - pip3 install .
+  - pip3 install pynacl
+  - cd ..
 
 script:
   - pytest discord/test.py
+  - coveralls
   - docker-compose build
   - docker-compose up -d
-
+  - sleep 20s
+  - docker-compose logs
+  - bash ./discord/run_tests.sh
 
 after_script:
   - docker-compose stop
   - docker-compose rm -f
-
-notifications:
-    webhooks: https://www.travisbuddy.com/

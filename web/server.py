@@ -2,25 +2,25 @@ from flask import Flask, request, Response, redirect
 import hashlib
 import os
 from pymongo import MongoClient
+import bjoern
 
 HOST = "0.0.0.0"
 PORT = 80
 app = Flask(__name__)
 
-mongo_url_local = 'mongodb://database:27017/'
-client_local = MongoClient(mongo_url_local)
-db_local = client_local.discordbot
-
-mongo_url = os.environ['MONGODB_URI']
+mongo_url = os.environ.get("MONGODB_URI", "")
 client = MongoClient(mongo_url)
-db = client.heroku_zntw59v7
+db = client.discordbot
 
 
 @app.route("/check_password", methods=["POST"])
 def check_password():
-    hashed = request.form['password']
-    if hashed == hashlib.sha256(os.environ.get('RESTART_PASSWORD').encode()).hexdigest():
-        document = db_local.secure.find_one({'type': 'restart_code'})
+    hashed = request.form["password"]
+    if (
+        hashed
+        == hashlib.sha256(os.environ.get("RESTART_PASSWORD").encode()).hexdigest()
+    ):
+        document = db.secure.find_one({"type": "restart_code"})
         return Response(document["code"])
     return Response("wrong_pw")
 
@@ -67,12 +67,17 @@ def sjcljs():
 
 @app.route("/http/chart.js")
 def chartjs():
-    return redirect("https://github.com/chartjs/Chart.js/releases/download/v2.8.0/Chart.bundle.js", 302)
+    return redirect(
+        "https://github.com/chartjs/Chart.js/releases/download/v2.8.0/Chart.bundle.js",
+        302,
+    )
 
 
 @app.route("/http/jquery.js")
 def jqueryjs():
-    return redirect("https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js", 302)
+    return redirect(
+        "https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js", 302
+    )
 
 
 @app.route("/http/mongo_most")
@@ -82,8 +87,8 @@ def mongo_most():
     ls = []
     for item in alfal:
         i = dict()
-        i['name'] = item['name']
-        i['value'] = item['val']
+        i["name"] = item["name"]
+        i["value"] = item["val"]
         ls.append(i)
     return Response(str(ls))
 
@@ -95,17 +100,18 @@ def mongo_response():
     ls = []
     for item in alfl:
         i = dict()
-        i['x'] = item['x']
-        i['y'] = item['y']
+        i["x"] = item["x"]
+        i["y"] = item["y"]
         ls.append(i)
     return Response(str(ls))
 
 
-@app.route('/testserver')
+@app.route("/testserver")
 def testserver():
     print("test")
     return Response("text")
 
 
-if __name__ == '__main__':
-    app.run(host=HOST, port=PORT, debug=True)
+if __name__ == "__main__":
+    bjoern.listen(host=HOST, port=PORT, wsgi_app=app)
+    bjoern.run()
