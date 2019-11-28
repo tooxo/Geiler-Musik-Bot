@@ -9,6 +9,7 @@ class Mongo:
         self.log = logging_manager.LoggingManager()
         self.log.debug("[Startup]: Initializing Mongo Module . . .")
         self.mongo_enabled = eval(os.environ.get("MONGO_ENABLED", True))
+        self.log.debug("[Startup]: Mongo is " + str(self.mongo_enabled))
         if self.mongo_enabled:
             self.host = os.environ.get("MONGODB_URI", "")
 

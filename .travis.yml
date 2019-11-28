@@ -25,6 +25,7 @@ before_install:
   - echo "SPOTIFY_SECRET=$SPOTIFY_SECRET" >> sysenv.env
   - echo "TEST_ENVIRONMENT=True" >> sysenv.env
   - echo "PORT=8001" >> sysenv.env
+  - echo "MONGO_ENABLED=False" >> sysenv.env
   - touch youtube/.env
   - docker network create web
   - sudo apt-get install libopus0
