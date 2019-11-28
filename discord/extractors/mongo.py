@@ -8,19 +8,23 @@ class Mongo:
     def __init__(self):
         self.log = logging_manager.LoggingManager()
         self.log.debug("[Startup]: Initializing Mongo Module . . .")
-        self.host = os.environ.get("MONGODB_URI", "")
+        self.mongo_enabled = eval(os.environ.get("MONGO_ENABLED", True))
+        if self.mongo_enabled:
+            self.host = os.environ.get("MONGODB_URI", "")
 
-        self.client: motor.motor_asyncio.AsyncIOMotorClient = motor.motor_asyncio.AsyncIOMotorClient(
-            self.host
-        )
-        self.db = self.client.get_database(
-            os.environ.get("MONGODB_DATABASE_NAME", "discordbot")
-        )
+            self.client: motor.motor_asyncio.AsyncIOMotorClient = motor.motor_asyncio.AsyncIOMotorClient(
+                self.host
+            )
+            self.db = self.client.get_database(
+                os.environ.get("MONGODB_DATABASE_NAME", "discordbot")
+            )
 
-        self.connection_time_collection = self.db.connectiontime
-        self.most_played_collection = self.db.most_played_collection
+            self.connection_time_collection = self.db.connectiontime
+            self.most_played_collection = self.db.most_played_collection
 
     async def append_response_time(self, response_time):
+        if self.mongo_enabled is False:
+            return
         current_time = time.time()
         every = self.connection_time_collection.find()
         async for item in every:
@@ -30,6 +34,8 @@ class Mongo:
         await self.connection_time_collection.insert_one(obj)
 
     async def append_most_played(self, song_name):
+        if self.mongo_enabled is False:
+            return
         song_name = song_name.replace('"', "")
         song_name = song_name.replace("'", "")
         song = await self.most_played_collection.find_one({"name": song_name})
@@ -42,6 +48,8 @@ class Mongo:
             await self.most_played_collection.insert_one(obj)
 
     async def set_volume(self, guild_id, volume):
+        if self.mongo_enabled is False:
+            return
         collection = self.db.volume
         doc = await collection.find_one({"id": guild_id})
         if doc is None:
@@ -50,6 +58,8 @@ class Mongo:
             await collection.update_one({"id": guild_id}, {"$set": {"volume": volume}})
 
     async def get_volume(self, guild_id):
+        if self.mongo_enabled is False:
+            return 0.5
         collection = self.db.volume
         doc = await collection.find_one({"id": guild_id})
         if doc is None:
@@ -58,6 +68,8 @@ class Mongo:
             return doc["volume"]
 
     async def set_chars(self, guild_id, full, empty):
+        if self.mongo_enabled is False:
+            return
         collection = self.db.chars
         doc = await collection.find_one({"id": guild_id})
         if doc is None:
@@ -68,6 +80,8 @@ class Mongo:
             )
 
     async def get_chars(self, guild_id):
+        if self.mongo_enabled is False:
+            return "█", "░"
         collection = self.db.chars
         doc = await collection.find_one({"id": guild_id})
         if doc is None:
@@ -76,6 +90,8 @@ class Mongo:
             return doc["full"], doc["empty"]
 
     async def set_restart_key(self, restart_key):
+        if self.mongo_enabled is False:
+            return
         collection = self.db.secure
         x = await collection.find_one({"type": "restart_code"})
         if x is None:
@@ -86,6 +102,8 @@ class Mongo:
             )
 
     async def get_restart_key(self):
+        if self.mongo_enabled is False:
+            return
         collection = self.db.secure
         x = await collection.find_one({"type": "restart_code"})
         return x["code"]
