@@ -32,7 +32,7 @@ class Parent:
                             continue
                         finally:
                             _nodes.append(node)
-                except requests.HTTPError or requests.ConnectionError as err:
+                except (requests.HTTPError, requests.ConnectionError) as err:
                     continue
                 time.sleep(1)
             self.nodes = _nodes
@@ -107,18 +107,17 @@ class Parent:
         def youtube_search():
             if request.data in self.search_cache:
                 return Response(self.search_cache[request.data])
-            else:
-                node = random.choice(self.nodes)
-                r = requests.post(
-                    "http://"
-                    + node["ip"]
-                    + ":"
-                    + node["port"]
-                    + "/research/youtube_search",
-                    data=request.data,
-                )
-                url = r.text
-                return Response(url, r.status_code)
+            node = random.choice(self.nodes)
+            r = requests.post(
+                "http://"
+                + node["ip"]
+                + ":"
+                + node["port"]
+                + "/research/youtube_search",
+                data=request.data,
+            )
+            url = r.text
+            return Response(url, r.status_code)
 
         @self.app.route("/research/youtube_video", methods=["POST"])
         def youtube_video():

@@ -66,8 +66,7 @@ class VariableStore:
         m = VariableStore.youtube_video_pattern.match(url)
         if "id2" in m.groupdict() and m.groupdict()["id2"] is not None:
             return m.group("id2")
-        else:
-            return m.group("id")
+        return m.group("id")
 
 
 class Errors:
@@ -87,6 +86,6 @@ class Errors:
     def as_list():
         l = []
         for att in Errors.__dict__:
-            if type(Errors.__dict__[att]) == list:
+            if isinstance(Errors.__dict__[att], list):
                 l.append(Errors.__dict__[att])
         return l

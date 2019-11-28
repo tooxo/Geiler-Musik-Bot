@@ -14,6 +14,6 @@ class Errors:
     def as_list():
         l = []
         for att in Errors.__dict__:
-            if type(Errors.__dict__[att]) == list:
+            if isinstance(Errors.__dict__[att], list):
                 l.append(Errors.__dict__[att])
         return l
