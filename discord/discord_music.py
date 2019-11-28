@@ -4,33 +4,23 @@ from discord.ext import commands
 import discord
 import random
 import asyncio
-print("a")
 from extractors import spotify
-print("a")
-from extractors import youtube
-print("a")
 from extractors import mongo
-print("a")
 from extractors import lastfm
-print("a")
-from extractors import youtube_old
-print("Import Done!")
 import time
 import string
 import logging_manager
 import collections
-print("Import Done!")
 import aiohttp
 import re
 from variable_store import VariableStore, Errors
-print("Import Done!")
 from url_parser import YouTubeType, SpotifyType
 from song_store import Song, Guild, Error
-print("Import Done!")
 import async_timeout
 from now_playing_message import NowPlayingMessage
 import dbl
 from os import environ
+
 
 class DiscordBot(commands.Cog):
     def __init__(self, bot):
@@ -39,8 +29,12 @@ class DiscordBot(commands.Cog):
         self.log = logging_manager.LoggingManager()
         self.spotify = spotify.Spotify()
         if environ.get("OLD_BACKEND", False) is True:
+            from extractors import youtube_old
+
             self.youtube = youtube_old.Youtube()
         else:
+            from extractors import youtube
+
             self.youtube = youtube.Youtube()
         self.lastfm = lastfm.LastFM()
         self.mongo = mongo.Mongo()
