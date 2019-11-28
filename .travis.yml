@@ -40,7 +40,7 @@ script:
   - coveralls
   - docker-compose build
   - docker-compose up -d
-  - sleep 10s
+  - sleep 20s
   - docker-compose logs
   - bash ./discord/run_tests.sh
 
