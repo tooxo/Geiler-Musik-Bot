@@ -88,11 +88,11 @@ class YouTube:
             song["term"] = ""
             song["loadtime"] = int(time.time() - start)
             self.research_cache[song["id"]] = song
-            print(time.time() - start)
+            print("Loaded", url, "in", time.time() - start, "secs.")
             return song
         except NotAvailableException:
             return Errors.youtube_video_not_available
-        except DownloadError and ExtractorError as de:
+        except (DownloadError, ExtractorError) as de:
             node.logout()
             return Errors.default
         except Exception as ex:
@@ -291,6 +291,7 @@ class Node:
     def startup(self):
         self.add_routes()
         print("[[ Im Ready! ]]")
+        # self.app.run("0.0.0.0", int(self.port))
         bjoern.run(self.app, "0.0.0.0", int(self.port), True)
 
     def enable_alive(self):

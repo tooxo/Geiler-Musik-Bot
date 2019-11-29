@@ -88,11 +88,23 @@ class Spotify:
         while more is True:
             try:
                 for track in js["items"]:
-                    t_list.append(
-                        track["track"]["album"]["artists"][0]["name"]
-                        + " - "
-                        + track["track"]["name"]
-                    )
+                    if track["is_local"]:
+                        try:
+                            t_list.append(
+                                track["track"]["artists"][0]["name"]
+                                + " - "
+                                + track["track"]["name"]
+                            )
+                        except (IndexError, KeyError):
+                            # Probably invalid local file
+                            continue
+                    else:
+                        t_list.append(
+                            track["track"]["album"]["artists"][0]["name"]
+                            + " - "
+                            + track["track"]["name"]
+                        )
+
                 if js["next"] is None:
                     more = False
                 else:

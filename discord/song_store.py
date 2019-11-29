@@ -1,5 +1,6 @@
 from asyncio import Queue
 from variable_store import Errors
+from variable_store import strip_youtube_title
 
 
 class Song:
@@ -47,7 +48,7 @@ class Song:
     @staticmethod
     def from_dict(d):
         song = Song()
-        song.title = d["title"]
+        song.title = strip_youtube_title(d["title"])
         song.term = d["term"]
         song.id = d["id"]
         song.link = d["link"]

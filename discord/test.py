@@ -126,6 +126,10 @@ class Test(unittest.TestCase):
             "Bruno Mars - Finesse (Remix) (feat. Cardi B] [Official Video]",
             "Bruno Mars - Finesse (Remix) (feat. Cardi B]",
         ),
+        (
+            "The Neighbourhood - Sweater Weather (Official Music Video)",
+            "The Neighbourhood - Sweater Weather",
+        ),
     ]
 
     extract_urls = [

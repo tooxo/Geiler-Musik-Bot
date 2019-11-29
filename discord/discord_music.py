@@ -28,16 +28,16 @@ class DiscordBot(commands.Cog):
         self.bot = bot
         self.log = logging_manager.LoggingManager()
         self.spotify = spotify.Spotify()
+        self.mongo = mongo.Mongo()
         if environ.get("OLD_BACKEND", False) is True:
             from extractors import youtube_old
 
-            self.youtube = youtube_old.Youtube()
+            self.youtube = youtube_old.Youtube(mongo_client=self.mongo)
         else:
             from extractors import youtube
 
-            self.youtube = youtube.Youtube()
+            self.youtube = youtube.Youtube(mongo_client=self.mongo)
         self.lastfm = lastfm.LastFM()
-        self.mongo = mongo.Mongo()
         bot.remove_command("help")
         self.log.debug("[Startup]: Initializing Music Module . . .")
 
@@ -236,7 +236,8 @@ class DiscordBot(commands.Cog):
         if self.dictionary[ctx.guild.id].song_queue.qsize() > 0:
             i = 0
             for item in self.dictionary[ctx.guild.id].song_queue._queue:
-                if item.stream is not None:
+                item: Song
+                if item.stream is None:
                     if item.link is not None:
                         youtube_dict = await self.youtube.youtube_url(item.link)
                         youtube_dict.user = item.user
@@ -244,7 +245,7 @@ class DiscordBot(commands.Cog):
                         if item.title is not None:
                             youtube_dict = await self.youtube.youtube_term(item.title)
                         else:
-                            youtube_dict = await self.youtube.youtube_term(item.title)
+                            youtube_dict = await self.youtube.youtube_term(item.term)
                         youtube_dict.user = item.user
                     self.dictionary[ctx.guild.id].song_queue._queue[i] = youtube_dict
                     break

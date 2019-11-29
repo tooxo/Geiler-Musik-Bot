@@ -28,10 +28,10 @@ class YoutubeDLLogger(object):
 
 
 class Youtube:
-    def __init__(self):
+    def __init__(self, mongo_client: mongo):
         log.debug("[Startup]: Initializing YouTube Module . . .")
         self.session = aiohttp.ClientSession()
-        self.mongo = mongo.Mongo()
+        self.mongo = mongo_client
 
         self.term_url = "http://parent:8008/research/youtube_search"
         self.url_url = "http://parent:8008/research/youtube_video"
