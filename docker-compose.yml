@@ -3,6 +3,7 @@ services:
     discord:
         build:
             context: discord/
+            dockerfile: Dockerfile
         restart: always
         working_dir: /usr/src/app/
         command: python -u discord/discord_main.py
@@ -21,6 +22,7 @@ services:
         hostname: web
         build:
             context: web/
+            dockerfile: Dockerfile
         command: sh -c "cd /usr/src/app/ && python -u server.py"
         volumes:
             - ./web/:/usr/src/app
