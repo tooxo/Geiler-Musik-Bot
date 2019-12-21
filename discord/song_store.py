@@ -1,5 +1,6 @@
 from asyncio import Queue
 from variable_store import Errors
+from variable_store import strip_youtube_title
 
 
 class Song:
@@ -14,11 +15,8 @@ class Song:
             self.loadtime = song.loadtime
             self.error = song.error
             self.user = song.user
-            self.start_time = song.start_time
-            self.is_paused = song.is_paused
-            self.pause_duration = song.pause_duration
             self.image_url = song.image_url
-            self.pause_time = song.pause_time
+
         else:
             self.title = None
             self.term = None
@@ -30,11 +28,7 @@ class Song:
             self.thumbnail = None
             self.error = Error(False)
             self.user = None
-            self.start_time = None
-            self.is_paused = False
-            self.pause_duration = 0
             self.image_url = None
-            self.pause_time = None
 
     @property
     def image(self):
@@ -47,7 +41,7 @@ class Song:
     @staticmethod
     def from_dict(d):
         song = Song()
-        song.title = d["title"]
+        song.title = strip_youtube_title(d["title"])
         song.term = d["term"]
         song.id = d["id"]
         song.link = d["link"]

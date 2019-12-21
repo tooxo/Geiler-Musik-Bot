@@ -3,17 +3,19 @@ import discord
 import time
 import logging_manager
 import aiohttp
+from FFmpegPCMAudio import PCMVolumeTransformerB
 
 
 class NowPlayingMessage:
     def __init__(
         self,
-        song=None,
-        ctx=None,
-        message=None,
-        full=None,
-        empty=None,
-        discord_music=None,
+        song,
+        ctx,
+        message,
+        full,
+        empty,
+        discord_music,
+        voice_client: discord.VoiceClient,
     ):
         self.discord_music = discord_music
         self.log = logging_manager.LoggingManager()
@@ -23,6 +25,8 @@ class NowPlayingMessage:
         self.message = message
         self.full = full
         self.empty = empty
+        self.voice_client: discord.VoiceClient = voice_client
+        self.source: PCMVolumeTransformerB = voice_client.source
         if self.song.title == "_" or self.song.title is None:
             self.title = "`" + self.song.term + "`"
         else:
@@ -38,19 +42,8 @@ class NowPlayingMessage:
         if self._stop is True:
             return
         try:
-            if (
-                self.discord_music.dictionary[self.ctx.guild.id].now_playing.is_paused
-                is False
-            ):
-                now_time = (
-                    int(time.time())
-                    - self.discord_music.dictionary[
-                        self.ctx.guild.id
-                    ].now_playing.start_time
-                    - self.discord_music.dictionary[
-                        self.ctx.guild.id
-                    ].now_playing.pause_duration
-                )
+            if not (self.voice_client.is_paused()):
+                now_time = round(self.source.bytes_read / 192000)
                 finish_second = int(
                     self.discord_music.dictionary[
                         self.ctx.guild.id
@@ -90,14 +83,6 @@ class NowPlayingMessage:
                 )
                 embed2.set_author(name="Currently Playing:")
                 embed2.add_field(name=hashes, value=description)
-                """
-                try:
-                    if self.song.image is not None:
-                        embed2.set_thumbnail(url=self.song.image)
-                        # self.dictionary[ctx.guild.id]['now_playing_song']['image_url'] = ""
-                except Exception as e:
-                    self.log.error(logging_manager.debug_info(str(e)))
-                """
                 try:
                     await self.message.edit(embed=embed2)
                 except (discord.NotFound, TypeError):

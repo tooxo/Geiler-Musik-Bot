@@ -1,5 +1,13 @@
-FROM python:3.7-alpine
-RUN apk --no-cache add dumb-init
+FROM python:3.7-slim-buster
 COPY requirements.txt /
-RUN apk update && apk --no-cache add opus-dev ffmpeg git  && pip install --extra-index-url=https://s.chulte.de/pip/ -r requirements.txt
+RUN apt-get update -qq && apt-get --no-install-recommends install -qq dumb-init libopus-dev wget xz-utils -y \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* \
+ && wget -q https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -O ffmpeg.tar.xz \
+ && tar -xf ffmpeg.tar.xz \
+ && cd ffmpeg-* \
+ && mv ffmpeg /usr/bin/ \
+ && cd .. \
+ && rm -R ffmpeg* \
+ && pip install -r requirements.txt
 ENTRYPOINT ["/usr/bin/dumb-init"]

@@ -40,6 +40,25 @@ else:
 
 log = logging_manager.LoggingManager()
 log.debug("PID " + str(os.getpid()))
+
+"""
+Checking for dependency updates inside the container.
+Currently only updating discord.py and youtube-dl as they are the most important for it to work
+"""
+
+log.debug(" ")
+log.debug("[Update]: Checking for library updates!")
+
+command = "pip install --upgrade discord.py youtube-dl"
+response = os.popen(command).read()
+
+# Check if an update has occurred
+if "Successfully installed" in response:
+    log.debug("[Update]: Updates installed. Restarting!")
+    # Trigger a reboot
+    exit(0)
+log.debug("[Update]: No update found. Starting normally.")
+
 # client = commands.AutoShardedBot(command_prefix=prefix, shard_count=2)
 client = commands.Bot(command_prefix=prefix)
 

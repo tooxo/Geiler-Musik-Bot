@@ -12,7 +12,6 @@ async_timeout
 cchardet
 yarl
 attrs
-pytube
 aiohttp==3.5.4
 bs4
 expiringdict
