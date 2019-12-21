@@ -51,7 +51,7 @@ class Test(unittest.TestCase):
         ),
         (
             "https://open.spotify.com/artist/4kI8Ie27vjvonwaB2ePh8T?si=jyC9eGIiQbupvk0E2EE-vAa",
-            False,
+            True,
         ),
         ("https://oe.spotify.co/artist/JOSADJ98erwjoiasdoisjd(§sadjsdoi", False),
         (
@@ -62,6 +62,10 @@ class Test(unittest.TestCase):
         ("spotify:track:6QgjcU0zLnzq5OrUoSZ3OK", True),
         ("spotify:ticktack:6QgjcU0zLnzq5OrUoSZ3OK", False),
         ("aspotifys:track:6QgjcU0zLnzq5OrUoSZ3OK", False),
+        (
+            "https://open.spotify.com/playlist/7EmgNt7woAMyHa1Y7rPR6k?si=5htvOsARRN2rN2zWUFPr7Q+",
+            True,
+        ),
     ]
 
     youtube_urls = [
