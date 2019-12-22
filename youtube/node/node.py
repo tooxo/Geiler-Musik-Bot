@@ -80,8 +80,10 @@ class YouTube:
                             + video_id
                         )
                         song["youtube_stream"] = item["url"]
-                if "manifest" in song["stream"]:
-                    song["stream"] = self.extract_manifest(song["stream"])
+                if "manifest" in song["youtube_stream"]:
+                    song["youtube_stream"] = self.extract_manifest(
+                        song["youtube_stream"]
+                    )
                 song["duration"] = info_dict["duration"]
             for n in info_dict["thumbnails"]:
                 song["thumbnail"] = n["url"]
