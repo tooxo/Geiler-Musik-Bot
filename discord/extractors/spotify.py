@@ -29,7 +29,7 @@ class Spotify:
                 return await response.text()
 
     async def invalidate_token(self):
-        if self.token is not "":
+        if self.token != "":
             for x in range(1, 3000):
                 try:
                     await asyncio.sleep(x)
@@ -39,7 +39,7 @@ class Spotify:
             self.token = ""
 
     async def request_token(self):
-        if self.token is "":
+        if self.token == "":
             string = self.client_id + ":" + self.client_secret
             enc = base64.b64encode(string.encode())
             url = "https://accounts.spotify.com/api/token"

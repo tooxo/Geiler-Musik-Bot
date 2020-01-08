@@ -45,8 +45,8 @@ class Youtube:
     async def http_post(self, url, data):
         with async_timeout.timeout(10):
             async with self.session.post(url=url, data=data) as re:
-                if re.status is not 200:
-                    if re.status is 500:
+                if re.status != 200:
+                    if re.status == 500:
                         return Error(True, Errors.backend_down)
                     return Error(True, await re.text())
                 return await re.text()
