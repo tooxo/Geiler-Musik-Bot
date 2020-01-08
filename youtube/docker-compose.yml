@@ -11,6 +11,8 @@ services:
       - ./node/:/home/src/app
     env_file:
       - node/settings.env
+    networks:
+      - net
   parent:
     build: .
     command: "python3 -u /home/src/app/parent.py"
@@ -20,4 +22,10 @@ services:
     volumes:
       - .:/home/src/app
     env_file:
-      - .env
+      - settings.env
+    networks:
+      - net
+
+networks:
+  net:
+    external: false

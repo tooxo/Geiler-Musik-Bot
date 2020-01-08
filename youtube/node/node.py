@@ -3,7 +3,7 @@ import requests
 import json
 import re
 import time
-import multiprocessing
+import socket
 from expiringdict import ExpiringDict
 from youtube_dl import YoutubeDL, DownloadError
 from youtube_dl.utils import ExtractorError
@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import quote
 import os
 import bjoern
+import threading
 
 node = None
 
@@ -35,8 +36,7 @@ class YoutubeDLLogger(object):
 
 
 class NotAvailableException(Exception):
-    def __init__(self, message):
-        super.__init__(message)
+    pass
 
 
 class YouTube:
@@ -94,8 +94,7 @@ class YouTube:
             return song
         except NotAvailableException:
             return Errors.youtube_video_not_available
-        except (DownloadError, ExtractorError) as de:
-            node.logout()
+        except (DownloadError, ExtractorError):
             return Errors.default
         except Exception as ex:
             print(ex)
@@ -103,6 +102,7 @@ class YouTube:
 
     @staticmethod
     def extract_playlist(playlist_id):
+
         url = "https://youtube.com/playlist?list=" + playlist_id
         youtube_dl_opts = {
             "extract_flat": True,
@@ -140,11 +140,12 @@ class YouTube:
             if url.startswith("/watch"):
                 self.search_cache[term] = "https://www.youtube.com" + url
                 return "https://www.youtube.com" + url
+        raise NotAvailableException("no videos found")
 
 
 class Node:
     def __init__(self):
-        self.host = os.environ.get("parent_host", "")
+        self._host = os.environ.get("parent_host", "")
         self.parent_port = os.environ.get("parent_port", "")
         self.node_id = os.environ.get("node_id", "")
         self.port = os.environ.get("port", os.environ.get("PORT", ""))
@@ -153,8 +154,8 @@ class Node:
             self.custom_port = os.environ.get("port", os.environ.get("PORT", ""))
         else:
             self.custom_port = os.environ["custom_port"]
-        if "http" not in self.host:
-            self.host = "http://" + self.host
+
+        self.host = "http://" + self._host
 
         if "own_ip" not in os.environ:
             r = requests.get("https://api.ipify.org?format=json")
@@ -165,8 +166,7 @@ class Node:
         self.app = Flask(__name__)
         self.youtube = YouTube()
 
-        self.process = None
-        self.should_be_connected = False
+        self.api_key = os.environ.get("API_KEY", "API_KEY")
 
     @staticmethod
     def youtube_check():
@@ -182,28 +182,27 @@ class Node:
     def login(self):
         if self.youtube_check() is True:
             document = {
-                "node_id": self.node_id,
+                "name": self.node_id,
                 "ip": self.own_ip,
                 "port": self.custom_port,
             }
-            with requests.post(
-                url=self.host + ":" + str(self.parent_port) + "/register_node",
-                data=json.dumps(document),
-            ) as pos:
-                if pos.status_code is 200:
-                    print("[-] - Login Successful - [-]")
-                    self.should_be_connected = True
-                    self.enable_alive()
-                    return True
-            return False
-
-    def logout(self):
-        with requests.post(
-            url=self.host + ":" + str(self.parent_port) + "/logout"
-        ) as post:
-            if post.status_code == 200:
-                if post.text == "True":
-                    self.should_be_connected = False
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((self._host, 9988))
+                s.sendall(self.api_key.encode())
+                if s.recv(1024).decode() != "ACCEPTED":
+                    print("API Key is wrong. Check your configuration.")
+                    exit(100)
+                    return False
+                s.sendall(json.dumps(document).encode("UTF-8"))
+                while True:
+                    try:
+                        data = s.recv(1024)
+                    except BrokenPipeError:
+                        return
+                    if data is None:
+                        continue
+                    s.sendall(data)
+                    time.sleep(1)
 
     def add_routes(self):
         @self.app.route("/research/youtube_video", methods=["POST"])
@@ -226,22 +225,28 @@ class Node:
             playlist_id = request.data.decode()
             if playlist_id is "":
                 return Response("No PlaylistID provided", 400)
-            playlist = self.youtube.extract_playlist(playlist_id=playlist_id)
-            playlist_string = "["
-            for n in playlist:
-                playlist_string += json.dumps(n)
-                playlist_string += ","
-            playlist_string = playlist_string.rstrip(",")
-            playlist_string += "]"
-            return Response(playlist_string, 200)
+            try:
+                playlist = self.youtube.extract_playlist(playlist_id=playlist_id)
+                playlist_string = "["
+                for n in playlist:
+                    playlist_string += json.dumps(n)
+                    playlist_string += ","
+                playlist_string = playlist_string.rstrip(",")
+                playlist_string += "]"
+                return Response(playlist_string, 200)
+            except (ExtractorError, DownloadError):
+                return Response("[]", 400)
 
         @self.app.route("/research/youtube_search", methods=["POST"])
         def research__youtube_search():
             search_term = request.data.decode()
             if search_term == "":
                 return Response("No Term provided", 400)
-            url = self.youtube.search_youtube(search_term)
-            return Response(url, 200)
+            try:
+                url = self.youtube.search_youtube(search_term)
+                return Response(url, 200)
+            except (ExtractorError, DownloadError, NotAvailableException):
+                return Response(Errors.no_results_found, 400)
 
         @self.app.route("/stream")
         @self.app.route("/stream/youtube_video")
@@ -266,46 +271,21 @@ class Node:
             else:
                 return Response("Error", 400)
 
-        @self.app.route("/health_check")
-        def health_check():
-            return str(int(time.time()))
-
-    def _alive_check(self):
-        while True:
-            time.sleep(25)
-            try:
-                if self.should_be_connected is True:
-                    ro = requests.get(
-                        self.host
-                        + ":"
-                        + self.parent_port
-                        + "/am_i_still_here?id="
-                        + self.node_id
-                    )
-                    if ro.text != "YES":
-                        if self.youtube_check():
-                            self.login()
-                else:
-                    self.login()
-            except:
-                pass
-
     def startup(self):
         self.add_routes()
-        print("[[ Im Ready! ]]")
+        print("Startup done.")
         # self.app.run("0.0.0.0", int(self.port))
         bjoern.run(self.app, "0.0.0.0", int(self.port), True)
 
-    def enable_alive(self):
-        self.process = multiprocessing.Process(target=self._alive_check)
-        self.process.start()
+
+def login_loop(n: Node):
+    while True:
+        n.login()
+        time.sleep(30)
 
 
 if __name__ == "__main__":
     print("Beginning to start up.")
     node = Node()
-    while 1 == 1:
-        if node.login() is True:
-            print("[[ Starting up ]]")
-            node.startup()
-        time.sleep(30)
+    threading.Thread(target=login_loop, args=(node,)).start()
+    node.startup()
