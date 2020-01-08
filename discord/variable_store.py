@@ -64,9 +64,11 @@ class VariableStore:
         if VariableStore.watch_url_pattern.match(url) is not None:
             return url
         m = VariableStore.youtube_video_pattern.match(url)
-        if "id2" in m.groupdict() and m.groupdict()["id2"] is not None:
-            return m.group("id2")
-        return m.group("id")
+        if m:
+            if "id2" in m.groupdict() and m.groupdict()["id2"] is not None:
+                return m.group("id2")
+            return m.group("id")
+        return None
 
 
 class Errors:
@@ -74,7 +76,8 @@ class Errors:
     default = "An Error has occurred."
     info_check = "An Error has occurred while checking Info."
     spotify_pull = (
-        "**There was an error pulling the Spotify Playlist, 0 Songs were added.**"
+        "**There was an error pulling the Playlist, 0 Songs were added. "
+        "This may be caused by the playlist being private or deleted.**"
     )
     cant_reach_youtube = "Can't reach YouTube. Server Error on their side maybe?"
     youtube_url_invalid = "This YouTube Url is invalid."

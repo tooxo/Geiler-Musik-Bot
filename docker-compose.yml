@@ -1,4 +1,4 @@
-version: '3'
+version: '3.7'
 services:
     discord:
         build:
@@ -16,6 +16,7 @@ services:
         #     - database
         networks:
             - web
+        init: true
         stdin_open: true
         tty: true
     web:
@@ -45,7 +46,8 @@ services:
     #        - web
     node:
         build: youtube/node
-        command: "python3 -u /home/src/app/node.py"
+        working_dir: /home/src/app/
+        command: "python3 -u node.py"
         restart: always
         depends_on:
             - parent
@@ -55,19 +57,21 @@ services:
             - youtube/node/settings.env
         networks:
             - web
+        init: true
     parent:
         build: youtube
-        command: "python3 -u /home/src/app/parent.py"
+        working_dir: /home/src/app/
+        command: "python3 -u parent.py"
         restart: always
         volumes:
             - ./youtube/:/home/src/app
         env_file:
-            - youtube/.env
+            - youtube/settings.env
         networks:
             - web
         ports:
-            - 8008:8008
-
+            - 9988:9988
+        init: true
 networks:
     web:
         external: true

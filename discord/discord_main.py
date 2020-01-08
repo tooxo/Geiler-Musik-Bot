@@ -56,7 +56,7 @@ response = os.popen(command).read()
 if "Successfully installed" in response:
     log.debug("[Update]: Updates installed. Restarting!")
     # Trigger a reboot
-    exit(0)
+    raise SystemExit("Restarting...")
 log.debug("[Update]: No update found. Starting normally.")
 
 # client = commands.AutoShardedBot(command_prefix=prefix, shard_count=2)
@@ -90,6 +90,9 @@ async def on_command_error(ctx, error):
         )
         await ctx.send(embed=embed)
     else:
+        import traceback
+
+        print(traceback.format_exc())
         log.error(logging_manager.debug_info(str(error)))
 
 

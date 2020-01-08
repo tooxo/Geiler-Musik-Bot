@@ -4,6 +4,7 @@ import time
 import logging_manager
 import aiohttp
 from FFmpegPCMAudio import PCMVolumeTransformerB
+from os import environ
 
 
 class NowPlayingMessage:
@@ -31,12 +32,16 @@ class NowPlayingMessage:
             self.title = "`" + self.song.term + "`"
         else:
             self.title = "`" + self.song.title + "`"
+        self.no_embed_mode = environ.get("USE_EMBEDS", "True") == "False"
 
     async def send(self):
-        embed = discord.Embed(title=self.title, color=0x00FFCC, url=self.song.link)
-        embed.set_author(name="Currently Playing:")
-        embed.add_field(name="░░░░░░░░░░░░░░░░░░░░░░░░░", value=" 0%")
-        await self.message.edit(embed=embed)
+        if not self.no_embed_mode:
+            embed = discord.Embed(title=self.title, color=0x00FFCC, url=self.song.link)
+            embed.set_author(name="Currently Playing:")
+            embed.add_field(name="░░░░░░░░░░░░░░░░░░░░░░░░░", value=" 0%")
+            await self.message.edit(embed=embed)
+        else:
+            await self.message.edit(content=self.title)
 
     async def update(self):
         if self._stop is True:
@@ -89,7 +94,8 @@ class NowPlayingMessage:
                     return
             else:
                 if self._stop is False:
-                    await asyncio.sleep(0.1)
+                    while self.voice_client.is_paused():
+                        await asyncio.sleep(0.1)
                     await self.update()
         except (TypeError, AttributeError, aiohttp.ServerDisconnectedError) as e:
             return
@@ -99,7 +105,10 @@ class NowPlayingMessage:
 
     async def stop(self):
         self._stop = True
-        embed = discord.Embed(
-            title="_`" + self.song.title + "`_", color=0x00FF00, url=self.song.link
-        )
-        await self.message.edit(embed=embed)
+        if not self.no_embed_mode:
+            embed = discord.Embed(
+                title="_`" + self.song.title + "`_", color=0x00FF00, url=self.song.link
+            )
+            await self.message.edit(embed=embed)
+        else:
+            await self.message.edit(content="_`" + self.song.title + "`_")

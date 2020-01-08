@@ -48,7 +48,7 @@ Optional:
 > LASTFM_KEY=<key for lastfm api. only needed if you want album covers to be displayed>
 ```
 
-##Usage
+## Usage
 
 * Play music:
 

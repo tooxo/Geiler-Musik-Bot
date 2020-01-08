@@ -60,6 +60,8 @@ class Youtube:
         url = VariableStore.youtube_url_to_id(url)
 
         sd = await self.http_post(url=self.url_url, data=url)
+        if type(sd) == Error:
+            return sd
         song_dict: dict = json.loads(sd)
         song_dict["term"] = term
 
@@ -85,7 +87,7 @@ class Youtube:
         sd = await self.http_post(url=self.playlist_url, data=url)
 
         if type(sd) is Error:
-            return Errors
+            return []
 
         songs = []
         for t in eval(sd):
