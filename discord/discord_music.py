@@ -181,8 +181,7 @@ class DiscordBot(commands.Cog):
                 title=message, url="https://d.chulte.de", colour=0x00FFCC
             )
             return await ctx.send(embed=embed, delete_after=delete_after)
-        else:
-            return await ctx.send(message, delete_after=delete_after)
+        return await ctx.send(message, delete_after=delete_after)
 
     async def check_my_channel(self, channel, guild_id):
         """
@@ -219,8 +218,6 @@ class DiscordBot(commands.Cog):
                     ctx, "You need to be in the same channel as the bot."
                 )
                 return False
-            else:
-                return True
         return True
 
     async def __user_connection_check(self, ctx):
@@ -610,7 +607,6 @@ class DiscordBot(commands.Cog):
             else:
                 await self.send_error_message(ctx, "You need to be in a channel.")
                 return False
-        # todo : bugged
         if not await self.__same_channel_check(ctx):
             return False
         return True
