@@ -126,20 +126,23 @@ class YouTube:
             return self.search_cache[term]
         query = quote(term)
         url = (
-            "https://www.youtube.com/results?search_query="
-            + query
-            + "&sp=EgIQAQ%253D%253D"
+                "https://www.youtube.com/results?search_query="
+                + query
+                + "&sp=EgIQAQ%253D%253D"
         )  # SP = Video only
-        url_list = []
-        with requests.get(url) as res:
-            text = res.text
-            soup = BeautifulSoup(text, "html.parser")
-            for vid in soup.findAll(attrs={"class": "yt-uix-tile-link"}):
-                url_list.append(vid["href"])
-        for url in url_list:
-            if url.startswith("/watch"):
-                self.search_cache[term] = "https://www.youtube.com" + url
-                return "https://www.youtube.com" + url
+        for x in range(0, 2, 1):
+            url_list = []
+            with requests.get(url) as res:
+                if res.status_code != 200:
+                    continue
+                text = res.text
+                soup = BeautifulSoup(text, "html.parser")
+                for vid in soup.findAll(attrs={"class": "yt-uix-tile-link"}):
+                    url_list.append(vid["href"])
+            for url in url_list:
+                if url.startswith("/watch"):
+                    self.search_cache[term] = "https://www.youtube.com" + url
+                    return "https://www.youtube.com" + url
         raise NotAvailableException("no videos found")
 
 

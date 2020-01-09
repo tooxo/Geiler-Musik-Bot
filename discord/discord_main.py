@@ -5,6 +5,7 @@ import logging
 from discord.ext.commands.bot import BotBase
 import discord
 import youtube_dl
+from discord_music import DiscordBot
 
 if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
 
@@ -76,23 +77,10 @@ async def on_ready():
 @client.event
 async def on_command_error(ctx, error):
     if "not found" in str(error):
-        embed = discord.Embed(
-            title=str(error),
-            color=0x00FFCC,
-            url="https://github.com/tooxo/Geiler-Musik-Bot/issues",
-        )
-        await ctx.send(embed=embed)
+        await DiscordBot.send_error_message(ctx=ctx, message=str(error))
     elif "Invalid Data" in str(error):
-        embed = discord.Embed(
-            title="Error while playback. Try again.",
-            color=0x00FFCC,
-            url="https://github.com/tooxo/Geiler-Musik-Bot/issues",
-        )
-        await ctx.send(embed=embed)
+        await DiscordBot.send_error_message(ctx=ctx, message="Error while playback. Try again.")
     else:
-        import traceback
-
-        print(traceback.format_exc())
         log.error(logging_manager.debug_info(str(error)))
 
 
