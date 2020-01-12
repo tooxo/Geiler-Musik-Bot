@@ -126,9 +126,9 @@ class YouTube:
             return self.search_cache[term]
         query = quote(term)
         url = (
-                "https://www.youtube.com/results?search_query="
-                + query
-                + "&sp=EgIQAQ%253D%253D"
+            "https://www.youtube.com/results?search_query="
+            + query
+            + "&sp=EgIQAQ%253D%253D"
         )  # SP = Video only
         for x in range(0, 2, 1):
             url_list = []

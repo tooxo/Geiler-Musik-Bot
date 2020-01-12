@@ -79,14 +79,16 @@ async def on_command_error(ctx, error):
     if "not found" in str(error):
         await DiscordBot.send_error_message(ctx=ctx, message=str(error))
     elif "Invalid Data" in str(error):
-        await DiscordBot.send_error_message(ctx=ctx, message="Error while playback. Try again.")
+        await DiscordBot.send_error_message(
+            ctx=ctx, message="Error while playback. Try again."
+        )
     else:
         log.error(logging_manager.debug_info(str(error)))
 
 
 @client.event
-async def on_error(error):
-    print("ERROR HANDLER", error)
+async def on_error(*args, **kwargs):
+    print("ERROR HANDLER", args, kwargs)
 
 
 discord_version = discord.__version__ + "-" + discord.version_info.releaselevel

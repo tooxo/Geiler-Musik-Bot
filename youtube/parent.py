@@ -146,7 +146,14 @@ class Parent:
                 data=request.data,
             )
             url = r.text
-            print("DEBUG | ANSW, YT_SEARCH:", request.data, r.status_code, ";", "<=", node.name)
+            print(
+                "DEBUG | ANSW, YT_SEARCH:",
+                request.data,
+                r.status_code,
+                ";",
+                "<=",
+                node.name,
+            )
             return Response(url, r.status_code)
 
         @self.app.route("/research/youtube_video", methods=["POST"])
@@ -169,7 +176,14 @@ class Parent:
                 "http://" + node.ip + ":" + str(node.port) + "/research/youtube_video",
                 data=_id,
             )
-            print("DEBUG | ANSW, YT_VIDEO:", request.data, tx.status_code, ";", "<=", node.name)
+            print(
+                "DEBUG | ANSW, YT_VIDEO:",
+                request.data,
+                tx.status_code,
+                ";",
+                "<=",
+                node.name,
+            )
             return Response(tx.text, tx.status_code)
 
         @self.app.route("/research/youtube_playlist", methods=["POST"])
@@ -190,7 +204,14 @@ class Parent:
                 + "/research/youtube_playlist",
                 _id,
             )
-            print("DEBUG | ANSW, YT_PLAYLIST:", request.data, tx.status_code, ";", "<=", node.name)
+            print(
+                "DEBUG | ANSW, YT_PLAYLIST:",
+                request.data,
+                tx.status_code,
+                ";",
+                "<=",
+                node.name,
+            )
             return Response(tx.text, tx.status_code)
 
     def start_up(self):

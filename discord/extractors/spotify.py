@@ -6,7 +6,7 @@ import base64
 import os
 import logging_manager
 from url_parser import SpotifyType
-from song_store import SpotifyObj
+from song_store import SpotifySong
 
 
 class Spotify:
@@ -51,9 +51,7 @@ class Spotify:
             test = await self.request_post(url, header, payload)
             asyncio.ensure_future(self.invalidate_token())
             self.token = json.loads(test)["access_token"]
-            return self.token
-        else:
-            return self.token
+        return self.token
 
     async def spotify_track(self, track_url):
         token = await self.request_token()
@@ -64,7 +62,7 @@ class Spotify:
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
         result = json.loads(result)
-        return SpotifyObj(
+        return SpotifySong(
             title=result["artists"][0]["name"] + " - " + result["name"],
             image_url=result["album"]["images"][0]["url"],
         )

@@ -14,23 +14,20 @@ Category MusicPlaying:
     1.8) when user not in channel
     1.9) queue a song
 
-2) Pause a song (No)
-    2.1) pause
-    2.2) pause when nothing is playing
-    2.3) pause when already paused
-    2.4) pause when user not in channel
+2) Pause a song (yes)
+    2.1) pause y
+    2.2) pause when nothing is playing y
+    2.3) pause when already paused y
 
-3) Resume a song (No)
-    3.1) resume
-    3.2) resume when nothing is playing
-    3.3) resume when not paused
-    3.4) resume when user not in channel
+3) Resume a song (Yes)
+    3.1) resume y
+    3.2) resume when nothing is playing y
+    3.3) resume when not paused y
 
 4) skip a song (No)
-    4.1) skip
+    4.1) skip y
     4.2) skip multiple
-    4.3) skip when nothing is playing
-    4.4) skip when user not in channel
+    4.3) skip when nothing is playing y
 
 5) Special Play (No)
     5.1) play next
@@ -39,7 +36,6 @@ Category MusicPlaying:
 6) stop (No)
     6.1) stop
     6.2) stop when not playing
-    6.3) stop when user not in channel
 
 7) info (No)
     7.1) print info
@@ -50,14 +46,13 @@ Category MusicPlaying:
 
 9) queue clear (No)
     9.1) clear queue
-    9.2) clear when not in channel
     9.3) clear when queue already empty
 
 10) queue shuffle (No)
     10.1) shuffle
-    10.2) shuffle when not in channel
     10.3) shuffle when queue empty
 
+11) if user not in channel (for almost every command) (yes) => test_nobody_in_channel
 
 Category REGEX
 1) Spotify (Yes)

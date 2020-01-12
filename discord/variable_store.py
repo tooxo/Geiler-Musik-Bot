@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import re
+import asyncio
+from collections import deque
 
 
 def strip_youtube_title(title):
@@ -92,3 +94,10 @@ class Errors:
             if isinstance(Errors.__dict__[att], list):
                 l.append(Errors.__dict__[att])
         return l
+
+
+class Queue(asyncio.Queue):
+    def __init__(self, *args, **kwargs):
+        self._queue = deque()
+        super().__init__(*args, **kwargs)
+        self.queue = self._queue

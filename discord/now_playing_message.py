@@ -10,31 +10,35 @@ from os import environ
 class NowPlayingMessage:
     def __init__(
         self,
-        song,
         ctx,
         message,
-        full,
-        empty,
-        discord_music,
-        voice_client: discord.VoiceClient,
+        song=None,
+        full=None,
+        empty=None,
+        discord_music=None,
+        voice_client: discord.VoiceClient = None,
     ):
         self.discord_music = discord_music
         self.log = logging_manager.LoggingManager()
         self.song = song
         self._stop = False
         self.ctx = ctx
-        self.message = message
+        self.message: discord.Message = message
         self.full = full
         self.empty = empty
-        self.voice_client: discord.VoiceClient = voice_client
-        self.source: PCMVolumeTransformerB = voice_client.source
-        if self.song.title == "_" or self.song.title is None:
-            self.title = "`" + self.song.term + "`"
-        else:
-            self.title = "`" + self.song.title + "`"
+        if voice_client is not None:
+            self.voice_client: discord.VoiceClient = voice_client
+            self.source: PCMVolumeTransformerB = voice_client.source
+        if self.song is not None:
+            if self.song.title == "_" or self.song.title is None:
+                self.title = "`" + self.song.term + "`"
+            else:
+                self.title = "`" + self.song.title + "`"
         self.no_embed_mode = environ.get("USE_EMBEDS", "True") == "False"
 
     async def send(self):
+        if self.song is None:
+            return
         if not self.no_embed_mode:
             embed = discord.Embed(title=self.title, color=0x00FFCC, url=self.song.link)
             embed.set_author(name="Currently Playing:")
@@ -99,12 +103,15 @@ class NowPlayingMessage:
                     await self.update()
         except (TypeError, AttributeError, aiohttp.ServerDisconnectedError) as e:
             return
-        await asyncio.sleep(1)
+        await asyncio.sleep(5)
         if self._stop is False:
             await self.update()
 
     async def stop(self):
         self._stop = True
+        if self.song is None:
+            await self.message.delete()
+            return
         if not self.no_embed_mode:
             embed = discord.Embed(
                 title="_`" + self.song.title + "`_", color=0x00FF00, url=self.song.link
