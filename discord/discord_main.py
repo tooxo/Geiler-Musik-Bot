@@ -5,6 +5,7 @@ import logging
 from discord.ext.commands.bot import BotBase
 import discord
 import youtube_dl
+from discord_music import DiscordBot
 
 if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
 
@@ -56,7 +57,7 @@ response = os.popen(command).read()
 if "Successfully installed" in response:
     log.debug("[Update]: Updates installed. Restarting!")
     # Trigger a reboot
-    exit(0)
+    raise SystemExit("Restarting...")
 log.debug("[Update]: No update found. Starting normally.")
 
 # client = commands.AutoShardedBot(command_prefix=prefix, shard_count=2)
@@ -76,26 +77,18 @@ async def on_ready():
 @client.event
 async def on_command_error(ctx, error):
     if "not found" in str(error):
-        embed = discord.Embed(
-            title=str(error),
-            color=0x00FFCC,
-            url="https://github.com/tooxo/Geiler-Musik-Bot/issues",
-        )
-        await ctx.send(embed=embed)
+        await DiscordBot.send_error_message(ctx=ctx, message=str(error))
     elif "Invalid Data" in str(error):
-        embed = discord.Embed(
-            title="Error while playback. Try again.",
-            color=0x00FFCC,
-            url="https://github.com/tooxo/Geiler-Musik-Bot/issues",
+        await DiscordBot.send_error_message(
+            ctx=ctx, message="Error while playback. Try again."
         )
-        await ctx.send(embed=embed)
     else:
         log.error(logging_manager.debug_info(str(error)))
 
 
 @client.event
-async def on_error(error):
-    print("ERROR HANDLER", error)
+async def on_error(*args, **kwargs):
+    print("ERROR HANDLER", args, kwargs)
 
 
 discord_version = discord.__version__ + "-" + discord.version_info.releaselevel

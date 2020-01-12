@@ -3,11 +3,5 @@
   "description": "Node",
   "image": "heroku/python",
   "repository": "https://github.com/tooxo/Geiler-Musik-Bot",
-  "keywords": ["python", "django" ],
-  "env": {
-    "SECRET_KEY": {
-      "description": "The secret key for the Django application.",
-      "generator": "secret"
-    }
-  }
+  "keywords": ["python" ]
 }

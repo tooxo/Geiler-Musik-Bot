@@ -1,4 +1,4 @@
-from asyncio import Queue
+from variable_store import Queue
 from variable_store import Errors
 from variable_store import strip_youtube_title
 
@@ -69,7 +69,7 @@ class Error:
         self.link = ""
 
 
-class SpotifyObj:
+class SpotifySong:
     def __init__(self, title: str, image_url: str):
         self.title = title
         self.image_url = image_url

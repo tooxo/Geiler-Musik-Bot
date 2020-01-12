@@ -1,6 +1,6 @@
 FROM python:3.7-slim-buster
 COPY requirements.txt /
-RUN apt-get update -qq && apt-get --no-install-recommends install -qq dumb-init libopus-dev wget xz-utils -y \
+RUN apt-get update -qq && apt-get --no-install-recommends install libopus-dev wget xz-utils -y \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/* \
  && wget -q https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -O ffmpeg.tar.xz \
@@ -10,4 +10,3 @@ RUN apt-get update -qq && apt-get --no-install-recommends install -qq dumb-init 
  && cd .. \
  && rm -R ffmpeg* \
  && pip install -r requirements.txt
-ENTRYPOINT ["/usr/bin/dumb-init"]

@@ -45,8 +45,8 @@ class Youtube:
     async def http_post(self, url, data):
         with async_timeout.timeout(10):
             async with self.session.post(url=url, data=data) as re:
-                if re.status is not 200:
-                    if re.status is 500:
+                if re.status != 200:
+                    if re.status == 500:
                         return Error(True, Errors.backend_down)
                     return Error(True, await re.text())
                 return await re.text()
@@ -54,12 +54,14 @@ class Youtube:
     async def youtube_term(self, term):
         url = await self.http_post(self.term_url, term)
 
-        if type(url) == Error:
+        if isinstance(url, Error):
             return url
 
         url = VariableStore.youtube_url_to_id(url)
 
         sd = await self.http_post(url=self.url_url, data=url)
+        if isinstance(sd, Error):
+            return sd
         song_dict: dict = json.loads(sd)
         song_dict["term"] = term
 
@@ -70,7 +72,7 @@ class Youtube:
         url = VariableStore.youtube_url_to_id(url)
         sd = await self.http_post(url=self.url_url, data=url)
 
-        if type(sd) == Error:
+        if isinstance(sd, Error):
             return sd
 
         song_dict: dict = json.loads(sd)
@@ -84,8 +86,8 @@ class Youtube:
         url = VariableStore.youtube_url_to_id(url)
         sd = await self.http_post(url=self.playlist_url, data=url)
 
-        if type(sd) is Error:
-            return Errors
+        if isinstance(sd, Error):
+            return []
 
         songs = []
         for t in eval(sd):

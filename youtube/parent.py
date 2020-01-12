@@ -1,41 +1,113 @@
 from flask import Flask, request, Response
-import time
-import json
 import requests
 import random
 import expiringdict
 import string
-import multiprocessing
 import bjoern
+import time
+import threading
+import socket
+import os
+import json
+
+
+class Node:
+    def __init__(self, thread):
+        self.name = ""
+        self.thread = thread
+        self.ip = ""
+        self.port = 0
+
+    def enter_config(self, json_ob: dict):
+        self.name = json_ob.get("name", "")
+        self.ip = json_ob.get("ip", "")
+        self.port = json_ob.get("port", "")
+
+
+class ThreadedSocketServer:
+    def __init__(self):
+        self.HOST = "0.0.0.0"
+        self.PORT = 9988
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind((self.HOST, self.PORT))
+        self.default_length = 16
+        self.nodes = {}
+        self.api_key = os.environ.get("API_KEY", "API_KEY")
+
+    @staticmethod
+    def is_json_valid(j: str):
+        try:
+            json.loads(j)
+            return True
+        except json.JSONDecodeError:
+            return False
+
+    def create_still_alive_message(self, length: int = None):
+        if not length:
+            length = self.default_length
+        s = ""
+        for x in range(length):
+            s += random.choice(string.ascii_lowercase)
+        return s
+
+    def handle_client_connection(self, client: socket.socket, ip: tuple, _id: str):
+        # authentication
+        proposed_api_key = client.recv(1024).decode()
+        if proposed_api_key != self.api_key:
+            client.close()
+            print("Connection", _id, "was rejected. [WRONG API KEY]")
+            del self.nodes[_id]
+            return
+        client.sendall(b"ACCEPTED")
+
+        # receive configuration
+        sent_configuration = client.recv(1024).decode()
+        if not self.is_json_valid(sent_configuration):
+            client.close()
+            print("Connection", _id, "was rejected. [WRONG CONFIGURATION]")
+            del self.nodes[_id]
+            return
+
+        # put configuration
+        parsed_configuration = json.loads(sent_configuration)
+        self.nodes[_id].enter_config(parsed_configuration)
+
+        while True:
+            sma = self.create_still_alive_message().encode()
+            try:
+                client.sendall(sma)
+            except BrokenPipeError:
+                del self.nodes[_id]
+                break
+            resp = client.recv(1024)
+            if sma != resp:
+                del self.nodes[_id]
+                break
+            time.sleep(5)
+        client.close()
+
+    def listen(self):
+        self.sock.listen(10)
+        while True:
+            _client, ip = self.sock.accept()
+            _client.settimeout(10)
+            print("Incoming Connection! [", ip, "]")
+            _id = self.create_still_alive_message(8)
+            thread = threading.Thread(
+                target=self.handle_client_connection, args=(_client, ip, _id)
+            )
+            self.nodes[_id] = Node(thread=thread)
+            thread.start()
 
 
 class Parent:
     def __init__(self):
         self.app = Flask(__name__)
-        self.nodes = list()
         self.cache = expiringdict.ExpiringDict(10000, 14000)
         self.search_cache = dict()
-        self.process = multiprocessing.Process(target=self.check_if_alive_daemon)
-
-    def check_if_alive_daemon(self):
-        while True:
-            time.sleep(10)
-            _nodes = list()
-            for node in self.nodes:
-                try:
-                    with requests.get(
-                        "http://" + node["ip"] + ":" + node["port"] + "/health_check"
-                    ) as r:
-                        try:
-                            int(r.text)
-                        except ValueError:
-                            continue
-                        finally:
-                            _nodes.append(node)
-                except (requests.HTTPError, requests.ConnectionError) as err:
-                    continue
-                time.sleep(1)
-            self.nodes = _nodes
+        self.socket_server = ThreadedSocketServer()
+        threading.Thread(target=self.socket_server.listen).start()
 
     @staticmethod
     def generate_key(length):
@@ -45,40 +117,6 @@ class Parent:
         return s
 
     def add_routes(self):
-        @self.app.route("/register_node", methods=["POST"])
-        def register_node():
-            js = json.loads(request.data.decode())
-            if js not in self.nodes:
-                self.nodes.append(js)
-                print("[*] New Node Registered [*]")
-                print(
-                    "[*] NodeId:",
-                    js["node_id"],
-                    "|",
-                    "IP:",
-                    js["ip"],
-                    "|",
-                    "PORT:",
-                    js["port"],
-                    "[*]",
-                )
-                print("[*] Now", len(self.nodes), "Nodes [*]")
-            else:
-                print("[*] New Node Registered [*]")
-                print("[*]", js["node_id"], "was already there.", "[*]")
-            return Response("", 200)
-
-        @self.app.route("/logout", methods=["POST"])
-        def logout():
-            _id = request.data.decode()
-            _nodes = list()
-            for node in self.nodes:
-                if node["node_id"] == _id:
-                    continue
-                _nodes.append(node)
-            self.nodes = _nodes
-            return "True"
-
         @self.app.route("/new_node")
         def new_node():
             key = self.generate_key(16)
@@ -95,28 +133,27 @@ class Parent:
                 + "port=(enter open port)"
             )
 
-        @self.app.route("/am_i_still_here")
-        def am_i_still_online():
-            _id = request.args.get("id", "")
-            for node in self.nodes:
-                if node["node_id"] == _id:
-                    return Response("YES")
-            return Response("NO")
-
         @self.app.route("/research/youtube_search", methods=["POST"])
         def youtube_search():
             if request.data in self.search_cache:
                 return Response(self.search_cache[request.data])
-            node = random.choice(self.nodes)
+            node: Node = self.socket_server.nodes[
+                random.choice(list(self.socket_server.nodes.keys()))
+            ]
+            print("DEBUG | RECV, YT_SEARCH:", request.data, ";", "=>", node.name)
             r = requests.post(
-                "http://"
-                + node["ip"]
-                + ":"
-                + node["port"]
-                + "/research/youtube_search",
+                "http://" + node.ip + ":" + str(node.port) + "/research/youtube_search",
                 data=request.data,
             )
             url = r.text
+            print(
+                "DEBUG | ANSW, YT_SEARCH:",
+                request.data,
+                r.status_code,
+                ";",
+                "<=",
+                node.name,
+            )
             return Response(url, r.status_code)
 
         @self.app.route("/research/youtube_video", methods=["POST"])
@@ -125,16 +162,27 @@ class Parent:
             if _id == "":
                 return Response("Invalid ID", 400)
 
-            node = random.choice(self.nodes)
+            node: Node = self.socket_server.nodes[
+                random.choice(list(self.socket_server.nodes.keys()))
+            ]
+            print("DEBUG | RECV, YT_VIDEO:", request.data, ";", "=>", node.name)
             if _id in self.cache:
                 _node = self.cache[_id]
-                if _node in self.nodes:
+                if _node in self.socket_server.nodes:
                     node = _node
             self.cache[_id] = node
 
             tx = requests.post(
-                "http://" + node["ip"] + ":" + node["port"] + "/research/youtube_video",
+                "http://" + node.ip + ":" + str(node.port) + "/research/youtube_video",
                 data=_id,
+            )
+            print(
+                "DEBUG | ANSW, YT_VIDEO:",
+                request.data,
+                tx.status_code,
+                ";",
+                "<=",
+                node.name,
             )
             return Response(tx.text, tx.status_code)
 
@@ -144,19 +192,30 @@ class Parent:
             if _id == "":
                 return Response("Invalid ID", 400)
 
-            node = random.choice(self.nodes)
-            return requests.post(
+            node: Node = self.socket_server.nodes[
+                random.choice(list(self.socket_server.nodes.keys()))
+            ]
+            print("DEBUG | RECV, YT_PLAYLIST:", request.data, ";", "=>", node.name)
+            tx = requests.post(
                 "http://"
-                + node["ip"]
+                + node.ip
                 + ":"
-                + node["port"]
+                + str(node.port)
                 + "/research/youtube_playlist",
                 _id,
-            ).text
+            )
+            print(
+                "DEBUG | ANSW, YT_PLAYLIST:",
+                request.data,
+                tx.status_code,
+                ";",
+                "<=",
+                node.name,
+            )
+            return Response(tx.text, tx.status_code)
 
     def start_up(self):
         self.add_routes()
-        self.process.start()
         bjoern.run(self.app, "0.0.0.0", 8008)
 
 
