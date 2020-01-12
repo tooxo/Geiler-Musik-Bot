@@ -25,7 +25,7 @@ before_install:
   - touch youtube/settings.env
   - docker network create web
   - sudo apt-get install libopus0
-  - git clone https://github.com/tooxo/distest.git --depth 1 -b test
+  - git clone https://github.com/tooxo/distest.git --depth 1 -b develop
   - cd distest/
   - pip3 install -r requirements-dev.txt
   - pip3 install .
