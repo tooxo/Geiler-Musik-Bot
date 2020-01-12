@@ -67,9 +67,7 @@ class DiscordBot(commands.Cog):
             self.mongo.set_restart_key(restart_key), self.bot.loop
         )
 
-        """
-        Fix for OpusNotLoaded Error.
-        """
+        # Fix for OpusNotLoaded Error.
         if not discord.opus.is_loaded():
             discord.opus.load_opus("/usr/lib/libopus.so")
 
@@ -90,12 +88,11 @@ class DiscordBot(commands.Cog):
 
                 if self.dictionary[guild_id].voice_channel is None:
                     return
-                else:
-                    if member is self.bot.user:
-                        if self.bot.get_guild(guild_id).voice_client is not None:
-                            self.dictionary[guild_id].voice_channel = None
-                            self.dictionary[guild_id].voice_client = None
-                            return
+                if member is self.bot.user:
+                    if self.bot.get_guild(guild_id).voice_client is not None:
+                        self.dictionary[guild_id].voice_channel = None
+                        self.dictionary[guild_id].voice_client = None
+                        return
 
                 if (
                     self.dictionary[guild_id].voice_channel is before.channel
@@ -257,9 +254,6 @@ class DiscordBot(commands.Cog):
                     pass
         except discord.NotFound:
             self.dictionary[ctx.guild.id].now_playing_message = None
-        """
-        await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=".help"))
-        """
 
     @staticmethod
     async def send_error_message(ctx, message, delete_after=None):
@@ -367,7 +361,7 @@ class DiscordBot(commands.Cog):
             self.log.error(logging_manager.debug_info(str(e)))
 
     async def player(self, ctx, small_dict):
-        if type(small_dict) is Error:
+        if isinstance(small_dict, Error):
             error_message = small_dict.reason
             await self.send_error_message(ctx, error_message)
             if (
@@ -379,7 +373,7 @@ class DiscordBot(commands.Cog):
 
             small_dict = await self.youtube.youtube_url(small_dict.link)
 
-            if type(small_dict) is Error:
+            if isinstance(small_dict, Error):
                 self.log.error(small_dict.reason)
                 await self.send_error_message(ctx, small_dict.reason)
                 return
@@ -473,16 +467,15 @@ class DiscordBot(commands.Cog):
                     # term
                     youtube_dict = await self.youtube.youtube_term(small_dict.title)
                     # youtube_dict = await self.youtube_t.youtube_term(small_dict['title'])
-                if type(youtube_dict) == Error:
+                if isinstance(youtube_dict, Error):
                     if youtube_dict.reason != Errors.error_please_retry:
                         await self.send_error_message(ctx, youtube_dict.reason)
                         await self.dictionary[ctx.guild.id].now_playing_message.delete()
                         await self.pre_player(ctx)
                         return
-                    else:
-                        await self.dictionary[ctx.guild.id].now_playing_message.delete()
-                        await self.pre_player(ctx, bypass=small_dict)
-                        return
+                    await self.dictionary[ctx.guild.id].now_playing_message.delete()
+                    await self.pre_player(ctx, bypass=small_dict)
+                    return
                 youtube_dict.user = small_dict.user
                 youtube_dict.image_url = small_dict.image_url
                 await self.player(ctx, youtube_dict)
@@ -692,12 +685,10 @@ class DiscordBot(commands.Cog):
 
         if yt.valid or sp.valid or url.lower() == "charts":
             return True
-        else:
-            if re.match(VariableStore.url_pattern, url) is not None:
-                await self.send_embed_message(ctx, "This is not a valid/supported url.")
-                return False
-            else:
-                return True
+        if re.match(VariableStore.url_pattern, url) is not None:
+            await self.send_embed_message(ctx, "This is not a valid/supported url.")
+            return False
+        return True
 
     @commands.command(aliases=["q"])
     async def queue(self, ctx):
@@ -964,20 +955,19 @@ class DiscordBot(commands.Cog):
                 )
                 await ctx.send(embed=embed)
                 return
-            else:
-                message = (
-                    "You are currently using **"
-                    + full
-                    + "** for 'full' and **"
-                    + empty
-                    + "** for 'empty'\n"
-                )
-                message += "Syntax to add:\n"
-                message += ".chars <full> <empty> \n"
-                message += (
-                    "Useful Website: https://changaco.oy.lc/unicode-progress-bars/"
-                )
-                await ctx.send(content=message)
+            message = (
+                "You are currently using **"
+                + full
+                + "** for 'full' and **"
+                + empty
+                + "** for 'empty'\n"
+            )
+            message += "Syntax to add:\n"
+            message += ".chars <full> <empty> \n"
+            message += (
+                "Useful Website: https://changaco.oy.lc/unicode-progress-bars/"
+            )
+            await ctx.send(content=message)
 
         elif first == "reset" and last is None:
             await self.mongo.set_chars(ctx.guild.id, "█", "░")

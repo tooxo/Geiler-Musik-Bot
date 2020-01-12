@@ -65,8 +65,7 @@ class Mongo:
         doc = await collection.find_one({"id": guild_id})
         if doc is None:
             return 0.5
-        else:
-            return doc["volume"]
+        return doc["volume"]
 
     async def set_chars(self, guild_id, full, empty):
         if self.mongo_enabled is False:
@@ -87,8 +86,7 @@ class Mongo:
         doc = await collection.find_one({"id": guild_id})
         if doc is None:
             return "█", "░"
-        else:
-            return doc["full"], doc["empty"]
+        return doc["full"], doc["empty"]
 
     async def set_restart_key(self, restart_key):
         if self.mongo_enabled is False:

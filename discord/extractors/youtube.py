@@ -90,7 +90,7 @@ class Youtube:
             return []
 
         songs = []
-        for t in eval(sd):
+        for t in json.loads(sd):
             s = Song()
             s.title = t["title"]
             s.link = t["link"]

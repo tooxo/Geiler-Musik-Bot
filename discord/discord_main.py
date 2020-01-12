@@ -6,6 +6,7 @@ from discord.ext.commands.bot import BotBase
 import discord
 import youtube_dl
 from discord_music import DiscordBot
+import subprocess
 
 if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
 
@@ -42,16 +43,18 @@ else:
 log = logging_manager.LoggingManager()
 log.debug("PID " + str(os.getpid()))
 
-"""
-Checking for dependency updates inside the container.
-Currently only updating discord.py and youtube-dl as they are the most important for it to work
-"""
+
+# Checking for dependency updates inside the container.
+# Currently only updating discord.py and youtube-dl as they are the most important for it to work
+
 
 log.debug(" ")
 log.debug("[Update]: Checking for library updates!")
 
 command = "pip install --upgrade discord.py youtube-dl"
-response = os.popen(command).read()
+response = subprocess.check_output(
+    "pip install --upgrade discord.py youtube-dl", shell=True
+).decode()
 
 # Check if an update has occurred
 if "Successfully installed" in response:
