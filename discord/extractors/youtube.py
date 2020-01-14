@@ -1,9 +1,12 @@
+from asyncio import TimeoutError
 import aiohttp
 import async_timeout
 import logging_manager
 from extractors import mongo
-from variable_store import Errors, VariableStore
-from song_store import Error, Song
+from bot.type.errors import Errors
+from bot.type.variable_store import VariableStore
+from bot.type.song import Song
+from bot.type.error import Error
 import json
 
 log = logging_manager.LoggingManager()
@@ -38,18 +41,24 @@ class Youtube:
         self.playlist_url = "http://parent:8008/research/youtube_playlist"
 
     async def http_get(self, url):
-        with async_timeout.timeout(5):
-            async with self.session.get(url=url) as re:
-                return re.text()
+        try:
+            with async_timeout.timeout(5):
+                async with self.session.get(url=url) as re:
+                    return re.text()
+        except TimeoutError:
+            return Error(True, Errors.default)
 
     async def http_post(self, url, data):
-        with async_timeout.timeout(10):
-            async with self.session.post(url=url, data=data) as re:
-                if re.status != 200:
-                    if re.status == 500:
-                        return Error(True, Errors.backend_down)
-                    return Error(True, await re.text())
-                return await re.text()
+        try:
+            with async_timeout.timeout(10):
+                async with self.session.post(url=url, data=data) as re:
+                    if re.status != 200:
+                        if re.status == 500:
+                            return Error(True, Errors.backend_down)
+                        return Error(True, await re.text())
+                    return await re.text()
+        except TimeoutError:
+            return Error(True, Errors.default)
 
     async def youtube_term(self, term):
         url = await self.http_post(self.term_url, term)

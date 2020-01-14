@@ -5,8 +5,8 @@ import aiohttp
 import base64
 import os
 import logging_manager
-from url_parser import SpotifyType
-from song_store import SpotifySong
+from bot.type.spotify_type import SpotifyType
+from bot.type.spotify_song import SpotifySong
 
 
 class Spotify:
@@ -74,9 +74,9 @@ class Spotify:
         if not playlist.valid:
             return []
         url = (
-            "https://api.spotify.com/v1/playlists/"
-            + playlist.id
-            + "/tracks?limit=100&offset=0"
+                "https://api.spotify.com/v1/playlists/"
+                + playlist.id
+                + "/tracks?limit=100&offset=0"
         )
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
@@ -140,7 +140,7 @@ class Spotify:
         if not artist.valid:
             return []
         url = (
-            "https://api.spotify.com/v1/artists/" + artist.id + "/top-tracks?country=DE"
+                "https://api.spotify.com/v1/artists/" + artist.id + "/top-tracks?country=DE"
         )
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)

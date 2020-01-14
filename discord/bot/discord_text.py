@@ -1,6 +1,6 @@
-import discord
 from discord.ext import commands
 import logging_manager
+import discord
 
 
 class TextResponse(commands.Cog):
@@ -107,7 +107,3 @@ class TextResponse(commands.Cog):
             )
         )
         await ctx.send(embed=embed)
-
-
-def setup(bot):
-    bot.add_cog(TextResponse(bot))

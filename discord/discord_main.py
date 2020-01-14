@@ -5,12 +5,14 @@ import logging
 from discord.ext.commands.bot import BotBase
 import discord
 import youtube_dl
-from discord_music import DiscordBot
+from bot.discord_music import DiscordBot
+from bot.discord_text import TextResponse
 import subprocess
 
 if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
 
     logging.basicConfig(level=logging.INFO)
+
 
     async def process_commands_n(self, message):
         """|coro|
@@ -26,7 +28,7 @@ if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
         call :meth:`~.Bot.get_context` or :meth:`~.Bot.invoke` if so.
         Parameters
         -----------
-        message: :class:`discord.Message`
+        message: :class:`bot.Message`
             The message to process commands for.
         """
         # if message.author.bot:
@@ -34,6 +36,7 @@ if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
 
         ctx = await self.get_context(message)
         await self.invoke(ctx)
+
 
     BotBase.process_commands = process_commands_n
     prefix = ","
@@ -43,9 +46,8 @@ else:
 log = logging_manager.LoggingManager()
 log.debug("PID " + str(os.getpid()))
 
-
 # Checking for dependency updates inside the container.
-# Currently only updating discord.py and youtube-dl as they are the most important for it to work
+# Currently only updating bot.py and youtube-dl as they are the most important for it to work
 
 
 log.debug(" ")
@@ -69,8 +71,8 @@ client = commands.Bot(command_prefix=prefix)
 
 @client.event
 async def on_ready():
-    client.load_extension("discord_music")
-    client.load_extension("discord_text")
+    client.add_cog(DiscordBot(bot=client))
+    client.add_cog(TextResponse(bot=client))
     log.debug("[Startup]: Finished.")
     await client.change_presence(
         activity=discord.Activity(type=discord.ActivityType.listening, name=".help")
@@ -86,12 +88,18 @@ async def on_command_error(ctx, error):
             ctx=ctx, message="Error while playback. Try again."
         )
     else:
+        import traceback
+
+        traceback.print_exc()
         log.error(logging_manager.debug_info(str(error)))
 
 
 @client.event
 async def on_error(*args, **kwargs):
     print("ERROR HANDLER", args, kwargs)
+    import traceback
+
+    traceback.print_exc()
 
 
 discord_version = discord.__version__ + "-" + discord.version_info.releaselevel
@@ -103,4 +111,5 @@ log.debug("[Startup]: Using Youtube_DL Version " + youtube_version)
 log.debug("")
 
 log.debug("[Startup]: Starting Up!")
+
 client.run(os.environ.get("BOT_TOKEN", ""))

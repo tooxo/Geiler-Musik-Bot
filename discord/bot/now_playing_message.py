@@ -3,7 +3,7 @@ import discord
 import time
 import logging_manager
 import aiohttp
-from FFmpegPCMAudio import PCMVolumeTransformerB
+from bot.FFmpegPCMAudio import PCMVolumeTransformerB
 from os import environ
 
 

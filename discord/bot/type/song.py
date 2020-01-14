@@ -1,6 +1,5 @@
-from variable_store import Queue
-from variable_store import Errors
-from variable_store import strip_youtube_title
+from bot.type.variable_store import strip_youtube_title
+from .error import Error
 
 
 class Song:
@@ -50,26 +49,3 @@ class Song:
         song.loadtime = d["loadtime"]
         song.thumbnail = d["thumbnail"]
         return song
-
-
-class Guild:
-    def __init__(self):
-        self.voice_client = None
-        self.voice_channel = None
-        self.song_queue = Queue()
-        self.now_playing_message = None
-        self.now_playing = None
-        self.volume = 0.5
-
-
-class Error:
-    def __init__(self, error: bool, reason: str = Errors.default):
-        self.error = error
-        self.reason = reason
-        self.link = ""
-
-
-class SpotifySong:
-    def __init__(self, title: str, image_url: str):
-        self.title = title
-        self.image_url = image_url
