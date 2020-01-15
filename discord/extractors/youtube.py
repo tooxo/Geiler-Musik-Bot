@@ -1,5 +1,4 @@
 import json
-from asyncio import TimeoutError
 
 import aiohttp
 import async_timeout

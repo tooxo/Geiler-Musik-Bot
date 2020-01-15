@@ -80,7 +80,7 @@ class Player(Cog):
         url_type = Url.determine_source(url=url)
         if url_type == Url.youtube:
             return await self.extract_first_infos_youtube(url=url, ctx=ctx)
-        elif url_type == Url.spotify:
+        if url_type == Url.spotify:
             return await self.extract_first_infos_spotify(url=url, ctx=ctx)
         return await self.extract_first_infos_other(url=url, ctx=ctx)
 
