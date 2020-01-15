@@ -16,7 +16,7 @@ from bot.voice.events import Events
 from bot.voice.player import Player
 from bot.voice.player_controls import PlayerControls
 from discord.ext import commands
-from extractors import mongo, spotify
+from extractors import mongo, spotify, youtube
 
 
 class DiscordBot(commands.Cog):
@@ -36,14 +36,7 @@ class DiscordBot(commands.Cog):
         self.spotify = spotify.Spotify()
         self.mongo = mongo.Mongo()
 
-        if environ.get("OLD_BACKEND", False) is True:
-            from extractors import youtube_old
-
-            self.youtube = youtube_old.Youtube(mongo_client=self.mongo)
-        else:
-            from extractors import youtube
-
-            self.youtube = youtube.Youtube(mongo_client=self.mongo)
+        self.youtube = youtube.Youtube(mongo_client=self.mongo)
 
         restart_key = self.generate_key(64)
         asyncio.run_coroutine_threadsafe(

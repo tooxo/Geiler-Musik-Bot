@@ -14,6 +14,7 @@ from bot.type.song import Song
 from bot.type.spotify_type import SpotifyType
 from bot.type.variable_store import VariableStore
 from bot.type.youtube_type import YouTubeType
+from bot.type.url import Url
 from discord.ext import commands
 from discord.ext.commands import Cog
 
@@ -73,109 +74,118 @@ class Player(Cog):
             else:
                 await self.player(ctx, small_dict)
 
-            #  asyncio.ensure_future(self.parent.preload_album_art(ctx=ctx))
             asyncio.ensure_future(self.preload_song(ctx=ctx))
+
+    async def extract_infos(self, url, ctx):
+        url_type = Url.determine_source(url=url)
+        if url_type == Url.youtube:
+            return await self.extract_first_infos_youtube(url=url, ctx=ctx)
+        elif url_type == Url.spotify:
+            return await self.extract_first_infos_spotify(url=url, ctx=ctx)
+        else:
+            return await self.extract_first_infos_other(url=url, ctx=ctx)
+
+    async def extract_first_infos_youtube(self, url, ctx):
+        youtube_type = Url.determine_youtube_type(url=url)
+        if youtube_type == Url.youtube_url:
+            __song = Song()
+            __song.user = ctx.message.author
+            __song.link = url
+            return [__song]
+        elif youtube_type == Url.youtube_playlist:
+            __songs = []
+            __song_list = await self.parent.youtube.youtube_playlist(url)
+            if len(__song_list) == 0:
+                await self.parent.send_error_message(ctx, Errors.spotify_pull)
+                return []
+            for track in __song_list:
+                track.user = ctx.message.author
+                __songs.append(track)
+            return __songs
+
+    async def extract_first_infos_spotify(self, url, ctx):
+        spotify_type = Url.determine_spotify_type(url=url)
+        __songs = []
+        __song = Song()
+        __song.user = ctx.message.author
+        if spotify_type == Url.spotify_playlist:
+            __song_list = await self.parent.spotify.spotify_playlist(url)
+            if len(__song_list) == 0:
+                await self.parent.send_error_message(
+                    ctx=ctx, message=Errors.spotify_pull
+                )
+                return []
+            for track in __song_list:
+                __song = Song(song=__song)
+                __song.title = track
+                __songs.append(__song)
+            return __songs
+        elif spotify_type == Url.spotify_track:
+            track = await self.parent.spotify.spotify_track(url)
+            if track is not None:
+                __song.title = track.title
+                __song.image_url = track.image_url
+                return [__song]
+            else:
+                return []
+        elif spotify_type == Url.spotify_artist:
+            song_list = await self.parent.spotify.spotify_artist(url)
+            for track in song_list:
+                __song = Song(song=__song)
+                __song.title = track
+                __songs.append(__song)
+            return __songs
+        elif spotify_type == Url.spotify_album:
+            song_list = await self.parent.spotify.spotify_album(url)
+            for track in song_list:
+                __song = Song(song=__song)
+                __song.title = track
+                __songs.append(__song)
+            return __songs
+
+    async def extract_first_infos_other(self, url, ctx):
+        if url == "charts":
+            __songs = []
+            __song = Song()
+            __song.user = ctx.message.author
+            song_list = await self.parent.spotify.spotify_playlist(
+                "https://open.spotify.com/playlist/37i9dQZEVXbMDoHDwVN2tF?si=vgYiEOfYTL-ejBdn0A_E2g"
+            )
+            for track in song_list:
+                song = Song(song=__song)
+                song.title = track
+                __songs.append(song)
+            return __songs
+        else:
+            __song = Song()
+            __song.title = url
+            __song.user = ctx.message.author
+            return [__song]
 
     async def add_to_queue(self, url, ctx, first_index_push=False, playskip=False):
         if playskip:
             self.parent.dictionary[ctx.guild.id].song_queue = Queue()
 
-        small_dict = Song()
-        small_dict.user = ctx.message.author
-
-        small_dicts = []
-
-        _multiple = False
-
-        if re.match(VariableStore.youtube_video_pattern, url) is not None:
-            if "watch?" in url.lower() or "youtu.be" in url.lower():
-                small_dict.link = url
-                _multiple = False
-            elif "playlist" in url:
-                song_list = await self.parent.youtube.youtube_playlist(url)
-                if len(song_list) == 0:
-                    await self.parent.send_error_message(ctx, Errors.spotify_pull)
-                    return
-                for track in song_list:
-                    track.user = ctx.message.author
-                    small_dicts.append(track)
-                _multiple = True
-        elif (
-            re.match(VariableStore.spotify_url_pattern, url) is not None
-            or re.match(VariableStore.spotify_uri_pattern, url) is not None
-        ):
-            if "playlist" in url:
-                song_list = await self.parent.spotify.spotify_playlist(url)
-                if len(song_list) == 0:
-                    await self.parent.send_error_message(
-                        ctx=ctx, message=Errors.spotify_pull
-                    )
-                    return
-                for track in song_list:
-                    song = Song(song=small_dict)
-                    song.title = track
-                    small_dicts.append(song)
-                _multiple = True
-            elif "track" in url:
-                track = await self.parent.spotify.spotify_track(url)
-                if track is not None:
-                    small_dict.title = track.title
-                    small_dict.image_url = track.image_url
-                    _multiple = False
-                else:
-                    return
-            elif "album" in url:
-                song_list = await self.parent.spotify.spotify_album(url)
-                for track in song_list:
-                    song = Song(song=small_dict)
-                    song.title = track
-                    small_dicts.append(song)
-                _multiple = True
-            elif "artist" in url:
-                song_list = await self.parent.spotify.spotify_artist(url)
-                for track in song_list:
-                    song = Song(song=small_dict)
-                    song.title = track
-                    small_dicts.append(song)
-                _multiple = True
-
-        else:
-            if url == "charts":
-                song_list = await self.parent.spotify.spotify_playlist(
-                    "https://open.spotify.com/playlist/37i9dQZEVXbMDoHDwVN2tF?si=vgYiEOfYTL-ejBdn0A_E2g"
-                )
-                for track in song_list:
-                    song = Song(song=small_dict)
-                    song.title = track
-                    small_dicts.append(song)
-                _multiple = True
-            else:
-                small_dict.title = url
-                _multiple = False
-
-        if _multiple:
-            for song in small_dicts:
-                self.parent.dictionary[ctx.guild.id].song_queue.put_nowait(song)
+        songs = await self.extract_infos(url=url, ctx=ctx)
+        if len(songs) > 1:
+            self.parent.dictionary[ctx.guild.id].song_queue.queue.extend(songs)
             await self.parent.send_embed_message(
                 ctx=ctx,
                 message=":asterisk: Added "
-                + str(len(small_dicts))
+                + str(len(songs))
                 + " Tracks to Queue. :asterisk:",
             )
-        else:
+        elif len(songs) == 1:
             if first_index_push:
-
-                self.parent.dictionary[ctx.guild.id].song_queue.queue.appendleft(
-                    small_dict
-                )
+                self.parent.dictionary[ctx.guild.id].song_queue.queue.extendleft(songs)
             else:
-                self.parent.dictionary[ctx.guild.id].song_queue.put_nowait(small_dict)
+                self.parent.dictionary[ctx.guild.id].song_queue.queue.extend(songs)
             title = ""
-            if small_dict.title is not None:
-                title = small_dict.title
+            if songs[0].title is not None:
+                title = songs[0].title
             else:
                 try:
-                    title = small_dict.link
+                    title = songs[0].link
                 except AttributeError:
                     pass
             if self.parent.dictionary[ctx.guild.id].voice_client.is_playing():
