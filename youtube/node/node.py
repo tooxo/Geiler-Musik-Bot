@@ -176,11 +176,7 @@ class Node:
     @staticmethod
     def youtube_check():
         with requests.get("https://www.youtube.com") as req:
-            if (
-                req.status_code is 200
-                or req.status_code is 301
-                or req.status_code is 302
-            ):
+            if req.status_code in (200, 301, 302):
                 return True
         return False
 
@@ -221,7 +217,7 @@ class Node:
                 own_ip=self.own_ip,
                 custom_port=self.custom_port,
             )
-            if type(extracted_content) == str:
+            if isinstance(extracted_content, str):
                 return Response(extracted_content, 400)
             return Response(json.dumps(extracted_content), 200)
 
@@ -266,7 +262,7 @@ class Node:
                 custom_port=self.custom_port,
             )
 
-            if type(stream_dict) is not str:
+            if not isinstance(stream_dict, str):
                 req = requests.get(stream_dict["youtube_stream"], stream=True)
                 return Response(
                     req.iter_content(chunk_size=512),
