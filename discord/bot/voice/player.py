@@ -82,8 +82,7 @@ class Player(Cog):
             return await self.extract_first_infos_youtube(url=url, ctx=ctx)
         elif url_type == Url.spotify:
             return await self.extract_first_infos_spotify(url=url, ctx=ctx)
-        else:
-            return await self.extract_first_infos_other(url=url, ctx=ctx)
+        return await self.extract_first_infos_other(url=url, ctx=ctx)
 
     async def extract_first_infos_youtube(self, url, ctx):
         youtube_type = Url.determine_youtube_type(url=url)
@@ -92,7 +91,7 @@ class Player(Cog):
             __song.user = ctx.message.author
             __song.link = url
             return [__song]
-        elif youtube_type == Url.youtube_playlist:
+        if youtube_type == Url.youtube_playlist:
             __songs = []
             __song_list = await self.parent.youtube.youtube_playlist(url)
             if len(__song_list) == 0:
@@ -120,22 +119,21 @@ class Player(Cog):
                 __song.title = track
                 __songs.append(__song)
             return __songs
-        elif spotify_type == Url.spotify_track:
+        if spotify_type == Url.spotify_track:
             track = await self.parent.spotify.spotify_track(url)
             if track is not None:
                 __song.title = track.title
                 __song.image_url = track.image_url
                 return [__song]
-            else:
-                return []
-        elif spotify_type == Url.spotify_artist:
+            return []
+        if spotify_type == Url.spotify_artist:
             song_list = await self.parent.spotify.spotify_artist(url)
             for track in song_list:
                 __song = Song(song=__song)
                 __song.title = track
                 __songs.append(__song)
             return __songs
-        elif spotify_type == Url.spotify_album:
+        if spotify_type == Url.spotify_album:
             song_list = await self.parent.spotify.spotify_album(url)
             for track in song_list:
                 __song = Song(song=__song)
@@ -156,11 +154,10 @@ class Player(Cog):
                 song.title = track
                 __songs.append(song)
             return __songs
-        else:
-            __song = Song()
-            __song.title = url
-            __song.user = ctx.message.author
-            return [__song]
+        __song = Song()
+        __song.title = url
+        __song.user = ctx.message.author
+        return [__song]
 
     async def add_to_queue(self, url, ctx, first_index_push=False, playskip=False):
         if playskip:

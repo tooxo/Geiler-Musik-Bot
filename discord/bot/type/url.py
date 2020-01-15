@@ -29,28 +29,27 @@ class Url(object):
     def determine_youtube_type(url):
         if "watch?" in url.lower() or "youtu.be" in url.lower():
             return Url.youtube_url
-        elif "playlist" in url.lower():
+        if "playlist" in url.lower():
             return Url.youtube_playlist
 
     @staticmethod
     def determine_spotify_type(url):
         if "playlist" in url:
             return Url.spotify_playlist
-        elif "track" in url:
+        if "track" in url:
             return Url.spotify_track
-        elif "album" in url:
+        if "album" in url:
             return Url.spotify_album
-        elif "artist" in url:
+        if "artist" in url:
             return Url.spotify_artist
 
     @staticmethod
     def determine_source(url):
         if re.match(VariableStore.youtube_video_pattern, url) is not None:
             return Url.youtube
-        elif (
+        if (
             re.match(VariableStore.spotify_url_pattern, url) is not None
             or re.match(VariableStore.spotify_uri_pattern, url) is not None
         ):
             return Url.spotify
-        else:
-            return Url.other
+        return Url.other
