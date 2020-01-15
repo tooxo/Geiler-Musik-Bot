@@ -11,7 +11,7 @@ import logging_manager
 from bot.type.errors import Errors
 from bot.type.guild import Guild
 from bot.type.song import Song
-from bot.voice.control_check import ControlCheck
+from bot.voice.checks import Checks
 from bot.voice.events import Events
 from bot.voice.player import Player
 from bot.voice.player_controls import PlayerControls
@@ -47,7 +47,7 @@ class DiscordBot(commands.Cog):
         if not discord.opus.is_loaded():
             discord.opus.load_opus("/usr/lib/libopus.so")
 
-        self.control_check = ControlCheck(self.bot, self)
+        self.control_check = Checks(self.bot, self)
 
         self.dbl_key = environ.get("DBL_KEY", "")
 

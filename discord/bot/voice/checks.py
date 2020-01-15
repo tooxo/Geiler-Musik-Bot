@@ -1,7 +1,7 @@
 import discord.ext.commands
 
 
-class ControlCheck:
+class Checks:
     def __init__(self, bot, parent):
         self.parent = parent
         self.bot = bot
