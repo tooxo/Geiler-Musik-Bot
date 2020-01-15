@@ -36,7 +36,9 @@ class TextResponse(commands.Cog):
     @commands.command()
     async def help(self, ctx):
         embed = (
-            discord.Embed(title="Help", color=0x00FFCC, url="https://d.chulte.de")
+            discord.Embed(
+                title="Help", color=0x00FFCC, url="https://d.chulte.de"
+            )
             .add_field(
                 name="Play Music",
                 value="`.play [songname | link]` - `Plays / Queues a song.`\n"
@@ -76,10 +78,13 @@ class TextResponse(commands.Cog):
     async def support(self, ctx):
         embed = (
             discord.Embed(
-                title="Supported Services", color=0x00FFCC, url="https://d.chulte.de"
+                title="Supported Services",
+                color=0x00FFCC,
+                url="https://d.chulte.de",
             )
             .add_field(
-                name="YouTube", value="Video Urls\nVideo Search Terms\nPlaylist Urls"
+                name="YouTube",
+                value="Video Urls\nVideo Search Terms\nPlaylist Urls",
             )
             .add_field(
                 name="Spotify",

@@ -31,7 +31,9 @@ class PlayerControls(Cog):
             return
         if self.parent.dictionary[ctx.guild.id].song_queue.qsize() != 0:
             self.parent.dictionary[ctx.guild.id].song_queue = Queue()
-            await self.parent.send_embed_message(ctx, "Cleared the Queue. :cloud:")
+            await self.parent.send_embed_message(
+                ctx, "Cleared the Queue. :cloud:"
+            )
         else:
             await self.parent.send_error_message(
                 ctx, "The Playlist was already empty! :cloud:"
@@ -42,12 +44,16 @@ class PlayerControls(Cog):
         if not await self.parent.control_check.manipulation_checks(ctx):
             return
         if self.parent.dictionary[ctx.guild.id].song_queue.qsize() > 0:
-            random.shuffle(self.parent.dictionary[ctx.guild.id].song_queue.queue)
+            random.shuffle(
+                self.parent.dictionary[ctx.guild.id].song_queue.queue
+            )
             await self.parent.send_embed_message(
                 ctx, "Shuffled! :twisted_rightwards_arrows:"
             )
         else:
-            await self.parent.send_error_message(ctx, "The queue is empty. :cloud:")
+            await self.parent.send_error_message(
+                ctx, "The queue is empty. :cloud:"
+            )
 
     @commands.command(aliases=["yeehee"])
     async def stop(self, ctx):
@@ -68,7 +74,9 @@ class PlayerControls(Cog):
             self.parent.dictionary[ctx.guild.id].voice_client.play(source)
             if (
                 self.parent.dictionary[ctx.guild.id].voice_client is not None
-                and self.parent.dictionary[ctx.guild.id].voice_client.is_playing()
+                and self.parent.dictionary[
+                    ctx.guild.id
+                ].voice_client.is_playing()
             ):
                 await self.parent.send_embed_message(
                     ctx, "Music Stopped! :octagonal_sign:"
@@ -103,7 +111,9 @@ class PlayerControls(Cog):
         try:
             count = int(count)
         except ValueError:
-            await self.parent.send_error_message(ctx, "Please provide a valid number.")
+            await self.parent.send_error_message(
+                ctx, "Please provide a valid number."
+            )
             return
         if self.parent.dictionary[ctx.guild.id].voice_client is not None:
             if self.parent.dictionary[ctx.guild.id].now_playing is not None:
@@ -118,19 +128,30 @@ class PlayerControls(Cog):
                     )
                     return
                 else:
-                    if count > self.parent.dictionary[ctx.guild.id].song_queue.qsize():
+                    if (
+                        count
+                        > self.parent.dictionary[
+                            ctx.guild.id
+                        ].song_queue.qsize()
+                    ):
                         await self.parent.send_embed_message(
                             ctx,
                             "Skipped "
                             + str(
-                                self.parent.dictionary[ctx.guild.id].song_queue.qsize()
+                                self.parent.dictionary[
+                                    ctx.guild.id
+                                ].song_queue.qsize()
                             )
                             + " Tracks! :track_next:",
                         )
-                        self.parent.dictionary[ctx.guild.id].voice_client.stop()
+                        self.parent.dictionary[
+                            ctx.guild.id
+                        ].voice_client.stop()
                     else:
 
-                        queue = self.parent.dictionary[ctx.guild.id].song_queue.queue
+                        queue = self.parent.dictionary[
+                            ctx.guild.id
+                        ].song_queue.queue
 
                         self.parent.dictionary[
                             ctx.guild.id
@@ -148,7 +169,9 @@ class PlayerControls(Cog):
                 )
 
         else:
-            await self.parent.send_error_message(ctx, "Not connected!", delete_after=10)
+            await self.parent.send_error_message(
+                ctx, "Not connected!", delete_after=10
+            )
 
         await asyncio.sleep(10)
         await ctx.message.delete()
@@ -162,7 +185,9 @@ class PlayerControls(Cog):
         if self.parent.dictionary[ctx.guild.id].voice_client is not None:
             if self.parent.dictionary[ctx.guild.id].voice_client.is_paused():
                 self.parent.dictionary[ctx.guild.id].voice_client.resume()
-                await self.parent.send_embed_message(ctx, "Unpaused! :play_pause:")
+                await self.parent.send_embed_message(
+                    ctx, "Unpaused! :play_pause:"
+                )
             else:
                 await self.parent.send_error_message(ctx, "Not Paused.")
 
@@ -193,13 +218,17 @@ class PlayerControls(Cog):
                 )
             else:
                 embed.add_field(
-                    name="**Currently Playing...**", value="Nothing.\n", inline=False
+                    name="**Currently Playing...**",
+                    value="Nothing.\n",
+                    inline=False,
                 )
         else:
             no_embed_string += "**Currently Playing ...**" + "\n"
             try:
                 no_embed_string += (
-                    "`" + self.parent.dictionary[ctx.guild.id].now_playing.title + "`\n"
+                    "`"
+                    + self.parent.dictionary[ctx.guild.id].now_playing.title
+                    + "`\n"
                 )
             except AttributeError:
                 no_embed_string += "Nothing.\n"
@@ -210,7 +239,9 @@ class PlayerControls(Cog):
                 try:
 
                     if (
-                        self.parent.dictionary[ctx.guild.id].song_queue.queue[x]
+                        self.parent.dictionary[ctx.guild.id].song_queue.queue[
+                            x
+                        ]
                         is not None
                     ):
 
@@ -224,7 +255,9 @@ class PlayerControls(Cog):
                         )
 
                     elif (
-                        self.parent.dictionary[ctx.guild.id].song_queue.queue[x].link
+                        self.parent.dictionary[ctx.guild.id]
+                        .song_queue.queue[x]
+                        .link
                         is not None
                     ):
 
@@ -241,11 +274,18 @@ class PlayerControls(Cog):
                 except (IndexError, KeyError, AttributeError, TypeError):
                     break
 
-            if (len(self.parent.dictionary[ctx.guild.id].song_queue.queue) - 9) > 0:
+            if (
+                len(self.parent.dictionary[ctx.guild.id].song_queue.queue) - 9
+            ) > 0:
                 _t += (
                     "`(+)` `"
                     + str(
-                        len(self.parent.dictionary[ctx.guild.id].song_queue.queue) - 9
+                        len(
+                            self.parent.dictionary[
+                                ctx.guild.id
+                            ].song_queue.queue
+                        )
+                        - 9
                     )
                     + " Tracks...`"
                 )
@@ -263,7 +303,9 @@ class PlayerControls(Cog):
                 )
             else:
                 no_embed_string += "**Coming up:**\n"
-                no_embed_string += "Nothing in Queue. Use .play to add something."
+                no_embed_string += (
+                    "Nothing in Queue. Use .play to add something."
+                )
 
         if use_embeds:
             await ctx.send(embed=embed)

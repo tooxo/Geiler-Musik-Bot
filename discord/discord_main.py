@@ -53,7 +53,13 @@ log.debug("PID " + str(os.getpid()))
 log.debug(" ")
 log.debug("[Update]: Checking for library updates!")
 
-command = ["/usr/local/bin/pip", "install", "--upgrade", "discord.py", "youtube-dl"]
+command = [
+    "/usr/local/bin/pip",
+    "install",
+    "--upgrade",
+    "discord.py",
+    "youtube-dl",
+]
 response = subprocess.check_output(command, shell=False).decode()
 
 # Check if an update has occurred
@@ -73,7 +79,9 @@ async def on_ready():
     client.add_cog(TextResponse(bot=client))
     log.debug("[Startup]: Finished.")
     await client.change_presence(
-        activity=discord.Activity(type=discord.ActivityType.listening, name=".help")
+        activity=discord.Activity(
+            type=discord.ActivityType.listening, name=".help"
+        )
     )
 
 

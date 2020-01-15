@@ -33,7 +33,9 @@ class ControlCheck:
 
     async def bot_connection_check(self, ctx):
         if ctx.guild.me.voice is None:
-            await self.parent.send_error_message(ctx, "The bot isn't connected.")
+            await self.parent.send_error_message(
+                ctx, "The bot isn't connected."
+            )
             return False
         return True
 
@@ -46,6 +48,8 @@ class ControlCheck:
 
     async def song_playing_check(self, ctx):
         if self.parent.dictionary[ctx.guild.id].now_playing is None:
-            await self.parent.send_error_message(ctx, "Nothing is playing right now!")
+            await self.parent.send_error_message(
+                ctx, "Nothing is playing right now!"
+            )
             return False
         return True

@@ -67,7 +67,9 @@ class DiscordBot(commands.Cog):
 
     @staticmethod
     async def send_embed_message(
-        ctx: discord.ext.commands.Context, message: str, delete_after: float = None
+        ctx: discord.ext.commands.Context,
+        message: str,
+        delete_after: float = None,
     ):
         if environ.get("USE_EMBEDS", "True") == "True":
             embed = discord.Embed(
@@ -88,7 +90,9 @@ class DiscordBot(commands.Cog):
                         :param _guild: guild
                         :return:
                         """
-                        self.log.debug("[Reconnect] Reconnecting " + str(_guild))
+                        self.log.debug(
+                            "[Reconnect] Reconnecting " + str(_guild)
+                        )
                         self.dictionary[
                             _guild.id
                         ].voice_channel = _guild.me.voice.channel
@@ -102,7 +106,9 @@ class DiscordBot(commands.Cog):
                             timeout=5, reconnect=True
                         )
 
-                    asyncio.run_coroutine_threadsafe(reconnect(_guild), self.bot.loop)
+                    asyncio.run_coroutine_threadsafe(
+                        reconnect(_guild), self.bot.loop
+                    )
 
     def run_dbl_stats(self):
         if self.dbl_key != "":
@@ -119,7 +125,9 @@ class DiscordBot(commands.Cog):
                     await self.bot.change_presence(
                         activity=self.bot.Activity(
                             type=self.bot.ActivityType.listening,
-                            name=".help on {} servers".format(client.guild_count()),
+                            name=".help on {} servers".format(
+                                client.guild_count()
+                            ),
                         )
                     )
                     await asyncio.sleep(1800)
@@ -162,11 +170,14 @@ class DiscordBot(commands.Cog):
         try:
             if ctx.guild.me.guild_permissions.administrator is False:
                 await self.send_error_message(
-                    ctx, "You need to be an Administrator to execute this action."
+                    ctx,
+                    "You need to be an Administrator to execute this action.",
                 )
                 return
         except AttributeError as ae:
-            self.log.error(logging_manager.debug_info("AttributeError " + str(ae)))
+            self.log.error(
+                logging_manager.debug_info("AttributeError " + str(ae))
+            )
         try:
             if len(name) > 32:
                 await self.send_error_message(
@@ -174,7 +185,9 @@ class DiscordBot(commands.Cog):
                 )
             me = ctx.guild.me
             await me.edit(nick=name)
-            await self.send_embed_message(ctx, "Rename to **" + name + "** successful.")
+            await self.send_embed_message(
+                ctx, "Rename to **" + name + "** successful."
+            )
         except Exception as e:
             await self.send_error_message(ctx, "An Error occurred: " + str(e))
 
@@ -202,7 +215,9 @@ class DiscordBot(commands.Cog):
             )
             return
         await self.mongo.set_volume(ctx.guild.id, var)
-        await self.send_embed_message(ctx, "The Volume was set to: " + str(var))
+        await self.send_embed_message(
+            ctx, "The Volume was set to: " + str(var)
+        )
 
     @commands.command()
     async def info(self, ctx):
@@ -228,7 +243,11 @@ class DiscordBot(commands.Cog):
                 + "\nRequested by: <@!"
                 + str(self.dictionary[ctx.guild.id].now_playing.user.id)
                 + ">\nLoaded in: "
-                + str(round(self.dictionary[ctx.guild.id].now_playing.loadtime, 2))
+                + str(
+                    round(
+                        self.dictionary[ctx.guild.id].now_playing.loadtime, 2
+                    )
+                )
                 + " sec."
                 + "\nSearched Term: "
                 + str(self.dictionary[ctx.guild.id].now_playing.term),
@@ -236,7 +255,9 @@ class DiscordBot(commands.Cog):
                 url="https://d.chulte.de",
             )
             if self.dictionary[ctx.guild.id].now_playing.image is not None:
-                embed.set_thumbnail(url=self.dictionary[ctx.guild.id].now_playing.image)
+                embed.set_thumbnail(
+                    url=self.dictionary[ctx.guild.id].now_playing.image
+                )
             await ctx.send(embed=embed)
         except (KeyError, TypeError) as e:
             self.log.warning(logging_manager.debug_info(str(e)))
@@ -277,13 +298,16 @@ class DiscordBot(commands.Cog):
             )
             message += "Syntax to add:\n"
             message += ".chars <full> <empty> \n"
-            message += "Useful Website: https://changaco.oy.lc/unicode-progress-bars/"
+            message += (
+                "Useful Website: https://changaco.oy.lc/unicode-progress-bars/"
+            )
             await ctx.send(content=message)
 
         elif first == "reset" and last is None:
             await self.mongo.set_chars(ctx.guild.id, "█", "░")
             await self.send_embed_message(
-                ctx=ctx, message="Characters reset to: Full: **█** and Empty: **░**"
+                ctx=ctx,
+                message="Characters reset to: Full: **█** and Empty: **░**",
             )
             return
 
@@ -295,7 +319,8 @@ class DiscordBot(commands.Cog):
             return
         if len(first) > 1 or len(last) > 1:
             embed = discord.Embed(
-                title="The characters have a maximal length of 1.", color=0x00FFCC
+                title="The characters have a maximal length of 1.",
+                color=0x00FFCC,
             )
             await ctx.send(embed=embed)
             return
