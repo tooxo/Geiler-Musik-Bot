@@ -26,32 +26,47 @@ class Player(Cog):
         self.parent = parent
 
     async def pre_player(self, ctx, bypass=None):
-        if self.parent.dictionary[ctx.guild.id].song_queue.qsize() > 0 or bypass is not None:
+        if (
+            self.parent.dictionary[ctx.guild.id].song_queue.qsize() > 0
+            or bypass is not None
+        ):
             if bypass is None:
                 small_dict = await self.parent.dictionary[ctx.guild.id].song_queue.get()
             else:
                 small_dict = bypass
-            self.parent.dictionary[ctx.guild.id].now_playing_message = NowPlayingMessage(
-                message=await self.parent.send_embed_message(ctx=ctx, message=" Loading ... "),
+            self.parent.dictionary[
+                ctx.guild.id
+            ].now_playing_message = NowPlayingMessage(
+                message=await self.parent.send_embed_message(
+                    ctx=ctx, message=" Loading ... "
+                ),
                 ctx=ctx,
             )
             if small_dict.stream is None:
                 if small_dict.link is not None:
                     # url
-                    youtube_dict = await self.parent.youtube.youtube_url(small_dict.link)
+                    youtube_dict = await self.parent.youtube.youtube_url(
+                        small_dict.link
+                    )
                 else:
                     if small_dict.title is None:
                         self.parent.log.warning(small_dict)
                     # term
-                    youtube_dict = await self.parent.youtube.youtube_term(small_dict.title)
+                    youtube_dict = await self.parent.youtube.youtube_term(
+                        small_dict.title
+                    )
                     # youtube_dict = await self.parent.youtube_t.youtube_term(small_dict['title'])
                 if isinstance(youtube_dict, Error):
                     if youtube_dict.reason != Errors.error_please_retry:
                         await self.parent.send_error_message(ctx, youtube_dict.reason)
-                        await self.parent.dictionary[ctx.guild.id].now_playing_message.delete()
+                        await self.parent.dictionary[
+                            ctx.guild.id
+                        ].now_playing_message.delete()
                         await self.pre_player(ctx)
                         return
-                    await self.parent.dictionary[ctx.guild.id].now_playing_message.delete()
+                    await self.parent.dictionary[
+                        ctx.guild.id
+                    ].now_playing_message.delete()
                     await self.pre_player(ctx, bypass=small_dict)
                     return
                 youtube_dict.user = small_dict.user
@@ -88,13 +103,15 @@ class Player(Cog):
                     small_dicts.append(track)
                 _multiple = True
         elif (
-                re.match(VariableStore.spotify_url_pattern, url) is not None
-                or re.match(VariableStore.spotify_uri_pattern, url) is not None
+            re.match(VariableStore.spotify_url_pattern, url) is not None
+            or re.match(VariableStore.spotify_uri_pattern, url) is not None
         ):
             if "playlist" in url:
                 song_list = await self.parent.spotify.spotify_playlist(url)
                 if len(song_list) == 0:
-                    await self.parent.send_error_message(ctx=ctx, message=Errors.spotify_pull)
+                    await self.parent.send_error_message(
+                        ctx=ctx, message=Errors.spotify_pull
+                    )
                     return
                 for track in song_list:
                     song = Song(song=small_dict)
@@ -144,13 +161,15 @@ class Player(Cog):
             await self.parent.send_embed_message(
                 ctx=ctx,
                 message=":asterisk: Added "
-                        + str(len(small_dicts))
-                        + " Tracks to Queue. :asterisk:",
+                + str(len(small_dicts))
+                + " Tracks to Queue. :asterisk:",
             )
         else:
             if first_index_push:
 
-                self.parent.dictionary[ctx.guild.id].song_queue.queue.appendleft(small_dict)
+                self.parent.dictionary[ctx.guild.id].song_queue.queue.appendleft(
+                    small_dict
+                )
             else:
                 self.parent.dictionary[ctx.guild.id].song_queue.put_nowait(small_dict)
             title = ""
@@ -181,13 +200,19 @@ class Player(Cog):
 
     async def join_check(self, ctx, url):
         if url is None:
-            await self.parent.send_error_message(ctx, "You need to enter something to play.")
+            await self.parent.send_error_message(
+                ctx, "You need to enter something to play."
+            )
             return False
         if self.parent.dictionary[ctx.guild.id].voice_channel is None:
             if ctx.author.voice is not None:
-                self.parent.dictionary[ctx.guild.id].voice_channel = ctx.author.voice.channel
+                self.parent.dictionary[
+                    ctx.guild.id
+                ].voice_channel = ctx.author.voice.channel
             else:
-                await self.parent.send_error_message(ctx, "You need to be in a channel.")
+                await self.parent.send_error_message(
+                    ctx, "You need to be in a channel."
+                )
                 return False
         if not await self.parent.control_check.same_channel_check(ctx):
             return False
@@ -197,9 +222,9 @@ class Player(Cog):
         if self.parent.dictionary[ctx.guild.id].voice_client is None:
             try:
                 if (
-                        ctx.author.voice.channel.user_limit
-                        <= len(ctx.author.voice.channel.members)
-                        and ctx.author.voice.channel.user_limit != 0
+                    ctx.author.voice.channel.user_limit
+                    <= len(ctx.author.voice.channel.members)
+                    and ctx.author.voice.channel.user_limit != 0
                 ):
                     if ctx.guild.me.guild_permissions.administrator is True:
                         self.parent.dictionary[
@@ -219,13 +244,15 @@ class Player(Cog):
                         timeout=10, reconnect=True
                     )
             except (
-                    TimeoutError,
-                    discord.HTTPException,
-                    discord.ClientException,
-                    discord.DiscordException,
-                    Exception,
+                TimeoutError,
+                discord.HTTPException,
+                discord.ClientException,
+                discord.DiscordException,
+                Exception,
             ) as e:
-                self.parent.log.warning(logging_manager.debug_info("channel_join " + str(e)))
+                self.parent.log.warning(
+                    logging_manager.debug_info("channel_join " + str(e))
+                )
                 self.parent.dictionary[ctx.guild.id].voice_channel = None
                 await self.parent.send_embed_message(
                     ctx, "Error while joining your channel. :frowning: (2)"
@@ -264,7 +291,9 @@ class Player(Cog):
         if yt.valid or sp.valid or url.lower() == "charts":
             return True
         if re.match(VariableStore.url_pattern, url) is not None:
-            await self.parent.send_embed_message(ctx, "This is not a valid/supported url.")
+            await self.parent.send_embed_message(
+                ctx, "This is not a valid/supported url."
+            )
             return False
         return True
 
@@ -307,8 +336,8 @@ class Player(Cog):
             error_message = small_dict.reason
             await self.parent.send_error_message(ctx, error_message)
             if (
-                    error_message == Errors.no_results_found
-                    or error_message == Errors.default
+                error_message == Errors.no_results_found
+                or error_message == Errors.default
             ):
                 await self.parent.dictionary[ctx.guild.id].now_playing_message.delete()
                 return
@@ -352,9 +381,13 @@ class Player(Cog):
                             after=lambda error: self.song_conclusion(ctx, error=error),
                         )
             full, empty = await self.parent.mongo.get_chars(ctx.guild.id)
-            self.parent.dictionary[ctx.guild.id].now_playing_message = NowPlayingMessage(
+            self.parent.dictionary[
+                ctx.guild.id
+            ].now_playing_message = NowPlayingMessage(
                 ctx=ctx,
-                message=self.parent.dictionary[ctx.guild.id].now_playing_message.message,
+                message=self.parent.dictionary[
+                    ctx.guild.id
+                ].now_playing_message.message,
                 song=self.parent.dictionary[ctx.guild.id].now_playing,
                 full=full,
                 empty=empty,
@@ -384,7 +417,9 @@ class Player(Cog):
                     if item.stream is None:
                         backup_title: str = str(item.title)
                         if item.link is not None:
-                            youtube_dict = await self.parent.youtube.youtube_url(item.link)
+                            youtube_dict = await self.parent.youtube.youtube_url(
+                                item.link
+                            )
                             youtube_dict.user = item.user
                         else:
                             if item.title is not None:
@@ -398,7 +433,9 @@ class Player(Cog):
                             youtube_dict.user = item.user
                         j: int = 0
 
-                        for _song in self.parent.dictionary[ctx.guild.id].song_queue.queue:
+                        for _song in self.parent.dictionary[
+                            ctx.guild.id
+                        ].song_queue.queue:
                             _song: Song
                             if _song.title == backup_title:
                                 self.parent.dictionary[ctx.guild.id].song_queue.queue[
@@ -418,7 +455,10 @@ class Player(Cog):
         :return:
         """
         if len(self.parent.dictionary[ctx.guild.id].voice_channel.members) == 1:
-            if self.parent.dictionary[ctx.guild.id].voice_channel.members[0] == ctx.guild.me:
+            if (
+                self.parent.dictionary[ctx.guild.id].voice_channel.members[0]
+                == ctx.guild.me
+            ):
                 self.parent.dictionary[ctx.guild.id].song_queue = Queue()
                 await self.parent.dictionary[ctx.guild.id].voice_client.disconnect()
                 await self.parent.send_embed_message(

@@ -1,20 +1,21 @@
 import string
-from typing import Dict
-
-import logging_manager
-import discord
 import random
 import asyncio
-import dbl
 
 from os import environ
+from typing import Dict
+
+import dbl
+
+import logging_manager
+
+import discord
 from discord.ext import commands
 
 from extractors import spotify
 from extractors import mongo
 
 from bot.type.errors import Errors
-
 from bot.type.song import Song
 from bot.type.guild import Guild
 
@@ -73,13 +74,13 @@ class DiscordBot(commands.Cog):
     def generate_key(length):
         letters = string.ascii_letters
         response = ""
-        for a in range(0, length):
+        for _ in range(0, length):
             response += random.choice(letters)
         return response
 
     @staticmethod
     async def send_embed_message(
-            ctx: discord.ext.commands.Context, message: str, delete_after: float = None
+        ctx: discord.ext.commands.Context, message: str, delete_after: float = None
     ):
         if environ.get("USE_EMBEDS", "True") == "True":
             embed = discord.Embed(
@@ -93,6 +94,7 @@ class DiscordBot(commands.Cog):
             self.dictionary[_guild.id] = Guild()
             if _guild.me.voice is not None:
                 if hasattr(_guild.me.voice, "channel"):
+
                     async def reconnect(_guild):
                         """
                         Reconnects disconnected clients after restart
@@ -121,23 +123,18 @@ class DiscordBot(commands.Cog):
 
             async def update_stats(client):
                 while not self.bot.is_closed():
-                    try:
-                        await client.post_guild_count()
-                        self.log.debug(
-                            "[SERVER COUNT] Posted server count ({})".format(
-                                client.guild_count()
-                            )
+                    await client.post_guild_count()
+                    self.log.debug(
+                        "[SERVER COUNT] Posted server count ({})".format(
+                            client.guild_count()
                         )
-                        await self.bot.change_presence(
-                            activity=self.bot.Activity(
-                                type=self.bot.ActivityType.listening,
-                                name=".help on {} servers".format(
-                                    client.guild_count()
-                                ),
-                            )
+                    )
+                    await self.bot.change_presence(
+                        activity=self.bot.Activity(
+                            type=self.bot.ActivityType.listening,
+                            name=".help on {} servers".format(client.guild_count()),
                         )
-                    except Exception as e:
-                        self.log.warning(logging_manager.debug_info(e))
+                    )
                     await asyncio.sleep(1800)
 
             self.bot.loop.create_task(update_stats(dbl_client))
@@ -236,18 +233,18 @@ class DiscordBot(commands.Cog):
             embed = discord.Embed(
                 title="Information",
                 description="Name: "
-                            + str(self.dictionary[ctx.guild.id].now_playing.title)
-                            + "\nStreamed from: "
-                            + str(self.dictionary[ctx.guild.id].now_playing.link)
-                            + "\nDuration: "
-                            + str(self.dictionary[ctx.guild.id].now_playing.duration)
-                            + "\nRequested by: <@!"
-                            + str(self.dictionary[ctx.guild.id].now_playing.user.id)
-                            + ">\nLoaded in: "
-                            + str(round(self.dictionary[ctx.guild.id].now_playing.loadtime, 2))
-                            + " sec."
-                            + "\nSearched Term: "
-                            + str(self.dictionary[ctx.guild.id].now_playing.term),
+                + str(self.dictionary[ctx.guild.id].now_playing.title)
+                + "\nStreamed from: "
+                + str(self.dictionary[ctx.guild.id].now_playing.link)
+                + "\nDuration: "
+                + str(self.dictionary[ctx.guild.id].now_playing.duration)
+                + "\nRequested by: <@!"
+                + str(self.dictionary[ctx.guild.id].now_playing.user.id)
+                + ">\nLoaded in: "
+                + str(round(self.dictionary[ctx.guild.id].now_playing.loadtime, 2))
+                + " sec."
+                + "\nSearched Term: "
+                + str(self.dictionary[ctx.guild.id].now_playing.term),
                 color=0x00FFCC,
                 url="https://d.chulte.de",
             )
@@ -271,25 +268,25 @@ class DiscordBot(commands.Cog):
             if environ.get("USE_EMBEDS", "True") == "True":
                 embed = discord.Embed(
                     title="You are currently using **"
-                          + full
-                          + "** for 'full' and **"
-                          + empty
-                          + "** for 'empty'",
+                    + full
+                    + "** for 'full' and **"
+                    + empty
+                    + "** for 'empty'",
                     color=0x00FFCC,
                 )
                 embed.add_field(
                     name="Syntax to add:",
                     value=".chars <full> <empty> \n"
-                          "Useful Website: https://changaco.oy.lc/unicode-progress-bars/",
+                    "Useful Website: https://changaco.oy.lc/unicode-progress-bars/",
                 )
                 await ctx.send(embed=embed)
                 return
             message = (
-                    "You are currently using **"
-                    + full
-                    + "** for 'full' and **"
-                    + empty
-                    + "** for 'empty'\n"
+                "You are currently using **"
+                + full
+                + "** for 'full' and **"
+                + empty
+                + "** for 'empty'\n"
             )
             message += "Syntax to add:\n"
             message += ".chars <full> <empty> \n"
@@ -319,10 +316,10 @@ class DiscordBot(commands.Cog):
         await self.send_embed_message(
             ctx=ctx,
             message="The characters got updated! Full: **"
-                    + first
-                    + "**, Empty: **"
-                    + last
-                    + "**",
+            + first
+            + "**, Empty: **"
+            + last
+            + "**",
         )
 
     @commands.command()
@@ -394,7 +391,7 @@ class DiscordBot(commands.Cog):
             embed = discord.Embed(
                 title="`>` `" + song.title + "`",
                 description="There are currently "
-                            + str(len(songs))
-                            + " Servers playing!",
+                + str(len(songs))
+                + " Servers playing!",
             )
         await ctx.send(embed=embed)

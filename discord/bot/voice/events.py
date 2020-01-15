@@ -45,8 +45,9 @@ class Events(Cog):
                         return
 
                 if (
-                        self.parent.dictionary[guild_id].voice_channel is before.channel
-                        and self.parent.dictionary[guild_id].voice_channel is not after.channel
+                    self.parent.dictionary[guild_id].voice_channel is before.channel
+                    and self.parent.dictionary[guild_id].voice_channel
+                    is not after.channel
                 ):
                     if len(before.channel.members) == 1:
                         asyncio.ensure_future(

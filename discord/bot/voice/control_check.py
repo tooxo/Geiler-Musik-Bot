@@ -23,7 +23,9 @@ class ControlCheck:
     async def user_connection_check(self, ctx):
         try:
             if not hasattr(ctx.author.voice, "channel"):
-                await self.parent.send_error_message(ctx, "You need to be in a channel.")
+                await self.parent.send_error_message(
+                    ctx, "You need to be in a channel."
+                )
                 return False
         except AttributeError:
             return False
@@ -37,9 +39,9 @@ class ControlCheck:
 
     async def manipulation_checks(self, ctx):
         return (
-                await self.bot_connection_check(ctx)
-                and await self.user_connection_check(ctx)
-                and await self.same_channel_check(ctx)
+            await self.bot_connection_check(ctx)
+            and await self.user_connection_check(ctx)
+            and await self.same_channel_check(ctx)
         )
 
     async def song_playing_check(self, ctx):

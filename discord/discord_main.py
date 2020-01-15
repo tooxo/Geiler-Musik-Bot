@@ -13,7 +13,6 @@ if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
 
     logging.basicConfig(level=logging.INFO)
 
-
     async def process_commands_n(self, message):
         """|coro|
         This function processes the commands that have been registered
@@ -36,7 +35,6 @@ if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
 
         ctx = await self.get_context(message)
         await self.invoke(ctx)
-
 
     BotBase.process_commands = process_commands_n
     prefix = ","
