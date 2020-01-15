@@ -115,21 +115,24 @@ class DiscordBot(commands.Cog):
             dbl_client = dbl.DBLClient(self.bot, self.dbl_key)
 
             async def update_stats(client):
-                while not self.bot.is_closed():
-                    await client.post_guild_count()
-                    self.log.debug(
-                        "[SERVER COUNT] Posted server count ({})".format(
-                            client.guild_count()
-                        )
-                    )
-                    await self.bot.change_presence(
-                        activity=self.bot.Activity(
-                            type=self.bot.ActivityType.listening,
-                            name=".help on {} servers".format(
+                while not client.bot.is_closed():
+                    try:
+                        await client.post_guild_count()
+                        self.log.debug(
+                            "[SERVER COUNT] Posted server count ({})".format(
                                 client.guild_count()
-                            ),
+                            )
                         )
-                    )
+                        await self.bot.change_presence(
+                            activity=discord.Activity(
+                                type=discord.ActivityType.listening,
+                                name=".help on {} servers".format(
+                                    client.guild_count()
+                                ),
+                            )
+                        )
+                    except Exception as e:
+                        self.log.warning(logging_manager.debug_info(e))
                     await asyncio.sleep(1800)
 
             self.bot.loop.create_task(update_stats(dbl_client))
