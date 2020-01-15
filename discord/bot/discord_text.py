@@ -1,6 +1,6 @@
-from discord.ext import commands
-import logging_manager
 import discord
+import logging_manager
+from discord.ext import commands
 
 
 class TextResponse(commands.Cog):

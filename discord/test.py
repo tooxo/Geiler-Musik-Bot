@@ -4,8 +4,9 @@
 Used to test the used regex patterns.
 """
 
-import unittest
 import re
+import unittest
+
 from bot.type.spotify_type import SpotifyType
 from bot.type.variable_store import VariableStore, strip_youtube_title
 

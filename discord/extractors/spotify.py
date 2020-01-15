@@ -1,12 +1,14 @@
-import json
 import asyncio
-import async_timeout
-import aiohttp
 import base64
+import json
 import os
+
+import aiohttp
+import async_timeout
+
 import logging_manager
-from bot.type.spotify_type import SpotifyType
 from bot.type.spotify_song import SpotifySong
+from bot.type.spotify_type import SpotifyType
 
 
 class Spotify:

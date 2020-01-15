@@ -1,28 +1,22 @@
-import string
-import random
 import asyncio
-
+import random
+import string
 from os import environ
 from typing import Dict
 
 import dbl
 
-import logging_manager
-
 import discord
-from discord.ext import commands
-
-from extractors import spotify
-from extractors import mongo
-
+import logging_manager
 from bot.type.errors import Errors
-from bot.type.song import Song
 from bot.type.guild import Guild
-
+from bot.type.song import Song
 from bot.voice.control_check import ControlCheck
-from bot.voice.player import Player
 from bot.voice.events import Events
+from bot.voice.player import Player
 from bot.voice.player_controls import PlayerControls
+from discord.ext import commands
+from extractors import mongo, spotify
 
 
 class DiscordBot(commands.Cog):

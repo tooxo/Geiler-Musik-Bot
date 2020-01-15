@@ -1,13 +1,15 @@
-from discord.ext import commands
-import os
-import logging_manager
 import logging
-from discord.ext.commands.bot import BotBase
-import discord
+import os
+import subprocess
+
 import youtube_dl
+
+import discord
+import logging_manager
 from bot.discord_music import DiscordBot
 from bot.discord_text import TextResponse
-import subprocess
+from discord.ext import commands
+from discord.ext.commands.bot import BotBase
 
 if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
 

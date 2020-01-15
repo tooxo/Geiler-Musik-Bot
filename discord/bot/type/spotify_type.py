@@ -1,5 +1,6 @@
-from bot.type.variable_store import VariableStore
 import re
+
+from bot.type.variable_store import VariableStore
 
 
 class SpotifyType:

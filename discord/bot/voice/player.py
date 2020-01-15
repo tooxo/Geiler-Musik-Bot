@@ -1,23 +1,21 @@
-from discord.ext.commands import Cog
-from discord.ext import commands
-import discord
-
 import asyncio
 import re
 import traceback
-import logging_manager
-
 from os import environ
 
+import discord
+import logging_manager
+from bot.FFmpegPCMAudio import FFmpegPCMAudioB, PCMVolumeTransformerB
 from bot.now_playing_message import NowPlayingMessage
 from bot.type.error import Error
 from bot.type.errors import Errors
 from bot.type.queue import Queue
 from bot.type.song import Song
-from bot.type.variable_store import VariableStore
 from bot.type.spotify_type import SpotifyType
+from bot.type.variable_store import VariableStore
 from bot.type.youtube_type import YouTubeType
-from bot.FFmpegPCMAudio import FFmpegPCMAudioB, PCMVolumeTransformerB
+from discord.ext import commands
+from discord.ext.commands import Cog
 
 
 class Player(Cog):

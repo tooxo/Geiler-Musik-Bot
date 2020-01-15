@@ -1,13 +1,12 @@
-from discord.ext.commands import Cog
-from discord.ext import commands
+import asyncio
+import collections
+import random
 from os import environ
 
 import discord
-import random
-import asyncio
-import collections
-
 from bot.type.queue import Queue
+from discord.ext import commands
+from discord.ext.commands import Cog
 
 
 class PlayerControls(Cog):

@@ -1,10 +1,12 @@
 import asyncio
-import discord
 import time
-import logging_manager
-import aiohttp
-from bot.FFmpegPCMAudio import PCMVolumeTransformerB
 from os import environ
+
+import aiohttp
+
+import discord
+import logging_manager
+from bot.FFmpegPCMAudio import PCMVolumeTransformerB
 
 
 class NowPlayingMessage:

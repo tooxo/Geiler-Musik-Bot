@@ -1,4 +1,5 @@
 from bot.type.variable_store import strip_youtube_title
+
 from .error import Error
 
 
