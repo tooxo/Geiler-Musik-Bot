@@ -333,10 +333,7 @@ class Player(Cog):
         if isinstance(small_dict, Error):
             error_message = small_dict.reason
             await self.parent.send_error_message(ctx, error_message)
-            if (
-                error_message == Errors.no_results_found
-                or error_message == Errors.default
-            ):
+            if error_message in (Errors.no_results_found, Errors.default):
                 await self.parent.dictionary[ctx.guild.id].now_playing_message.delete()
                 return
 

@@ -1,6 +1,7 @@
 import logging
 import os
 import subprocess
+import traceback
 
 import youtube_dl
 
@@ -88,8 +89,6 @@ async def on_command_error(ctx, error):
             ctx=ctx, message="Error while playback. Try again."
         )
     else:
-        import traceback
-
         traceback.print_exc()
         log.error(logging_manager.debug_info(str(error)))
 
@@ -97,8 +96,6 @@ async def on_command_error(ctx, error):
 @client.event
 async def on_error(*args, **kwargs):
     print("ERROR HANDLER", args, kwargs)
-    import traceback
-
     traceback.print_exc()
 
 
