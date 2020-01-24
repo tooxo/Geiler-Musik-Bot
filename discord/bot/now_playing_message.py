@@ -3,8 +3,8 @@ import time
 from os import environ
 
 import aiohttp
-
 import discord
+
 import logging_manager
 from bot.FFmpegPCMAudio import PCMVolumeTransformerB
 
@@ -41,15 +41,20 @@ class NowPlayingMessage:
     async def send(self):
         if self.song is None:
             return
-        if not self.no_embed_mode:
-            embed = discord.Embed(
-                title=self.title, color=0x00FFCC, url=self.song.link
-            )
-            embed.set_author(name="Currently Playing:")
-            embed.add_field(name="░░░░░░░░░░░░░░░░░░░░░░░░░", value=" 0%")
-            await self.message.edit(embed=embed)
-        else:
-            await self.message.edit(content=self.title)
+        try:
+            if not self.no_embed_mode:
+                embed = discord.Embed(
+                    title=self.title, color=0x00FFCC, url=self.song.link
+                )
+                embed.set_author(name="Currently Playing:")
+                embed.add_field(name="░░░░░░░░░░░░░░░░░░░░░░░░░", value=" 0%")
+                await self.message.edit(embed=embed)
+            else:
+                await self.message.edit(content=self.title)
+        except Exception as e:
+            import traceback
+
+            traceback.print_exc()
 
     async def update(self):
         if self._stop is True:
@@ -105,11 +110,7 @@ class NowPlayingMessage:
                     while self.voice_client.is_paused():
                         await asyncio.sleep(0.1)
                     await self.update()
-        except (
-            TypeError,
-            AttributeError,
-            aiohttp.ServerDisconnectedError,
-        ) as e:
+        except (TypeError, AttributeError, aiohttp.ServerDisconnectedError) as e:
             return
         await asyncio.sleep(5)
         if self._stop is False:
@@ -122,9 +123,7 @@ class NowPlayingMessage:
             return
         if not self.no_embed_mode:
             embed = discord.Embed(
-                title="_`" + self.song.title + "`_",
-                color=0x00FF00,
-                url=self.song.link,
+                title="_`" + self.song.title + "`_", color=0x00FF00, url=self.song.link
             )
             await self.message.edit(embed=embed)
         else:

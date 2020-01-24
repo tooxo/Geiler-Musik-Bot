@@ -3,14 +3,14 @@ import os
 import subprocess
 import traceback
 
-import youtube_dl
-
 import discord
+import youtube_dl
+from discord.ext import commands
+from discord.ext.commands.bot import BotBase
+
 import logging_manager
 from bot.discord_music import DiscordBot
 from bot.discord_text import TextResponse
-from discord.ext import commands
-from discord.ext.commands.bot import BotBase
 
 if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
 
@@ -53,13 +53,7 @@ log.debug("PID " + str(os.getpid()))
 log.debug(" ")
 log.debug("[Update]: Checking for library updates!")
 
-command = [
-    "/usr/local/bin/pip",
-    "install",
-    "--upgrade",
-    "discord.py",
-    "youtube-dl",
-]
+command = ["/usr/local/bin/pip", "install", "--upgrade", "discord.py", "youtube-dl"]
 response = subprocess.check_output(command, shell=False).decode()
 
 # Check if an update has occurred
@@ -79,9 +73,7 @@ async def on_ready():
     client.add_cog(TextResponse(bot=client))
     log.debug("[Startup]: Finished.")
     await client.change_presence(
-        activity=discord.Activity(
-            type=discord.ActivityType.listening, name=".help"
-        )
+        activity=discord.Activity(type=discord.ActivityType.listening, name=".help")
     )
 
 
@@ -94,7 +86,6 @@ async def on_command_error(ctx, error):
             ctx=ctx, message="Error while playback. Try again."
         )
     else:
-        traceback.print_exc()
         log.error(logging_manager.debug_info(str(error)))
 
 

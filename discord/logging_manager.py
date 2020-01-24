@@ -7,9 +7,7 @@ class LoggingManager:
         logging.basicConfig(level=logging.WARNING)
         self.logger = logging.getLogger("LOG")
         self.handler = logging.StreamHandler()
-        self.formatter = logging.Formatter(
-            "%(asctime)s %(levelname)-6s %(message)s"
-        )
+        self.formatter = logging.Formatter("%(asctime)s %(levelname)-6s %(message)s")
         self.handler.setFormatter(self.formatter)
         self.logger.propagate = False
         if not self.logger.handlers:

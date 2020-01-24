@@ -16,7 +16,7 @@ class Song:
             self.error = song.error
             self.user = song.user
             self.image_url = song.image_url
-
+            self.abr = song.abr
         else:
             self.title = None
             self.term = None
@@ -29,6 +29,7 @@ class Song:
             self.error = Error(False)
             self.user = None
             self.image_url = None
+            self.abr = None
 
     @property
     def image(self):

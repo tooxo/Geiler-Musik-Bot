@@ -20,9 +20,10 @@ class Node:
         self.port = 0
 
     def enter_config(self, json_ob: dict):
-        self.name = json_ob.get("name", "")
-        self.ip = json_ob.get("ip", "")
-        self.port = json_ob.get("port", "")
+        self.name = json_ob.get("name", None)
+        self.ip = json_ob.get("ip", None)
+        self.port = json_ob.get("port", None)
+        return None not in (self.name, self.ip, self.port)
 
 
 class ThreadedSocketServer:
@@ -52,9 +53,7 @@ class ThreadedSocketServer:
             s += random.choice(string.ascii_lowercase)
         return s
 
-    def handle_client_connection(
-        self, client: socket.socket, ip: tuple, _id: str
-    ):
+    def handle_client_connection(self, client: socket.socket, ip: tuple, _id: str):
         # authentication
         proposed_api_key = client.recv(1024).decode()
         if proposed_api_key != self.api_key:
@@ -74,7 +73,13 @@ class ThreadedSocketServer:
 
         # put configuration
         parsed_configuration = json.loads(sent_configuration)
-        self.nodes[_id].enter_config(parsed_configuration)
+        successful = self.nodes[_id].enter_config(parsed_configuration)
+
+        if not successful:
+            print("Invalid Connection from", _id + ".", "It was rejected.")
+            print("Configuration Dump: ", parsed_configuration)
+            del self.nodes[_id]
+            return
 
         while True:
             sma = self.create_still_alive_message().encode()
@@ -143,15 +148,9 @@ class Parent:
             node: Node = self.socket_server.nodes[
                 random.choice(list(self.socket_server.nodes.keys()))
             ]
-            print(
-                "DEBUG | RECV, YT_SEARCH:", request.data, ";", "=>", node.name
-            )
+            print("DEBUG | RECV, YT_SEARCH:", request.data, ";", "=>", node.name)
             r = requests.post(
-                "http://"
-                + node.ip
-                + ":"
-                + str(node.port)
-                + "/research/youtube_search",
+                "http://" + node.ip + ":" + str(node.port) + "/research/youtube_search",
                 data=request.data,
             )
             url = r.text
@@ -174,9 +173,7 @@ class Parent:
             node: Node = self.socket_server.nodes[
                 random.choice(list(self.socket_server.nodes.keys()))
             ]
-            print(
-                "DEBUG | RECV, YT_VIDEO:", request.data, ";", "=>", node.name
-            )
+            print("DEBUG | RECV, YT_VIDEO:", request.data, ";", "=>", node.name)
             if _id in self.cache:
                 _node = self.cache[_id]
                 if _node in self.socket_server.nodes:
@@ -184,11 +181,7 @@ class Parent:
             self.cache[_id] = node
 
             tx = requests.post(
-                "http://"
-                + node.ip
-                + ":"
-                + str(node.port)
-                + "/research/youtube_video",
+                "http://" + node.ip + ":" + str(node.port) + "/research/youtube_video",
                 data=_id,
             )
             print(
@@ -210,13 +203,7 @@ class Parent:
             node: Node = self.socket_server.nodes[
                 random.choice(list(self.socket_server.nodes.keys()))
             ]
-            print(
-                "DEBUG | RECV, YT_PLAYLIST:",
-                request.data,
-                ";",
-                "=>",
-                node.name,
-            )
+            print("DEBUG | RECV, YT_PLAYLIST:", request.data, ";", "=>", node.name)
             tx = requests.post(
                 "http://"
                 + node.ip
@@ -234,6 +221,35 @@ class Parent:
                 node.name,
             )
             return Response(tx.text, tx.status_code)
+
+        @self.app.route("/research/soundcloud_track", methods=["POST"])
+        def soundcloud_track():
+            url = request.data.decode()
+            if url == "":
+                return Response("Invalid ID", 400)
+
+            node: Node = self.socket_server.nodes[
+                random.choice(list(self.socket_server.nodes.keys()))
+            ]
+            print("DEBUG | RECV, SC_TRACK:", request.data, ";", "=>", node.name)
+
+            req = requests.post(
+                "http://"
+                + node.ip
+                + ":"
+                + str(node.port)
+                + "/research/soundcloud_track",
+                data=url,
+            )
+            print(
+                "DEBUG | ANSW, SC_TRACK:",
+                request.data,
+                req.status_code,
+                ";",
+                "<=",
+                node.name,
+            )
+            return Response(req.text, req.status_code, mimetype="application/json")
 
     def start_up(self):
         self.add_routes()

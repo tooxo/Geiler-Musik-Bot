@@ -6,17 +6,11 @@ class Errors:
         "**There was an error pulling the Playlist, 0 Songs were added. "
         "This may be caused by the playlist being private or deleted.**"
     )
-    cant_reach_youtube = (
-        "Can't reach YouTube. Server Error on their side maybe?"
-    )
+    cant_reach_youtube = "Can't reach YouTube. Server Error on their side maybe?"
     youtube_url_invalid = "This YouTube Url is invalid."
-    youtube_video_not_available = (
-        "The requested YouTube Video is not available."
-    )
+    youtube_video_not_available = "The requested YouTube Video is not available."
     error_please_retry = "error_please_retry"
-    backend_down = (
-        "Our backend seems to be down right now, try again in a few minutes."
-    )
+    backend_down = "Our backend seems to be down right now, try again in a few minutes."
 
     @staticmethod
     def as_list():
