@@ -13,8 +13,11 @@ class Url(object):
     charts = 6
     term = 7
 
+    soundcloud_track = 12
+
     youtube = 0
     spotify = 1
+    soundcloud = 3
     other = 2
 
     @staticmethod
@@ -44,6 +47,10 @@ class Url(object):
             return Url.spotify_artist
 
     @staticmethod
+    def determine_soundcloud_type(url):
+        return Url.soundcloud_track
+
+    @staticmethod
     def determine_source(url):
         if re.match(VariableStore.youtube_video_pattern, url) is not None:
             return Url.youtube
@@ -52,4 +59,6 @@ class Url(object):
             or re.match(VariableStore.spotify_uri_pattern, url) is not None
         ):
             return Url.spotify
+        if re.match(VariableStore.soundcloud_url_pattern, url) is not None:
+            return Url.soundcloud
         return Url.other

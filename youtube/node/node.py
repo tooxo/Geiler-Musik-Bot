@@ -1,5 +1,6 @@
 import json
 import os
+import traceback
 import re
 import socket
 import threading
@@ -11,16 +12,44 @@ import requests
 from bs4 import BeautifulSoup
 from expiringdict import ExpiringDict
 from flask import Flask, Response, request
-from youtube_dl import DownloadError, YoutubeDL
-from youtube_dl.utils import ExtractorError
+from youtube_dl import YoutubeDL
+from youtube_dl.utils import ExtractorError, DownloadError
+import youtube_dl
 
-from errors import Errors
 
-node = None
+def __real_initialize(self):
+    self._CLIENT_ID = "YUKXoArFcqrlQn9tfNHvvyfnDISj04zk"
+
+
+youtube_dl.extractor.soundcloud.SoundcloudIE._real_initialize = __real_initialize
+
+
+class Errors:
+    no_results_found = "No Results found."
+    default = "An Error has occurred."
+    info_check = "An Error has occurred while checking Info."
+    spotify_pull = (
+        "**There was an error pulling the Playlist, 0 Songs were added. "
+        "This may be caused by the playlist being private or deleted.**"
+    )
+    cant_reach_youtube = "Can't reach YouTube. Server Error on their side maybe?"
+    youtube_url_invalid = "This YouTube Url is invalid."
+    youtube_video_not_available = "The requested YouTube Video is not available."
+    error_please_retry = "error_please_retry"
+    backend_down = "Our backend seems to be down right now, try again in a few minutes."
+
+    @staticmethod
+    def as_list():
+        l = []
+        for att in Errors.__dict__:
+            if isinstance(Errors.__dict__[att], list):
+                l.append(Errors.__dict__[att])
+        return l
 
 
 class YoutubeDLLogger(object):
-    def debug(self, msg):
+    @staticmethod
+    def debug(msg):
         if "youtube:search" in msg and "query" in msg:
             print(
                 "[YouTube Search] Searched Term: '"
@@ -28,10 +57,12 @@ class YoutubeDLLogger(object):
                 + "'"
             )
 
-    def warning(self, msg):
+    @staticmethod
+    def warning(msg):
         print("warn", msg)
 
-    def error(self, msg):
+    @staticmethod
+    def error(msg):
         if "This video is no longer available" in msg:
             raise NotAvailableException("notavailable")
         raise ExtractorError("Video Downloading failed.")
@@ -70,11 +101,7 @@ class YouTube:
                 return self.research_cache.get(video_id)
             with YoutubeDL({"logger": YoutubeDLLogger()}) as ydl:
                 info_dict = ydl.extract_info(url, download=False)
-                song = {
-                    "link": url,
-                    "id": info_dict["id"],
-                    "title": info_dict["title"],
-                }
+                song = {"link": url, "id": info_dict["id"], "title": info_dict["title"]}
                 for item in info_dict["formats"]:
                     if "audio only" in item["format"]:
                         song["stream"] = (
@@ -100,7 +127,8 @@ class YouTube:
             return song
         except NotAvailableException:
             return Errors.youtube_video_not_available
-        except (DownloadError, ExtractorError):
+        except (DownloadError, ExtractorError) as e:
+            traceback.print_exc()
             return Errors.default
         except Exception as ex:
             print(ex)
@@ -152,6 +180,38 @@ class YouTube:
         raise NotAvailableException("no videos found")
 
 
+class SoundCloud:
+    def __init__(self):
+        self.cache = ExpiringDict(1000, 10000)
+
+    def research_track(self, url: str):
+        if url in self.cache:
+            return self.cache.get(url, {})
+        try:
+            _time = time.time()
+            youtube_dl_opts = {"logger": YoutubeDLLogger()}
+            with YoutubeDL(youtube_dl_opts) as ydl:
+                info_dict: dict = ydl.extract_info(url=url, download=False)
+                song = {
+                    "title": info_dict.get("uploader", "")
+                    + " - "
+                    + info_dict.get("title", ""),
+                    "link": info_dict.get("webpage_url", ""),
+                    "stream": info_dict.get("url", ""),
+                    "duration": info_dict.get("duration", 0),
+                    "thumbnail": info_dict.get("thumbnails")[-1].get("url", ""),
+                    "loadtime": time.time() - _time,
+                    "term": info_dict.get("uploader", "")
+                    + " - "
+                    + info_dict.get("title", ""),
+                    "abr": info_dict.get("abr", 0),
+                }
+                self.cache[url] = song
+                return song
+        except (ExtractorError, DownloadError):
+            return Errors.default
+
+
 class Node:
     def __init__(self):
         self._host = os.environ.get("parent_host", "")
@@ -160,9 +220,7 @@ class Node:
         self.port = os.environ.get("port", os.environ.get("PORT", ""))
 
         if "custom_port" not in os.environ:
-            self.custom_port = os.environ.get(
-                "port", os.environ.get("PORT", "")
-            )
+            self.custom_port = os.environ.get("port", os.environ.get("PORT", ""))
         else:
             self.custom_port = os.environ["custom_port"]
 
@@ -176,6 +234,7 @@ class Node:
 
         self.app = Flask(__name__)
         self.youtube = YouTube()
+        self.soundcloud = SoundCloud()
 
         self.api_key = os.environ.get("API_KEY", "API_KEY")
 
@@ -233,9 +292,7 @@ class Node:
             if playlist_id is "":
                 return Response("No PlaylistID provided", 400)
             try:
-                playlist = self.youtube.extract_playlist(
-                    playlist_id=playlist_id
-                )
+                playlist = self.youtube.extract_playlist(playlist_id=playlist_id)
                 playlist_string = "["
                 for n in playlist:
                     playlist_string += json.dumps(n)
@@ -257,6 +314,17 @@ class Node:
             except (ExtractorError, DownloadError, NotAvailableException):
                 return Response(Errors.no_results_found, 400)
 
+        @self.app.route("/research/soundcloud_track", methods=["POST"])
+        def research__soundcloud_track():
+            url = request.data.decode()
+            if url == "":
+                return Response("No Term provided", 400)
+            infos = self.soundcloud.research_track(url)
+            if isinstance(infos, dict):
+                return Response(json.dumps(infos), 200)
+            else:
+                return Response(infos, 400)
+
         @self.app.route("/stream")
         @self.app.route("/stream/youtube_video")
         def stream():
@@ -271,9 +339,20 @@ class Node:
             )
 
             if not isinstance(stream_dict, str):
+
                 req = requests.get(stream_dict["youtube_stream"], stream=True)
+
+                def generator():
+                    try:
+                        for con in req.iter_content(chunk_size=1024):
+                            yield con
+                    except requests.exceptions.ChunkedEncodingError:
+                        print(
+                            "ChunkEncodingError with url: {}".format(stream_dict["url"])
+                        )
+
                 return Response(
-                    req.iter_content(chunk_size=512),
+                    generator(),
                     content_type=req.headers["Content-Type"],
                     headers={"Content-Length": req.headers["Content-Length"]},
                 )

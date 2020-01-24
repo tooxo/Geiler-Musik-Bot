@@ -46,6 +46,12 @@ class VariableStore:
         re.MULTILINE | re.IGNORECASE,
     )
 
+    soundcloud_url_pattern = re.compile(
+        r"https?://(?:w\.|www\.|)(?:soundcloud\.com/)(?:|)(((\w|-)[^A-z]{7})|([A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*(?!"
+        r"/sets(?:/|$))(?:/[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*){1,2}))",
+        re.MULTILINE | re.IGNORECASE,
+    )
+
     watch_url_pattern = re.compile(r"^[\S]{11}$", re.IGNORECASE)
 
     """
