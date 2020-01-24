@@ -4,10 +4,11 @@
 Used to test the used regex patterns.
 """
 
-import unittest
 import re
-from url_parser import SpotifyType
-from variable_store import VariableStore, strip_youtube_title
+import unittest
+
+from bot.type.spotify_type import SpotifyType
+from bot.type.variable_store import VariableStore, strip_youtube_title
 
 
 class Test(unittest.TestCase):
@@ -53,7 +54,10 @@ class Test(unittest.TestCase):
             "https://open.spotify.com/artist/4kI8Ie27vjvonwaB2ePh8T?si=jyC9eGIiQbupvk0E2EE-vAa",
             True,
         ),
-        ("https://oe.spotify.co/artist/JOSADJ98erwjoiasdoisjd(§sadjsdoi", False),
+        (
+            "https://oe.spotify.co/artist/JOSADJ98erwjoiasdoisjd(§sadjsdoi",
+            False,
+        ),
         (
             "https://open.spotify.com/artist/4kI8Ie27vjvonwaB2ePh8T?si=IVfCdRMFSauVtOIN9gEPnA",
             True,

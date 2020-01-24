@@ -1,12 +1,14 @@
-import json
 import asyncio
-import async_timeout
-import aiohttp
 import base64
+import json
 import os
+
+import aiohttp
+import async_timeout
+
 import logging_manager
-from url_parser import SpotifyType
-from song_store import SpotifySong
+from bot.type.spotify_song import SpotifySong
+from bot.type.spotify_type import SpotifyType
 
 
 class Spotify:
@@ -20,7 +22,9 @@ class Spotify:
 
     async def request_post(self, url, header=None, body=None):
         with async_timeout.timeout(3):
-            async with self.session.post(url, headers=header, data=body) as response:
+            async with self.session.post(
+                url, headers=header, data=body
+            ) as response:
                 return await response.text()
 
     async def request_get(self, url, header):
@@ -123,7 +127,11 @@ class Spotify:
         album = SpotifyType(album_url)
         if not album.valid:
             return []
-        url = "https://api.spotify.com/v1/albums/" + album.id + "/tracks?limit=50"
+        url = (
+            "https://api.spotify.com/v1/albums/"
+            + album.id
+            + "/tracks?limit=50"
+        )
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
         js = json.loads(result)
@@ -140,7 +148,9 @@ class Spotify:
         if not artist.valid:
             return []
         url = (
-            "https://api.spotify.com/v1/artists/" + artist.id + "/top-tracks?country=DE"
+            "https://api.spotify.com/v1/artists/"
+            + artist.id
+            + "/top-tracks?country=DE"
         )
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)

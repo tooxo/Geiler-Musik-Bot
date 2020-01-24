@@ -1,18 +1,20 @@
-from flask import Flask, request, Response
-import requests
 import json
-import re
-import time
-import socket
-from expiringdict import ExpiringDict
-from youtube_dl import YoutubeDL, DownloadError
-from youtube_dl.utils import ExtractorError
-from errors import Errors
-from bs4 import BeautifulSoup
-from urllib.parse import quote
 import os
-import bjoern
+import re
+import socket
 import threading
+import time
+from urllib.parse import quote
+
+import bjoern
+import requests
+from bs4 import BeautifulSoup
+from expiringdict import ExpiringDict
+from flask import Flask, Response, request
+from youtube_dl import DownloadError, YoutubeDL
+from youtube_dl.utils import ExtractorError
+
+from errors import Errors
 
 node = None
 
@@ -68,7 +70,11 @@ class YouTube:
                 return self.research_cache.get(video_id)
             with YoutubeDL({"logger": YoutubeDLLogger()}) as ydl:
                 info_dict = ydl.extract_info(url, download=False)
-                song = {"link": url, "id": info_dict["id"], "title": info_dict["title"]}
+                song = {
+                    "link": url,
+                    "id": info_dict["id"],
+                    "title": info_dict["title"],
+                }
                 for item in info_dict["formats"]:
                     if "audio only" in item["format"]:
                         song["stream"] = (
@@ -154,7 +160,9 @@ class Node:
         self.port = os.environ.get("port", os.environ.get("PORT", ""))
 
         if "custom_port" not in os.environ:
-            self.custom_port = os.environ.get("port", os.environ.get("PORT", ""))
+            self.custom_port = os.environ.get(
+                "port", os.environ.get("PORT", "")
+            )
         else:
             self.custom_port = os.environ["custom_port"]
 
@@ -174,11 +182,7 @@ class Node:
     @staticmethod
     def youtube_check():
         with requests.get("https://www.youtube.com") as req:
-            if (
-                req.status_code is 200
-                or req.status_code is 301
-                or req.status_code is 302
-            ):
+            if req.status_code in (200, 301, 302):
                 return True
         return False
 
@@ -219,7 +223,7 @@ class Node:
                 own_ip=self.own_ip,
                 custom_port=self.custom_port,
             )
-            if type(extracted_content) == str:
+            if isinstance(extracted_content, str):
                 return Response(extracted_content, 400)
             return Response(json.dumps(extracted_content), 200)
 
@@ -229,7 +233,9 @@ class Node:
             if playlist_id is "":
                 return Response("No PlaylistID provided", 400)
             try:
-                playlist = self.youtube.extract_playlist(playlist_id=playlist_id)
+                playlist = self.youtube.extract_playlist(
+                    playlist_id=playlist_id
+                )
                 playlist_string = "["
                 for n in playlist:
                     playlist_string += json.dumps(n)
@@ -264,15 +270,14 @@ class Node:
                 custom_port=self.custom_port,
             )
 
-            if type(stream_dict) is not str:
+            if not isinstance(stream_dict, str):
                 req = requests.get(stream_dict["youtube_stream"], stream=True)
                 return Response(
                     req.iter_content(chunk_size=512),
                     content_type=req.headers["Content-Type"],
                     headers={"Content-Length": req.headers["Content-Length"]},
                 )
-            else:
-                return Response("Error", 400)
+            return Response("Error", 400)
 
     def startup(self):
         self.add_routes()

@@ -1,8 +1,10 @@
-import logging_manager
-import aiohttp
-import os
-import async_timeout
 import asyncio
+import os
+
+import aiohttp
+import async_timeout
+
+import logging_manager
 
 
 class LastFM:

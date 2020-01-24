@@ -1,8 +1,9 @@
-from flask import Flask, request, Response, redirect
 import hashlib
 import os
-from pymongo import MongoClient
+
 import bjoern
+from flask import Flask, Response, redirect, request
+from pymongo import MongoClient
 
 HOST = "0.0.0.0"
 PORT = 80
@@ -18,7 +19,9 @@ def check_password():
     hashed = request.form["password"]
     if (
         hashed
-        == hashlib.sha256(os.environ.get("RESTART_PASSWORD").encode()).hexdigest()
+        == hashlib.sha256(
+            os.environ.get("RESTART_PASSWORD").encode()
+        ).hexdigest()
     ):
         document = db.secure.find_one({"type": "restart_code"})
         return Response(document["code"])

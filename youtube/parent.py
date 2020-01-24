@@ -1,14 +1,15 @@
-from flask import Flask, request, Response
-import requests
-import random
-import expiringdict
-import string
-import bjoern
-import time
-import threading
-import socket
-import os
 import json
+import os
+import random
+import socket
+import string
+import threading
+import time
+
+import bjoern
+import expiringdict
+import requests
+from flask import Flask, Response, request
 
 
 class Node:
@@ -51,7 +52,9 @@ class ThreadedSocketServer:
             s += random.choice(string.ascii_lowercase)
         return s
 
-    def handle_client_connection(self, client: socket.socket, ip: tuple, _id: str):
+    def handle_client_connection(
+        self, client: socket.socket, ip: tuple, _id: str
+    ):
         # authentication
         proposed_api_key = client.recv(1024).decode()
         if proposed_api_key != self.api_key:
@@ -140,9 +143,15 @@ class Parent:
             node: Node = self.socket_server.nodes[
                 random.choice(list(self.socket_server.nodes.keys()))
             ]
-            print("DEBUG | RECV, YT_SEARCH:", request.data, ";", "=>", node.name)
+            print(
+                "DEBUG | RECV, YT_SEARCH:", request.data, ";", "=>", node.name
+            )
             r = requests.post(
-                "http://" + node.ip + ":" + str(node.port) + "/research/youtube_search",
+                "http://"
+                + node.ip
+                + ":"
+                + str(node.port)
+                + "/research/youtube_search",
                 data=request.data,
             )
             url = r.text
@@ -165,7 +174,9 @@ class Parent:
             node: Node = self.socket_server.nodes[
                 random.choice(list(self.socket_server.nodes.keys()))
             ]
-            print("DEBUG | RECV, YT_VIDEO:", request.data, ";", "=>", node.name)
+            print(
+                "DEBUG | RECV, YT_VIDEO:", request.data, ";", "=>", node.name
+            )
             if _id in self.cache:
                 _node = self.cache[_id]
                 if _node in self.socket_server.nodes:
@@ -173,7 +184,11 @@ class Parent:
             self.cache[_id] = node
 
             tx = requests.post(
-                "http://" + node.ip + ":" + str(node.port) + "/research/youtube_video",
+                "http://"
+                + node.ip
+                + ":"
+                + str(node.port)
+                + "/research/youtube_video",
                 data=_id,
             )
             print(
@@ -195,7 +210,13 @@ class Parent:
             node: Node = self.socket_server.nodes[
                 random.choice(list(self.socket_server.nodes.keys()))
             ]
-            print("DEBUG | RECV, YT_PLAYLIST:", request.data, ";", "=>", node.name)
+            print(
+                "DEBUG | RECV, YT_PLAYLIST:",
+                request.data,
+                ";",
+                "=>",
+                node.name,
+            )
             tx = requests.post(
                 "http://"
                 + node.ip

@@ -1,6 +1,8 @@
-import time
 import os
+import time
+
 import motor.motor_asyncio
+
 import logging_manager
 
 
@@ -30,7 +32,9 @@ class Mongo:
         every = self.connection_time_collection.find()
         async for item in every:
             if item["x"] < current_time * 1000 - 86400000:
-                await self.connection_time_collection.delete_one({"_id": item["_id"]})
+                await self.connection_time_collection.delete_one(
+                    {"_id": item["_id"]}
+                )
         obj = {"x": int(time.time()) * 1000, "y": response_time * 10}
         await self.connection_time_collection.insert_one(obj)
 
@@ -56,7 +60,9 @@ class Mongo:
         if doc is None:
             await collection.insert_one({"id": guild_id, "volume": volume})
         else:
-            await collection.update_one({"id": guild_id}, {"$set": {"volume": volume}})
+            await collection.update_one(
+                {"id": guild_id}, {"$set": {"volume": volume}}
+            )
 
     async def get_volume(self, guild_id):
         if self.mongo_enabled is False:
@@ -73,7 +79,9 @@ class Mongo:
         collection = self.db.chars
         doc = await collection.find_one({"id": guild_id})
         if doc is None:
-            await collection.insert_one({"id": guild_id, "full": full, "empty": empty})
+            await collection.insert_one(
+                {"id": guild_id, "full": full, "empty": empty}
+            )
         else:
             await collection.update_one(
                 {"id": guild_id}, {"$set": {"full": full, "empty": empty}}
@@ -94,7 +102,9 @@ class Mongo:
         collection = self.db.secure
         x = await collection.find_one({"type": "restart_code"})
         if x is None:
-            await collection.insert_one({"type": "restart_code", "code": restart_key})
+            await collection.insert_one(
+                {"type": "restart_code", "code": restart_key}
+            )
         else:
             await collection.update_one(
                 {"type": "restart_code"}, {"$set": {"code": restart_key}}
