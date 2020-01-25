@@ -31,6 +31,7 @@ class SoundCloud:
                     song.loadtime = response.get("loadtime", 0)
                     song.abr = response.get("abr", None)
                     song.term = response.get("term", "")
+                    song.codec = response.get("codec", "")
                     if song.duration == 0:
                         # try to determine the songs length by content length
                         if song.abr:
@@ -42,6 +43,27 @@ class SoundCloud:
                             except ValueError:
                                 pass
                     return song
+        except (TimeoutError, AttributeError) as e:
+            self.log.error(e)
+            return Error(True)
+
+    async def soundcloud_playlist(self, url: str):
+        try:
+            async with async_timeout.timeout(timeout=10):
+                async with aiohttp.request(
+                    "POST", "http://parent:8008/research/soundcloud_playlist", data=url
+                ) as r:
+                    response = await r.text()
+                    if r.status != 200:
+                        return Error(True, response)
+                    parsed_response = json.loads(response)
+                    songs = []
+                    for s in parsed_response:
+                        song: Song = Song()
+                        song.link = s.get("link", None)
+                        if song.link:
+                            songs.append(song)
+                    return songs
         except (TimeoutError, AttributeError) as e:
             self.log.error(e)
             return Error(True)

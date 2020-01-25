@@ -14,6 +14,7 @@ class Url(object):
     term = 7
 
     soundcloud_track = 12
+    soundcloud_set = 32
 
     youtube = 0
     spotify = 1
@@ -48,7 +49,10 @@ class Url(object):
 
     @staticmethod
     def determine_soundcloud_type(url):
-        return Url.soundcloud_track
+        if re.match(VariableStore.soundcloud_url_pattern, url):
+            return Url.soundcloud_track
+        if re.match(VariableStore.soundcloud_sets_pattern, url):
+            return Url.soundcloud_set
 
     @staticmethod
     def determine_source(url):
@@ -59,6 +63,9 @@ class Url(object):
             or re.match(VariableStore.spotify_uri_pattern, url) is not None
         ):
             return Url.spotify
-        if re.match(VariableStore.soundcloud_url_pattern, url) is not None:
+        if (
+            re.match(VariableStore.soundcloud_url_pattern, url) is not None
+            or re.match(VariableStore.soundcloud_sets_pattern, url) is not None
+        ):
             return Url.soundcloud
         return Url.other

@@ -17,6 +17,7 @@ class Song:
             self.user = song.user
             self.image_url = song.image_url
             self.abr = song.abr
+            self.codec = song.codec
         else:
             self.title = None
             self.term = None
@@ -30,6 +31,7 @@ class Song:
             self.user = None
             self.image_url = None
             self.abr = None
+            self.codec = None
 
     @property
     def image(self):
@@ -50,4 +52,5 @@ class Song:
         song.duration = d["duration"]
         song.loadtime = d["loadtime"]
         song.thumbnail = d["thumbnail"]
+        song.codec = d["codec"]
         return song
