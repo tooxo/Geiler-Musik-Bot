@@ -34,6 +34,7 @@ class DiscordBot(commands.Cog):
         self.bot.add_cog(PlayerControls(self.bot, self))
 
         self.spotify = spotify.Spotify()
+        self.soundcloud = soundcloud.SoundCloud()
         self.mongo = mongo.Mongo()
 
         self.youtube = youtube.Youtube(mongo_client=self.mongo)
@@ -45,7 +46,7 @@ class DiscordBot(commands.Cog):
 
         # Fix for OpusNotLoaded Error.
         if not discord.opus.is_loaded():
-            discord.opus.load_opus("/usr/lib/libopus.so")
+            discord.opus.load_opus("/usr/lib/x86_64-linux-gnu/libopus.so")
 
         self.control_check = Checks(self.bot, self)
 

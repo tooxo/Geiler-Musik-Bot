@@ -8,7 +8,7 @@ from discord.ext import commands
 from discord.ext.commands import Cog
 
 import logging_manager
-from bot.FFmpegPCMAudio import FFmpegPCMAudioB, PCMVolumeTransformerB
+from bot.FFmpegPCMAudio import FFmpegPCMAudioB, PCMVolumeTransformerB, FFmpegOpusAudioB
 from bot.now_playing_message import NowPlayingMessage
 from bot.type.error import Error
 from bot.type.errors import Errors
@@ -46,9 +46,15 @@ class Player(Cog):
             if small_dict.stream is None:
                 if small_dict.link is not None:
                     # url
-                    youtube_dict = await self.parent.youtube.youtube_url(
-                        small_dict.link
-                    )
+                    _type = Url.determine_source(small_dict.link)
+                    if _type == Url.youtube:
+                        youtube_dict = await self.parent.youtube.youtube_url(
+                            small_dict.link
+                        )
+                    if _type == Url.soundcloud:
+                        youtube_dict = await self.parent.soundcloud.soundcloud_track(
+                            small_dict.link
+                        )
                 else:
                     if small_dict.title is None:
                         self.parent.log.warning(small_dict)
@@ -117,6 +123,11 @@ class Player(Cog):
                 return []
             song.user = ctx.message.author
             return [song]
+        if soundcloud_type == Url.soundcloud_set:
+            songs: list = await self.parent.soundcloud.soundcloud_playlist(url=url)
+            for song in songs:
+                song.user = ctx.message.author
+            return songs
 
     async def extract_first_infos_spotify(self, url, ctx):
         spotify_type = Url.determine_spotify_type(url=url)
@@ -380,14 +391,29 @@ class Player(Cog):
             if self.parent.dictionary[ctx.guild.id].voice_client is None:
                 return
             volume = await self.parent.mongo.get_volume(ctx.guild.id)
-            source = PCMVolumeTransformerB(
-                FFmpegPCMAudioB(
+            if small_dict.codec == "opus":
+                self.parent.log.debug("Using OPUS Audio.")
+                source = await FFmpegOpusAudioB.from_probe(
                     small_dict.stream,
-                    executable="ffmpeg",
+                    volume=volume,
                     before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-                ),
-                volume=volume,
-            )
+                )
+                # source = FFmpegOpusAudioB(
+                #   small_dict.stream,
+                #  volume=volume,
+                # executable="ffmpeg",
+                # before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                # )
+            else:
+                # only used for soundcloud atm
+                self.parent.log.debug("Using PCM Audio.")
+                source = PCMVolumeTransformerB(
+                    FFmpegPCMAudioB(
+                        small_dict.stream,
+                        before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                    ),
+                    volume=volume,
+                )
             try:
                 self.parent.dictionary[ctx.guild.id].voice_client.play(
                     source, after=lambda error: self.song_conclusion(ctx, error=error)

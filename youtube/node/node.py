@@ -1,3 +1,4 @@
+import math
 import json
 import os
 import traceback
@@ -94,6 +95,16 @@ class YouTube:
                     return_sample_rate = int(match.group(1))
             return return_stream_url
 
+    @staticmethod
+    def get_format(formats: list):
+        for item in formats:
+            if item["format_id"] == "250":
+                return item["url"], item["acodec"]
+        for item in formats:
+            # return some audio stream
+            if "audio only" in item["format"]:
+                return item["url"], item["acodec"]
+
     def youtube_extraction(self, video_id, url, own_ip, custom_port):
         try:
             start = time.time()
@@ -101,18 +112,25 @@ class YouTube:
                 return self.research_cache.get(video_id)
             with YoutubeDL({"logger": YoutubeDLLogger()}) as ydl:
                 info_dict = ydl.extract_info(url, download=False)
-                song = {"link": url, "id": info_dict["id"], "title": info_dict["title"]}
-                for item in info_dict["formats"]:
-                    if "audio only" in item["format"]:
-                        song["stream"] = (
-                            "http://"
-                            + own_ip
-                            + ":"
-                            + custom_port
-                            + "/stream/youtube_video?id="
-                            + video_id
-                        )
-                        song["youtube_stream"] = item["url"]
+                song = {
+                    "link": url,
+                    "id": info_dict["id"],
+                    "title": info_dict["title"],
+                    "stream": (
+                        "http://"
+                        + own_ip
+                        + ":"
+                        + custom_port
+                        + "/stream/youtube_video?id="
+                        + video_id
+                    ),
+                }
+                yt_s, c = self.get_format(info_dict["formats"])
+                song["youtube_stream"] = yt_s
+                song["codec"] = c
+
+                # preferring format 250: 78k bitrate (discord default = 64, max = 96) + already opus formatted
+
                 if "manifest" in song["youtube_stream"]:
                     song["youtube_stream"] = self.extract_manifest(
                         song["youtube_stream"]
@@ -205,9 +223,23 @@ class SoundCloud:
                     + " - "
                     + info_dict.get("title", ""),
                     "abr": info_dict.get("abr", 0),
+                    "codec": info_dict.get("ext", "mp3"),
                 }
                 self.cache[url] = song
                 return song
+        except (ExtractorError, DownloadError):
+            return Errors.default
+
+    @staticmethod
+    def playlist(url):
+        try:
+            youtube_dl_opts = {"extract_flat": True, "logger": YoutubeDLLogger()}
+            with YoutubeDL(youtube_dl_opts) as ydl:
+                info_dict: dict = ydl.extract_info(url=url, download=False)
+                songs = []
+                for song in info_dict.get("entries", []):
+                    songs.append({"link": song.get("url", "")})
+                return songs
         except (ExtractorError, DownloadError):
             return Errors.default
 
@@ -270,6 +302,32 @@ class Node:
                     s.sendall(data)
                     time.sleep(1)
 
+    @staticmethod
+    def get_index(_list, index, default):
+        try:
+            return _list[index]
+        except IndexError:
+            return default
+
+    @staticmethod
+    def to_hex(x: int):
+        if x < 0:
+            h = hex(((abs(x) ^ 0xFFFF) + 1) & 0xFFFF)
+            first = int("0x" + Node.get_index(h, 2, "0") + Node.get_index(h, 3, "0"), 0)
+            second = int(
+                "0x" + Node.get_index(h, 4, "0") + Node.get_index(h, 5, "0"), 0
+            )
+            return [first, second]
+        elif x == 0:
+            return [0x00, 0x00]
+        else:
+            h = list(hex(x))
+            first = int("0x" + Node.get_index(h, 2, "0") + Node.get_index(h, 3, "0"), 0)
+            second = int(
+                "0x" + Node.get_index(h, 4, "0") + Node.get_index(h, 5, "0"), 0
+            )
+            return [first, second]
+
     def add_routes(self):
         @self.app.route("/research/youtube_video", methods=["POST"])
         def research__youtube_video():
@@ -318,17 +376,36 @@ class Node:
         def research__soundcloud_track():
             url = request.data.decode()
             if url == "":
-                return Response("No Term provided", 400)
+                return Response("No Link provided", 400)
             infos = self.soundcloud.research_track(url)
             if isinstance(infos, dict):
                 return Response(json.dumps(infos), 200)
-            else:
-                return Response(infos, 400)
+            return Response(infos, 400)
+
+        @self.app.route("/research/soundcloud_playlist", methods=["POST"])
+        def research__soundcloud_playlist():
+            url = request.data.decode()
+            if url == "":
+                return Response("No Link provided", 400)
+            infos = self.soundcloud.playlist(url=url)
+            if isinstance(infos, list):
+                return Response(json.dumps(infos), 200)
+            return Response(infos, 400)
 
         @self.app.route("/stream")
         @self.app.route("/stream/youtube_video")
         def stream():
             url = request.args.get("id", "")
+            volume = request.args.get("volume", "")
+            if volume == "":
+                volume = 0.5
+
+            volume = float(volume)
+
+            volume = math.log(volume, 10) * 20
+
+            hex_volume = self.to_hex(math.floor(volume))
+
             if url == "":
                 return Response("No URL provided", 400)
             stream_dict = self.youtube.youtube_extraction(
@@ -344,11 +421,45 @@ class Node:
 
                 def generator():
                     try:
-                        for con in req.iter_content(chunk_size=1024):
-                            yield con
+                        gen = req.iter_content(chunk_size=1024)
+                        header_over = False
+                        while True:
+                            chunk = b""
+                            try:
+                                chunk = next(gen)
+                            except StopIteration:
+                                print("stop iteration")
+                            if chunk:
+                                if not header_over:
+                                    if b"\x4F\x70\x75\x73\x48\x65\x61\x64" in chunk:
+                                        # output gain index + 16; index + 17
+                                        chunk: bytes
+                                        index = chunk.index(
+                                            b"\x4F\x70\x75\x73\x48\x65\x61\x64"
+                                        )
+                                        chunk_list = bytearray(chunk)
+                                        chunk_list[index + 16] = hex_volume[0]
+                                        chunk_list[index + 17] = hex_volume[1]
+                                        chunk = bytes(chunk_list)
+                                        header_over = True
+                                yield chunk
+                            else:
+                                print("Found an Invalid Chunk, skipping it.")
+                                break
+                        # for con in req.iter_content(chunk_size=1024):
+                        #   if con:
+                        #      con: bytes
+                        #     # if b"\x00" in con:
+                        #   print("found eol, replacing")
+                        #  con = con.replace(b"\x00", b"\x01")
+
+                        #    yield con
+
                     except requests.exceptions.ChunkedEncodingError:
                         print(
-                            "ChunkEncodingError with url: {}".format(stream_dict["url"])
+                            "ChunkEncodingError with url: {}".format(
+                                stream_dict["link"]
+                            )
                         )
 
                 return Response(

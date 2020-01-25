@@ -15,6 +15,7 @@ from bot.discord_text import TextResponse
 if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
 
     logging.basicConfig(level=logging.INFO)
+    logging.getLogger("discord").setLevel(logging.INFO)
 
     async def process_commands_n(self, message):
         """|coro|

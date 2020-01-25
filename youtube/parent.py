@@ -251,6 +251,33 @@ class Parent:
             )
             return Response(req.text, req.status_code, mimetype="application/json")
 
+        @self.app.route("/research/soundcloud_playlist", methods=["POST"])
+        def soundcloud_playlist():
+            url = request.data.decode()
+            if url == "":
+                return Response("Invalid", 400)
+            node: Node = self.socket_server.nodes[
+                random.choice(list(self.socket_server.nodes.keys()))
+            ]
+            print("DEBUG | RECV, SC_PLAY:", request.data, ";", "=>", node.name)
+            req = requests.post(
+                "http://"
+                + node.ip
+                + ":"
+                + str(node.port)
+                + "/research/soundcloud_playlist",
+                data=url,
+            )
+            print(
+                "DEBUG | ANSW, SC_PLAY:",
+                request.data,
+                req.status_code,
+                ";",
+                "<=",
+                node.name,
+            )
+            return Response(req.text, req.status_code, mimetype="application/json")
+
     def start_up(self):
         self.add_routes()
         bjoern.run(self.app, "0.0.0.0", 8008)

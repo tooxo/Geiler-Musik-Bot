@@ -7,6 +7,7 @@ RUN apt-get update -qq && apt-get --no-install-recommends install libopus-dev wg
  && tar -xf ffmpeg.tar.xz \
  && cd ffmpeg-* \
  && mv ffmpeg /usr/bin/ \
+ && mv ffprobe /usr/bin/ \
  && cd .. \
  && rm -R ffmpeg* \
  && pip install -r requirements.txt
