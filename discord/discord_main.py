@@ -88,6 +88,7 @@ async def on_command_error(ctx, error):
         )
     else:
         log.error(logging_manager.debug_info(str(error)))
+        traceback.print_exc()
 
 
 @client.event

@@ -6,6 +6,7 @@ import re
 import socket
 import threading
 import time
+import yaml
 from urllib.parse import quote
 
 import bjoern
@@ -117,12 +118,12 @@ class YouTube:
                     "id": info_dict["id"],
                     "title": info_dict["title"],
                     "stream": (
-                        "http://"
-                        + own_ip
-                        + ":"
-                        + custom_port
-                        + "/stream/youtube_video?id="
-                        + video_id
+                            "http://"
+                            + own_ip
+                            + ":"
+                            + custom_port
+                            + "/stream/youtube_video?id="
+                            + video_id
                     ),
                 }
                 yt_s, c = self.get_format(info_dict["formats"])
@@ -178,9 +179,9 @@ class YouTube:
             return self.search_cache[term]
         query = quote(term)
         url = (
-            "https://www.youtube.com/results?search_query="
-            + query
-            + "&sp=EgIQAQ%253D%253D"
+                "https://www.youtube.com/results?search_query="
+                + query
+                + "&sp=EgIQAQ%253D%253D"
         )  # SP = Video only
         for x in range(0, 2, 1):
             url_list = []
@@ -202,6 +203,18 @@ class SoundCloud:
     def __init__(self):
         self.cache = ExpiringDict(1000, 10000)
 
+    @staticmethod
+    def decide_on_format(formats: list):
+        for f in formats:
+            f: dict
+            if "opus" in f.get("ext"):
+                return f.get("url", ""), f.get("ext", "opus"), f.get("abr", 0)
+        return (
+            formats[0].get("url", ""),
+            formats[0].get("ext", "mp3"),
+            formats[0].get("abr", 0),
+        )
+
     def research_track(self, url: str):
         if url in self.cache:
             return self.cache.get(url, {})
@@ -212,19 +225,19 @@ class SoundCloud:
                 info_dict: dict = ydl.extract_info(url=url, download=False)
                 song = {
                     "title": info_dict.get("uploader", "")
-                    + " - "
-                    + info_dict.get("title", ""),
+                             + " - "
+                             + info_dict.get("title", ""),
                     "link": info_dict.get("webpage_url", ""),
-                    "stream": info_dict.get("url", ""),
                     "duration": info_dict.get("duration", 0),
                     "thumbnail": info_dict.get("thumbnails")[-1].get("url", ""),
                     "loadtime": time.time() - _time,
                     "term": info_dict.get("uploader", "")
-                    + " - "
-                    + info_dict.get("title", ""),
-                    "abr": info_dict.get("abr", 0),
-                    "codec": info_dict.get("ext", "mp3"),
+                            + " - "
+                            + info_dict.get("title", ""),
                 }
+                url, codec, abr = self.decide_on_format(info_dict.get("formats", []))
+                stream_dict = {"stream": url, "codec": codec, "abr": abr}
+                song = {**song, **stream_dict}
                 self.cache[url] = song
                 return song
         except (ExtractorError, DownloadError):
@@ -246,29 +259,46 @@ class SoundCloud:
 
 class Node:
     def __init__(self):
-        self._host = os.environ.get("parent_host", "")
-        self.parent_port = os.environ.get("parent_port", "")
-        self.node_id = os.environ.get("node_id", "")
-        self.port = os.environ.get("port", os.environ.get("PORT", ""))
-
-        if "custom_port" not in os.environ:
-            self.custom_port = os.environ.get("port", os.environ.get("PORT", ""))
+        # loading config
+        filename = ""
+        if os.path.exists("./configuration.yaml"):
+            filename = "./configuration.yaml"
+        elif os.path.exists("./configuration.yml"):
+            filename = "./configuration.yml"
         else:
-            self.custom_port = os.environ["custom_port"]
+            print("Configuration File Missing.")
+            exit(1)
+        f = open(filename, "r")
+        y = None
+        try:
+            y = yaml.safe_load(f)
+        except yaml.YAMLError as ex:
+            print(ex)
+            exit(1)
+        assert y is not None
+
+        self._host = y.get("parent_host", "")
+        self.parent_port = y.get("parent_port", "")
+        self.node_id = y.get("node_id", "")
+        self.port = y.get("port", y.get("PORT", ""))
+
+        if "custom_port" not in y:
+            self.custom_port = y.get("port", y.get("PORT", ""))
+        else:
+            self.custom_port = y.get("custom_port", "")
 
         self.host = "http://" + self._host
 
-        if "own_ip" not in os.environ:
+        if "own_ip" not in y:
             r = requests.get("https://api.ipify.org?format=json")
             self.own_ip = r.json()["ip"]
         else:
-            self.own_ip = os.environ["own_ip"]
+            self.own_ip = y.get("own_ip", "")
+        self.api_key = y.get("API_KEY", "API_KEY")
 
         self.app = Flask(__name__)
         self.youtube = YouTube()
         self.soundcloud = SoundCloud()
-
-        self.api_key = os.environ.get("API_KEY", "API_KEY")
 
     @staticmethod
     def youtube_check():
@@ -404,7 +434,7 @@ class Node:
 
             volume = math.log(volume, 10) * 20
 
-            hex_volume = self.to_hex(math.floor(volume))
+            hex_volume = self.to_hex(round(volume))
 
             if url == "":
                 return Response("No URL provided", 400)
@@ -416,7 +446,6 @@ class Node:
             )
 
             if not isinstance(stream_dict, str):
-
                 req = requests.get(stream_dict["youtube_stream"], stream=True)
 
                 def generator():
@@ -428,7 +457,7 @@ class Node:
                             try:
                                 chunk = next(gen)
                             except StopIteration:
-                                print("stop iteration")
+                                pass
                             if chunk:
                                 if not header_over:
                                     if b"\x4F\x70\x75\x73\x48\x65\x61\x64" in chunk:
@@ -444,17 +473,7 @@ class Node:
                                         header_over = True
                                 yield chunk
                             else:
-                                print("Found an Invalid Chunk, skipping it.")
                                 break
-                        # for con in req.iter_content(chunk_size=1024):
-                        #   if con:
-                        #      con: bytes
-                        #     # if b"\x00" in con:
-                        #   print("found eol, replacing")
-                        #  con = con.replace(b"\x00", b"\x01")
-
-                        #    yield con
-
                     except requests.exceptions.ChunkedEncodingError:
                         print(
                             "ChunkEncodingError with url: {}".format(

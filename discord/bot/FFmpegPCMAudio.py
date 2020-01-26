@@ -6,6 +6,7 @@ from discord.opus import Encoder as OpusEncoder
 # now 1.3 is released, FFmpegOpusAudio can be used
 
 
+# also used in soundcloud only
 class FFmpegPCMAudioB(FFmpegPCMAudio):
     def __init__(self, source, *args, **kwargs):
         super().__init__(source, *args, **kwargs)
@@ -21,14 +22,14 @@ class FFmpegPCMAudioB(FFmpegPCMAudio):
 
 class FFmpegOpusAudioB(FFmpegOpusAudio):
     def __init__(self, source: str, volume=0.5, *args, **kwargs):
-        source += "&volume=" + str(volume)
+        # exception for soundcloud opus server
+        if "/cf-hls-opus-media.sndcdn.com" not in source:
+            source += "&volume=" + str(volume)
         super().__init__(source, *args, **kwargs)
         self.bytes_read = 0
-        self.file = open("/home/test.opus", "wb")
 
     def read(self):
         self.bytes_read += OpusEncoder.FRAME_SIZE
-
         return next(self._packet_iter, b"")
 
 

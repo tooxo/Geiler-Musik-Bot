@@ -55,7 +55,12 @@ class ThreadedSocketServer:
 
     def handle_client_connection(self, client: socket.socket, ip: tuple, _id: str):
         # authentication
-        proposed_api_key = client.recv(1024).decode()
+        try:
+            proposed_api_key = client.recv(1024).decode()
+        except UnicodeDecodeError:
+            print("Connection", _id, "was rejected. [INVALID AUTH ENCODING]")
+            del self.nodes[_id]
+            return
         if proposed_api_key != self.api_key:
             client.close()
             print("Connection", _id, "was rejected. [WRONG API KEY]")
@@ -276,7 +281,7 @@ class Parent:
                 "<=",
                 node.name,
             )
-            return Response(req.text, req.status_code, mimetype="application/json")
+            return Response(req.text, req.status_code)
 
     def start_up(self):
         self.add_routes()

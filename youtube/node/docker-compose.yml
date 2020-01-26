@@ -7,5 +7,3 @@ services:
     restart: always
     volumes:
       - .:/home/src/app
-    env_file:
-      - settings.env
