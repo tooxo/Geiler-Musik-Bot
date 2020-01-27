@@ -1,6 +1,5 @@
-from discord import FFmpegPCMAudio, PCMVolumeTransformer, FFmpegOpusAudio
+from discord import FFmpegOpusAudio, FFmpegPCMAudio, PCMVolumeTransformer
 from discord.opus import Encoder as OpusEncoder
-
 
 # Switch to FFmpegOpusAudio, when 1.3 is released
 # now 1.3 is released, FFmpegOpusAudio can be used

@@ -11,10 +11,10 @@ script:
 
 deploy:
     provider: releases
-    api_key: $GITHUB_KEY
+    token: $GITHUB_KEY
     file:
         - youtube/node/node
     draft: true
     on:
         branch: master
-    skip_cleanup: true
+    cleanup: false

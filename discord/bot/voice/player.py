@@ -1,24 +1,24 @@
 import asyncio
 import re
 import traceback
+import random
 from os import environ
 
 import discord
-from discord.ext import commands
-from discord.ext.commands import Cog
-
 import logging_manager
-from bot.FFmpegPCMAudio import FFmpegPCMAudioB, PCMVolumeTransformerB, FFmpegOpusAudioB
+from bot.FFmpegPCMAudio import FFmpegOpusAudioB, FFmpegPCMAudioB, PCMVolumeTransformerB
 from bot.now_playing_message import NowPlayingMessage
 from bot.type.error import Error
 from bot.type.errors import Errors
 from bot.type.queue import Queue
 from bot.type.song import Song
+from bot.type.soundcloud_type import SoundCloudType
 from bot.type.spotify_type import SpotifyType
 from bot.type.url import Url
 from bot.type.variable_store import VariableStore
 from bot.type.youtube_type import YouTubeType
-from bot.type.soundcloud_type import SoundCloudType
+from discord.ext import commands
+from discord.ext.commands import Cog
 
 
 class Player(Cog):
@@ -51,10 +51,13 @@ class Player(Cog):
                         youtube_dict = await self.parent.youtube.youtube_url(
                             small_dict.link
                         )
-                    if _type == Url.soundcloud:
+                    elif _type == Url.soundcloud:
                         youtube_dict = await self.parent.soundcloud.soundcloud_track(
                             small_dict.link
                         )
+                    else:
+                        self.parent.log.warning("Incompatible Song Type: " + _type)
+                        return
                 else:
                     if small_dict.title is None:
                         self.parent.log.warning(small_dict)
@@ -79,8 +82,24 @@ class Player(Cog):
                 youtube_dict.user = small_dict.user
                 youtube_dict.image_url = small_dict.image_url
                 await self.player(ctx, youtube_dict)
+                if hasattr(youtube_dict, "title"):
+                    asyncio.ensure_future(
+                        self.parent.mongo.append_most_played(youtube_dict.title)
+                    )
+                if hasattr(youtube_dict, "loadtime"):
+                    asyncio.ensure_future(
+                        self.parent.mongo.append_response_time(youtube_dict.loadtime)
+                    )
             else:
                 await self.player(ctx, small_dict)
+                if hasattr(small_dict, "title"):
+                    asyncio.ensure_future(
+                        self.parent.mongo.append_most_played(small_dict.title)
+                    )
+                if hasattr(small_dict, "loadtime"):
+                    asyncio.ensure_future(
+                        self.parent.mongo.append_response_time(small_dict.loadtime)
+                    )
 
             asyncio.ensure_future(self.preload_song(ctx=ctx))
 
@@ -186,7 +205,9 @@ class Player(Cog):
         __song.user = ctx.message.author
         return [__song]
 
-    async def add_to_queue(self, url, ctx, first_index_push=False, playskip=False):
+    async def add_to_queue(
+        self, url, ctx, first_index_push=False, playskip=False, shuffle=False
+    ):
         if playskip:
             self.parent.dictionary[ctx.guild.id].song_queue = Queue()
 
@@ -197,6 +218,8 @@ class Player(Cog):
                 await self.parent.send_error_message(ctx=ctx, message=songs[0].reason)
                 return
         if len(songs) > 1:
+            if shuffle:
+                random.shuffle(songs)
             self.parent.dictionary[ctx.guild.id].song_queue.queue.extend(songs)
             await self.parent.send_embed_message(
                 ctx=ctx,
@@ -316,6 +339,12 @@ class Player(Cog):
             return
         await self.add_to_queue(url, ctx, playskip=True)
 
+    @commands.command(aliases=["sp"])
+    async def shuffleplay(self, ctx, *, url: str = None):
+        if not await self.play_check(ctx, url):
+            return
+        await self.add_to_queue(url, ctx, shuffle=True)
+
     async def play_check(self, ctx, url):
         if not await self.join_check(ctx, url):
             return False
@@ -396,16 +425,11 @@ class Player(Cog):
                 source = await FFmpegOpusAudioB.from_probe(
                     small_dict.stream,
                     volume=volume,
-                    before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                    # before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                    # commented, because of spamming messages of failed reconnects.
                 )
-                # source = FFmpegOpusAudioB(
-                #   small_dict.stream,
-                #  volume=volume,
-                # executable="ffmpeg",
-                # before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-                # )
             else:
-                # only used for soundcloud atm
+                # only used for backup soundcloud atm
                 self.parent.log.debug("Using PCM Audio.")
                 source = PCMVolumeTransformerB(
                     FFmpegPCMAudioB(
@@ -447,10 +471,6 @@ class Player(Cog):
                 voice_client=self.parent.dictionary[ctx.guild.id].voice_client,
             )
             await self.parent.dictionary[ctx.guild.id].now_playing_message.send()
-            if environ.get("USE_EMBEDS", "True") == "True":
-                asyncio.ensure_future(
-                    self.parent.dictionary[ctx.guild.id].now_playing_message.update()
-                )
 
         except (Exception, discord.ClientException) as e:
             self.parent.log.debug(logging_manager.debug_info(traceback.format_exc(e)))

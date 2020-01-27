@@ -1,13 +1,13 @@
 import asyncio
 import random
 import string
+import datetime
 from os import environ
 from typing import Dict
 
 import dbl
-import discord
-from discord.ext import commands
 
+import discord
 import logging_manager
 from bot.type.errors import Errors
 from bot.type.guild import Guild
@@ -16,7 +16,8 @@ from bot.voice.checks import Checks
 from bot.voice.events import Events
 from bot.voice.player import Player
 from bot.voice.player_controls import PlayerControls
-from extractors import mongo, spotify, youtube, soundcloud
+from discord.ext import commands
+from extractors import mongo, soundcloud, spotify, youtube
 
 
 class DiscordBot(commands.Cog):
@@ -221,7 +222,7 @@ class DiscordBot(commands.Cog):
         await self.mongo.set_volume(ctx.guild.id, var)
         await self.send_embed_message(ctx, "The Volume was set to: " + str(var))
 
-    @commands.command()
+    @commands.command(aliases=["i", "information"])
     async def info(self, ctx):
         self.dictionary = self.dictionary
         if self.dictionary[ctx.guild.id].now_playing is None:
@@ -241,7 +242,11 @@ class DiscordBot(commands.Cog):
                 + "\nStreamed from: "
                 + str(self.dictionary[ctx.guild.id].now_playing.link)
                 + "\nDuration: "
-                + str(self.dictionary[ctx.guild.id].now_playing.duration)
+                + str(
+                    datetime.timedelta(
+                        seconds=self.dictionary[ctx.guild.id].now_playing.duration
+                    )
+                )
                 + "\nRequested by: <@!"
                 + str(self.dictionary[ctx.guild.id].now_playing.user.id)
                 + ">\nLoaded in: "

@@ -1,10 +1,11 @@
 import asyncio
 import time
+import traceback
 from os import environ
 
 import aiohttp
-import discord
 
+import discord
 import logging_manager
 from bot.FFmpegPCMAudio import PCMVolumeTransformerB
 
@@ -38,23 +39,38 @@ class NowPlayingMessage:
                 self.title = "`" + self.song.title + "`"
         self.no_embed_mode = environ.get("USE_EMBEDS", "True") == "False"
 
+    def calculate_recurrences(self):
+        """
+        calculates if the message will update more than 75 times to stop on long songs
+        :return: bool if too big
+        """
+        if hasattr(self.song, "duration"):
+            recurrences = self.song.duration / 5
+            if recurrences < 75:
+                return True
+        return False
+
     async def send(self):
         if self.song is None:
             return
-        try:
-            if not self.no_embed_mode:
+        if not self.no_embed_mode:
+            if self.calculate_recurrences():
                 embed = discord.Embed(
                     title=self.title, color=0x00FFCC, url=self.song.link
                 )
                 embed.set_author(name="Currently Playing:")
                 embed.add_field(name="░░░░░░░░░░░░░░░░░░░░░░░░░", value=" 0%")
                 await self.message.edit(embed=embed)
+                asyncio.ensure_future(self.update())
             else:
-                await self.message.edit(content=self.title)
-        except Exception as e:
-            import traceback
+                embed = discord.Embed(
+                    title=self.title, color=0x00FFCC, url=self.song.link
+                )
+                embed.set_author(name="Currently Playing:")
+                await self.message.edit(embed=embed)
 
-            traceback.print_exc()
+        else:
+            await self.message.edit(content=self.title)
 
     async def update(self):
         if self._stop is True:

@@ -4,8 +4,8 @@ import aiohttp
 import async_timeout
 
 import logging_manager
-from bot.type.song import Song
 from bot.type.error import Error
+from bot.type.song import Song
 
 
 class SoundCloud:

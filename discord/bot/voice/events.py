@@ -2,10 +2,10 @@ import asyncio
 import time
 
 import async_timeout
-from discord.ext.commands import Cog
 
 from bot.type.guild import Guild
 from bot.type.queue import Queue
+from discord.ext.commands import Cog
 
 
 class Events(Cog):

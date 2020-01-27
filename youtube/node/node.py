@@ -1,22 +1,23 @@
-import math
 import json
+import math
 import os
-import traceback
 import re
 import socket
 import threading
 import time
-import yaml
+import traceback
 from urllib.parse import quote
+from urllib.request import urlopen
 
 import bjoern
 import requests
+import yaml
+import youtube_dl
 from bs4 import BeautifulSoup
 from expiringdict import ExpiringDict
 from flask import Flask, Response, request
 from youtube_dl import YoutubeDL
-from youtube_dl.utils import ExtractorError, DownloadError
-import youtube_dl
+from youtube_dl.utils import DownloadError, ExtractorError
 
 
 def __real_initialize(self):
@@ -118,12 +119,12 @@ class YouTube:
                     "id": info_dict["id"],
                     "title": info_dict["title"],
                     "stream": (
-                            "http://"
-                            + own_ip
-                            + ":"
-                            + custom_port
-                            + "/stream/youtube_video?id="
-                            + video_id
+                        "http://"
+                        + own_ip
+                        + ":"
+                        + custom_port
+                        + "/stream/youtube_video?id="
+                        + video_id
                     ),
                 }
                 yt_s, c = self.get_format(info_dict["formats"])
@@ -179,9 +180,9 @@ class YouTube:
             return self.search_cache[term]
         query = quote(term)
         url = (
-                "https://www.youtube.com/results?search_query="
-                + query
-                + "&sp=EgIQAQ%253D%253D"
+            "https://www.youtube.com/results?search_query="
+            + query
+            + "&sp=EgIQAQ%253D%253D"
         )  # SP = Video only
         for x in range(0, 2, 1):
             url_list = []
@@ -225,15 +226,15 @@ class SoundCloud:
                 info_dict: dict = ydl.extract_info(url=url, download=False)
                 song = {
                     "title": info_dict.get("uploader", "")
-                             + " - "
-                             + info_dict.get("title", ""),
+                    + " - "
+                    + info_dict.get("title", ""),
                     "link": info_dict.get("webpage_url", ""),
                     "duration": info_dict.get("duration", 0),
                     "thumbnail": info_dict.get("thumbnails")[-1].get("url", ""),
                     "loadtime": time.time() - _time,
                     "term": info_dict.get("uploader", "")
-                            + " - "
-                            + info_dict.get("title", ""),
+                    + " - "
+                    + info_dict.get("title", ""),
                 }
                 url, codec, abr = self.decide_on_format(info_dict.get("formats", []))
                 stream_dict = {"stream": url, "codec": codec, "abr": abr}
@@ -446,43 +447,34 @@ class Node:
             )
 
             if not isinstance(stream_dict, str):
+                # req = urlopen(url=stream_dict["youtube_stream"])
+
                 req = requests.get(stream_dict["youtube_stream"], stream=True)
 
-                def generator():
+                def gen():
+                    g = req.iter_content(chunk_size=1024)
+                    chunk = next(g)
+                    index = chunk.index(
+                        b"\x4F\x70\x75\x73\x48\x65\x61\x64"  # "OpusHead"
+                    )  # Finds the position of the opus file header in the stream
+                    chunk_list = bytearray(chunk)
+                    chunk_list[index + 16] = hex_volume[
+                        0
+                    ]  # moves 16 positions to the right from there to
+                    chunk_list[index + 17] = hex_volume[1]  # modify the volume bits
+                    chunk = bytes(chunk_list)
+                    yield chunk
                     try:
-                        gen = req.iter_content(chunk_size=1024)
-                        header_over = False
-                        while True:
-                            chunk = b""
-                            try:
-                                chunk = next(gen)
-                            except StopIteration:
-                                pass
-                            if chunk:
-                                if not header_over:
-                                    if b"\x4F\x70\x75\x73\x48\x65\x61\x64" in chunk:
-                                        # output gain index + 16; index + 17
-                                        chunk: bytes
-                                        index = chunk.index(
-                                            b"\x4F\x70\x75\x73\x48\x65\x61\x64"
-                                        )
-                                        chunk_list = bytearray(chunk)
-                                        chunk_list[index + 16] = hex_volume[0]
-                                        chunk_list[index + 17] = hex_volume[1]
-                                        chunk = bytes(chunk_list)
-                                        header_over = True
-                                yield chunk
-                            else:
-                                break
+                        for chunk in g:
+                            if not chunk:
+                                yield b""
+                            yield chunk
                     except requests.exceptions.ChunkedEncodingError:
-                        print(
-                            "ChunkEncodingError with url: {}".format(
-                                stream_dict["link"]
-                            )
-                        )
+                        # Throws EOF error on discord, but I don't see a better way to do it.
+                        yield b""
 
                 return Response(
-                    generator(),
+                    gen(),
                     content_type=req.headers["Content-Type"],
                     headers={"Content-Length": req.headers["Content-Length"]},
                 )
@@ -491,7 +483,7 @@ class Node:
     def startup(self):
         self.add_routes()
         print("Startup done.")
-        # self.app.run("0.0.0.0", int(self.port))
+        # self.app.run("0.0.0.0", int(self.port), threaded=True)
         bjoern.run(self.app, "0.0.0.0", int(self.port), True)
 
 

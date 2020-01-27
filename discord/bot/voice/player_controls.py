@@ -4,10 +4,9 @@ import random
 from os import environ
 
 import discord
+from bot.type.queue import Queue
 from discord.ext import commands
 from discord.ext.commands import Cog
-
-from bot.type.queue import Queue
 
 
 class PlayerControls(Cog):
@@ -58,22 +57,7 @@ class PlayerControls(Cog):
             self.parent.dictionary[ctx.guild.id].song_queue = Queue()
             self.parent.dictionary[ctx.guild.id].now_playing = None
             self.parent.dictionary[ctx.guild.id].voice_client.stop()
-            link = await self.parent.youtube.youtube_url(
-                "https://www.youtube.com/watch?v=siLkbdVxntU"
-            )
-            source = discord.FFmpegPCMAudio(
-                link.stream,
-                executable="ffmpeg",
-                before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-            )
-            self.parent.dictionary[ctx.guild.id].voice_client.play(source)
-            if (
-                self.parent.dictionary[ctx.guild.id].voice_client is not None
-                and self.parent.dictionary[ctx.guild.id].voice_client.is_playing()
-            ):
-                await self.parent.send_embed_message(
-                    ctx, "Music Stopped! :octagonal_sign:"
-                )
+            await self.parent.send_embed_message(ctx, "Music Stopped! :octagonal_sign:")
         else:
             await self.parent.send_error_message(
                 ctx, ":thinking: The Bot isn't connected. :thinking:"
@@ -97,7 +81,7 @@ class PlayerControls(Cog):
             await message.delete()
             await ctx.message.delete()
 
-    @commands.command(aliases=["next", "müll", "s", "n"])
+    @commands.command(aliases=["next", "müll", "s", "n", "nein"])
     async def skip(self, ctx, count="1"):
         if not await self.parent.control_check.manipulation_checks(ctx):
             return

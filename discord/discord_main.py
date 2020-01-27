@@ -3,14 +3,14 @@ import os
 import subprocess
 import traceback
 
-import discord
 import youtube_dl
-from discord.ext import commands
-from discord.ext.commands.bot import BotBase
 
+import discord
 import logging_manager
 from bot.discord_music import DiscordBot
 from bot.discord_text import TextResponse
+from discord.ext import commands
+from discord.ext.commands.bot import BotBase
 
 if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
 

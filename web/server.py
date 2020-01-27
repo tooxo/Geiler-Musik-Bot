@@ -83,7 +83,7 @@ def jqueryjs():
 
 @app.route("/http/mongo_most")
 def mongo_most():
-    collection = db.mostcollection
+    collection = db.most_played_collection
     alfal = collection.find()
     ls = []
     for item in alfal:
@@ -105,12 +105,6 @@ def mongo_response():
         i["y"] = item["y"]
         ls.append(i)
     return Response(str(ls))
-
-
-@app.route("/testserver")
-def testserver():
-    print("test")
-    return Response("text")
 
 
 if __name__ == "__main__":
