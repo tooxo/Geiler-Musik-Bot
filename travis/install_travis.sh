@@ -1,3 +1,4 @@
+#!/bin/sh
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
 sudo add-apt-repository -y ppa:projectatomic/ppa
@@ -22,7 +23,7 @@ touch youtube/settings.env
 docker network create web
 sudo apt-get install libopus0
 git clone https://github.com/tooxo/distest.git --depth 1 -b develop
-cd distest/
+cd distest/ || exit
 pip install -r requirements-dev.txt
 pip install .
 pip install pynacl cython

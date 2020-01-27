@@ -349,15 +349,12 @@ class Node:
                 "0x" + Node.get_index(h, 4, "0") + Node.get_index(h, 5, "0"), 0
             )
             return [first, second]
-        elif x == 0:
+        if x == 0:
             return [0x00, 0x00]
-        else:
-            h = list(hex(x))
-            first = int("0x" + Node.get_index(h, 2, "0") + Node.get_index(h, 3, "0"), 0)
-            second = int(
-                "0x" + Node.get_index(h, 4, "0") + Node.get_index(h, 5, "0"), 0
-            )
-            return [first, second]
+        h = list(hex(x))
+        first = int("0x" + Node.get_index(h, 2, "0") + Node.get_index(h, 3, "0"), 0)
+        second = int("0x" + Node.get_index(h, 4, "0") + Node.get_index(h, 5, "0"), 0)
+        return [first, second]
 
     def add_routes(self):
         @self.app.route("/research/youtube_video", methods=["POST"])
