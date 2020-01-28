@@ -79,7 +79,7 @@ class NowPlayingMessage:
             if not (self.voice_client.is_paused()):
                 now_time = round(self.source.bytes_read / 192000)
                 finish_second = int(
-                    self.discord_music.dictionary[
+                    self.discord_music.guilds[
                         self.ctx.guild.id
                     ].now_playing.duration
                 )
@@ -90,7 +90,7 @@ class NowPlayingMessage:
                     + time.strftime(
                         "%H:%M:%S",
                         time.gmtime(
-                            self.discord_music.dictionary[
+                            self.discord_music.guilds[
                                 self.ctx.guild.id
                             ].now_playing.duration
                         ),

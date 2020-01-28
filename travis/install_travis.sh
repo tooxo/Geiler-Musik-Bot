@@ -21,7 +21,7 @@ podman-compose version
 } >> sysenv.env
 touch youtube/settings.env
 docker network create web
-sudo apt-get install libopus0
+sudo apt-get install libopus0 python3-dev
 git clone https://github.com/tooxo/distest.git --depth 1 -b develop
 cd distest/ || exit
 pip install -r requirements-dev.txt

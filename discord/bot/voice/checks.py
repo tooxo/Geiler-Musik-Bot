@@ -45,7 +45,7 @@ class Checks:
         )
 
     async def song_playing_check(self, ctx):
-        if self.parent.dictionary[ctx.guild.id].now_playing is None:
+        if self.parent.guilds[ctx.guild.id].now_playing is None:
             await self.parent.send_error_message(ctx, "Nothing is playing right now!")
             return False
         return True

@@ -25,7 +25,7 @@ class DiscordBot(commands.Cog):
         self.log = logging_manager.LoggingManager()
         self.log.debug("[Startup]: Initializing Music Module . . .")
 
-        self.dictionary: Dict[Guild] = {}
+        self.guilds: Dict[Guild] = {}
 
         self.bot = bot
         self.bot.remove_command("help")
@@ -84,7 +84,7 @@ class DiscordBot(commands.Cog):
 
     def reconnect(self):
         for _guild in self.bot.guilds:
-            self.dictionary[_guild.id] = Guild()
+            self.guilds[_guild.id] = Guild()
             if _guild.me.voice is not None:
                 if hasattr(_guild.me.voice, "channel"):
 
@@ -95,14 +95,14 @@ class DiscordBot(commands.Cog):
                         :return:
                         """
                         self.log.debug("[Reconnect] Reconnecting " + str(_guild))
-                        self.dictionary[
+                        self.guilds[
                             _guild.id
                         ].voice_channel = _guild.me.voice.channel
                         t = await _guild.me.voice.channel.connect(
                             timeout=5, reconnect=False
                         )
                         await t.disconnect(force=True)
-                        self.dictionary[
+                        self.guilds[
                             _guild.id
                         ].voice_client = await _guild.me.voice.channel.connect(
                             timeout=5, reconnect=True
@@ -142,14 +142,14 @@ class DiscordBot(commands.Cog):
         :return:
         """
         try:
-            if self.dictionary[ctx.guild.id].now_playing_message is not None:
-                await self.dictionary[ctx.guild.id].now_playing_message.stop()
+            if self.guilds[ctx.guild.id].now_playing_message is not None:
+                await self.guilds[ctx.guild.id].now_playing_message.stop()
                 try:
                     await ctx.message.delete()
                 except discord.NotFound:
                     pass
         except discord.NotFound:
-            self.dictionary[ctx.guild.id].now_playing_message = None
+            self.guilds[ctx.guild.id].now_playing_message = None
 
     @staticmethod
     async def delete_message(message: discord.Message, delay: int = None):
@@ -224,8 +224,8 @@ class DiscordBot(commands.Cog):
 
     @commands.command(aliases=["i", "information"])
     async def info(self, ctx):
-        self.dictionary = self.dictionary
-        if self.dictionary[ctx.guild.id].now_playing is None:
+        self.guilds = self.guilds
+        if self.guilds[ctx.guild.id].now_playing is None:
             embed = discord.Embed(
                 title="Information",
                 description="Nothing is playing right now.",
@@ -238,27 +238,27 @@ class DiscordBot(commands.Cog):
             embed = discord.Embed(
                 title="Information",
                 description="Name: "
-                + str(self.dictionary[ctx.guild.id].now_playing.title)
+                + str(self.guilds[ctx.guild.id].now_playing.title)
                 + "\nStreamed from: "
-                + str(self.dictionary[ctx.guild.id].now_playing.link)
+                + str(self.guilds[ctx.guild.id].now_playing.link)
                 + "\nDuration: "
                 + str(
                     datetime.timedelta(
-                        seconds=self.dictionary[ctx.guild.id].now_playing.duration
+                        seconds=self.guilds[ctx.guild.id].now_playing.duration
                     )
                 )
                 + "\nRequested by: <@!"
-                + str(self.dictionary[ctx.guild.id].now_playing.user.id)
+                + str(self.guilds[ctx.guild.id].now_playing.user.id)
                 + ">\nLoaded in: "
-                + str(round(self.dictionary[ctx.guild.id].now_playing.loadtime, 2))
+                + str(round(self.guilds[ctx.guild.id].now_playing.loadtime, 2))
                 + " sec."
                 + "\nSearched Term: "
-                + str(self.dictionary[ctx.guild.id].now_playing.term),
+                + str(self.guilds[ctx.guild.id].now_playing.term),
                 color=0x00FFCC,
                 url="https://d.chulte.de",
             )
-            if self.dictionary[ctx.guild.id].now_playing.image is not None:
-                embed.set_thumbnail(url=self.dictionary[ctx.guild.id].now_playing.image)
+            if self.guilds[ctx.guild.id].now_playing.image is not None:
+                embed.set_thumbnail(url=self.guilds[ctx.guild.id].now_playing.image)
             await ctx.send(embed=embed)
         except (KeyError, TypeError) as e:
             self.log.warning(logging_manager.debug_info(str(e)))
@@ -374,10 +374,10 @@ class DiscordBot(commands.Cog):
     @commands.command(aliases=["np", "nowplaying"])
     async def now_playing(self, ctx):
         songs = []
-        for server in self.dictionary:
+        for server in self.guilds:
             if server == ctx.guild.id:
                 continue
-            server = self.dictionary[server]
+            server = self.guilds[server]
             if server.now_playing is not None:
                 songs.append(server.now_playing)
         if len(songs) == 0:
