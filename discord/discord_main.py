@@ -18,27 +18,7 @@ if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
     logging.getLogger("discord").setLevel(logging.INFO)
 
     async def process_commands_n(self, message):
-        """|coro|
-        This function processes the commands that have been registered
-        to the bot and other groups. Without this coroutine, none of the
-        commands will be triggered.
-        By default, this coroutine is called inside the :func:`.on_message`
-        event. If you choose to override the :func:`.on_message` event, then
-        you should invoke this coroutine as well.
-        This is built using other low level tools, and is equivalent to a
-        call to :meth:`~.Bot.get_context` followed by a call to :meth:`~.Bot.invoke`.
-        This also checks if the message's author is a bot and doesn't
-        call :meth:`~.Bot.get_context` or :meth:`~.Bot.invoke` if so.
-        Parameters
-        -----------
-        message: :class:`bot.Message`
-            The message to process commands for.
-        """
-        # if message.author.bot:
-        #    return
-
-        ctx = await self.get_context(message)
-        await self.invoke(ctx)
+        await self.invoke(await self.get_context(message))
 
     BotBase.process_commands = process_commands_n
     prefix = ","
@@ -54,7 +34,13 @@ log.debug("PID " + str(os.getpid()))
 log.debug(" ")
 log.debug("[Update]: Checking for library updates!")
 
-command = ["/usr/local/bin/pip", "install", "--upgrade", "discord.py", "youtube-dl"]
+command = [
+    "/usr/local/bin/pip",
+    "install",
+    "--upgrade",
+    "discord.py",
+    "youtube-dl",
+]
 response = subprocess.check_output(command, shell=False).decode()
 
 # Check if an update has occurred
@@ -74,14 +60,18 @@ async def on_ready():
     client.add_cog(TextResponse(bot=client))
     log.debug("[Startup]: Finished.")
     await client.change_presence(
-        activity=discord.Activity(type=discord.ActivityType.listening, name=".help")
+        activity=discord.Activity(
+            type=discord.ActivityType.listening, name=".help"
+        )
     )
 
 
 @client.event
 async def on_command_error(ctx, error):
     if "not found" in str(error):
-        await DiscordBot.send_error_message(ctx=ctx, message=str(error))
+        # await DiscordBot.send_error_message(ctx=ctx, message=str(error))
+        print(error)
+        pass
     elif "Invalid Data" in str(error):
         await DiscordBot.send_error_message(
             ctx=ctx, message="Error while playback. Try again."
@@ -93,7 +83,7 @@ async def on_command_error(ctx, error):
 
 @client.event
 async def on_error(*args, **kwargs):
-    print("ERROR HANDLER", args, kwargs)
+    print(*args, **kwargs)
     traceback.print_exc()
 
 

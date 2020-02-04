@@ -1,8 +1,8 @@
-FROM python:3.7-alpine
+FROM python:3.7-slim-buster
 
 COPY requirements.txt /requirements.txt
 
-RUN apk --no-cache add gcc make libev-dev libc-dev
+RUN apt-get update && apt-get install gcc make libev-dev libc-dev -y
 
 RUN pip install --upgrade pip \
     && pip install -r requirements.txt

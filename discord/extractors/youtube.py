@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 import aiohttp
@@ -46,7 +47,7 @@ class Youtube:
             with async_timeout.timeout(5):
                 async with self.session.get(url=url) as re:
                     return re.text()
-        except TimeoutError:
+        except asyncio.TimeoutError:
             return Error(True, Errors.default)
 
     async def http_post(self, url, data):
@@ -58,10 +59,23 @@ class Youtube:
                             return Error(True, Errors.backend_down)
                         return Error(True, await re.text())
                     return await re.text()
-        except TimeoutError:
+        except asyncio.TimeoutError:
             return Error(True, Errors.default)
 
-    async def youtube_term(self, term):
+    async def youtube_term(self, song: (Song, str)):
+        log.info(
+            logging_manager.debug_info("Youtube Term Type: " + str(type(song)))
+        )
+        if isinstance(song, Song):
+            if song.term:
+                term = song.term
+            elif song.title:
+                term = song.title
+            else:
+                return Error(True, Errors.no_results_found)
+        else:
+            term = song
+
         url = await self.http_post(self.term_url, term)
 
         if isinstance(url, Error):

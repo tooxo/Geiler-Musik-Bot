@@ -4,15 +4,20 @@ from inspect import getframeinfo, stack
 
 class LoggingManager:
     def __init__(self):
-        logging.basicConfig(level=logging.WARNING)
+        logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger("LOG")
         self.handler = logging.StreamHandler()
-        self.formatter = logging.Formatter("%(asctime)s %(levelname)-6s %(message)s")
+        self.formatter = logging.Formatter(
+            "%(asctime)s %(levelname)-6s %(message)s"
+        )
         self.handler.setFormatter(self.formatter)
         self.logger.propagate = False
         if not self.logger.handlers:
             self.logger.addHandler(self.handler)
         self.logger.setLevel(logging.DEBUG)
+
+    def info(self, message):
+        self.logger.info(message)
 
     def debug(self, message):
         self.logger.debug(message)

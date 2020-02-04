@@ -11,7 +11,8 @@ class SoundCloudType:
     def valid(self):
         if (
             re.match(VariableStore.soundcloud_url_pattern, self.url) is not None
-            or re.match(VariableStore.soundcloud_sets_pattern, self.url) is not None
+            or re.match(VariableStore.soundcloud_sets_pattern, self.url)
+            is not None
         ):
             return True
         return False

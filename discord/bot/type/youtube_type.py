@@ -19,4 +19,6 @@ class YouTubeType:
     def id(self):
         if not self.valid:
             return None
-        return re.search(VariableStore.youtube_video_pattern, self.url).group("id")
+        return re.search(VariableStore.youtube_video_pattern, self.url).group(
+            "id"
+        )

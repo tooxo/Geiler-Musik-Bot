@@ -4,7 +4,25 @@ from .error import Error
 
 
 class Song:
-    def __init__(self, song=None):
+    def __init__(
+        self,
+        song=None,
+        title=None,
+        term=None,
+        id=None,
+        link=None,
+        stream=None,
+        duration=None,
+        loadtime=None,
+        thumbnail=None,
+        error=Error(False),
+        user=None,
+        image_url=None,
+        abr=None,
+        codec=None,
+        song_name=None,
+        artist=None,
+    ):
         if song:
             self.title = song.title
             self.term = song.term
@@ -18,20 +36,26 @@ class Song:
             self.image_url = song.image_url
             self.abr = song.abr
             self.codec = song.codec
+
+            self.song_name = song.song_name
+            self.artist = song.artist
         else:
-            self.title = None
-            self.term = None
-            self.id = None
-            self.link = None
-            self.stream = None
-            self.duration = None
-            self.loadtime = None
-            self.thumbnail = None
-            self.error = Error(False)
-            self.user = None
-            self.image_url = None
-            self.abr = None
-            self.codec = None
+            self.title = title
+            self.term = term
+            self.id = id
+            self.link = link
+            self.stream = stream
+            self.duration = duration
+            self.loadtime = loadtime
+            self.thumbnail = thumbnail
+            self.error = error
+            self.user = user
+            self.image_url = image_url
+            self.abr = abr
+            self.codec = codec
+
+            self.song_name = song_name
+            self.artist = artist
 
     @property
     def image(self):
@@ -42,7 +66,7 @@ class Song:
         return None
 
     @staticmethod
-    def from_dict(d):
+    def from_dict(d: dict):
         song = Song()
         song.title = strip_youtube_title(d["title"])
         song.term = d["term"]
@@ -53,4 +77,18 @@ class Song:
         song.loadtime = d["loadtime"]
         song.thumbnail = d["thumbnail"]
         song.codec = d["codec"]
+        song.abr = d.get("abr", 0)
         return song
+
+    @staticmethod
+    def copy_song(_from, _to):
+        _from: Song
+        _to: Song
+        for attribute in _from.__dict__.keys():
+            if hasattr(_from, attribute) and attribute != "image_url":
+                if getattr(_from, attribute) is not None:
+                    setattr(_to, attribute, getattr(_from, attribute))
+        return _to
+
+    def to_string(self):
+        return self.__dict__

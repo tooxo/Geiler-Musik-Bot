@@ -53,7 +53,9 @@ class ThreadedSocketServer:
             s += random.choice(string.ascii_lowercase)
         return s
 
-    def handle_client_connection(self, client: socket.socket, ip: tuple, _id: str):
+    def handle_client_connection(
+        self, client: socket.socket, ip: tuple, _id: str
+    ):
         # authentication
         try:
             proposed_api_key = client.recv(1024).decode()
@@ -153,9 +155,15 @@ class Parent:
             node: Node = self.socket_server.nodes[
                 random.choice(list(self.socket_server.nodes.keys()))
             ]
-            print("DEBUG | RECV, YT_SEARCH:", request.data, ";", "=>", node.name)
+            print(
+                "DEBUG | RECV, YT_SEARCH:", request.data, ";", "=>", node.name
+            )
             r = requests.post(
-                "http://" + node.ip + ":" + str(node.port) + "/research/youtube_search",
+                "http://"
+                + node.ip
+                + ":"
+                + str(node.port)
+                + "/research/youtube_search",
                 data=request.data,
             )
             url = r.text
@@ -186,7 +194,11 @@ class Parent:
             self.cache[_id] = node
 
             tx = requests.post(
-                "http://" + node.ip + ":" + str(node.port) + "/research/youtube_video",
+                "http://"
+                + node.ip
+                + ":"
+                + str(node.port)
+                + "/research/youtube_video",
                 data=_id,
             )
             print(
@@ -208,7 +220,9 @@ class Parent:
             node: Node = self.socket_server.nodes[
                 random.choice(list(self.socket_server.nodes.keys()))
             ]
-            print("DEBUG | RECV, YT_PLAYLIST:", request.data, ";", "=>", node.name)
+            print(
+                "DEBUG | RECV, YT_PLAYLIST:", request.data, ";", "=>", node.name
+            )
             tx = requests.post(
                 "http://"
                 + node.ip
@@ -254,7 +268,9 @@ class Parent:
                 "<=",
                 node.name,
             )
-            return Response(req.text, req.status_code, mimetype="application/json")
+            return Response(
+                req.text, req.status_code, mimetype="application/json"
+            )
 
         @self.app.route("/research/soundcloud_playlist", methods=["POST"])
         def soundcloud_playlist():

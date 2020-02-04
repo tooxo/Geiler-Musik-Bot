@@ -5,3 +5,6 @@ expiringdict
 beautifulsoup4
 bjoern
 pyyaml
+gunicorn
+gevent
+pyopenssl

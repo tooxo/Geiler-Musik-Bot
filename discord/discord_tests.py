@@ -30,21 +30,27 @@ class TestClient:
 
         @self.test_collector()
         async def test_pause(interface: TestInterface):
-            await interface.assert_reply_equals(",pause", "Paused! :pause_button:")
+            await interface.assert_reply_equals(
+                ",pause", "Paused! :pause_button:"
+            )
             await asyncio.sleep(1)
             await interface.assert_reply_equals(",pause", "Already Paused.")
             await asyncio.sleep(1)
 
         @self.test_collector()
         async def test_unpause(interface: TestInterface):
-            await interface.assert_reply_equals(",resume", "Unpaused! :play_pause:")
+            await interface.assert_reply_equals(
+                ",resume", "Unpaused! :play_pause:"
+            )
             await asyncio.sleep(1)
             await interface.assert_reply_equals(",resume", "Not Paused.")
             await asyncio.sleep(1)
 
         @self.test_collector()
         async def test_skip(interface: TestInterface):
-            await interface.assert_reply_equals(",skip", "Skipped! :track_next:")
+            await interface.assert_reply_equals(
+                ",skip", "Skipped! :track_next:"
+            )
             await asyncio.sleep(1)
             await interface.assert_reply_equals(
                 ",skip", "Nothing is playing right now!"
@@ -88,13 +94,17 @@ class TestClient:
 
         @self.test_collector()
         async def test_nobody_in_channel(interface: TestInterface):
-            await interface.assert_reply_equals(",skip", "The bot isn't connected.")
+            await interface.assert_reply_equals(
+                ",skip", "The bot isn't connected."
+            )
 
         @self.test_collector()
         async def user_alone_in_channel(interface: TestInterface):
             await interface.connect(self.voice_channel)
             await asyncio.sleep(1)
-            await interface.assert_reply_equals(",skip", "The bot isn't connected.")
+            await interface.assert_reply_equals(
+                ",skip", "The bot isn't connected."
+            )
             await asyncio.sleep(1)
             await interface.disconnect()
             await asyncio.sleep(1)
@@ -133,7 +143,9 @@ class TestClient:
                     )
                 )
                 await asyncio.sleep(10)
-                await interface.assert_reply_embed_equals(",queue", embed, ["fields"])
+                await interface.assert_reply_embed_equals(
+                    ",queue", embed, ["fields"]
+                )
             except Exception as e:
                 await interface.send_message(",exit")
                 await interface.disconnect()
@@ -189,7 +201,8 @@ class TestClient:
             spotify_url = "https://open.spotify.com/playlist/37i9dQZEVXbMDoHDwVN2tF?si=ZphJKc-3T-Ov6zeXGi9lnw"
             await interface.connect(self.voice_channel)
             await interface.assert_reply_equals(
-                ",p " + spotify_url, ":asterisk: Added 50 Tracks to Queue. :asterisk:"
+                ",p " + spotify_url,
+                ":asterisk: Added 50 Tracks to Queue. :asterisk:",
             )
             # top 50 so its 50 songs every time
             await asyncio.sleep(3)
@@ -202,7 +215,8 @@ class TestClient:
             spotify_url = "https://open.spotify.com/artist/5K4W6rqBFWDnAN6FQUkS6x?si=YWvqun8PTWmqSPfs7YKtqw"
             await interface.connect(self.voice_channel)
             await interface.assert_reply_equals(
-                ",p " + spotify_url, ":asterisk: Added 10 Tracks to Queue. :asterisk:"
+                ",p " + spotify_url,
+                ":asterisk: Added 10 Tracks to Queue. :asterisk:",
             )
             # top 10 so its 10 songs every time
             await asyncio.sleep(3)
@@ -215,7 +229,8 @@ class TestClient:
             spotify_url = "https://open.spotify.com/album/1A3nVEWRJ8yvlPzawHI1pQ?si=DyQA_PVrQzOAHKrcpoP9ww"
             await interface.connect(self.voice_channel)
             await interface.assert_reply_equals(
-                ",p " + spotify_url, ":asterisk: Added 18 Tracks to Queue. :asterisk:"
+                ",p " + spotify_url,
+                ":asterisk: Added 18 Tracks to Queue. :asterisk:",
             )
             await asyncio.sleep(3)
             await interface.send_message(",exit")
@@ -227,7 +242,8 @@ class TestClient:
             spotify_url = "https://www.youtube.com/playlist?list=PLw-VjHDlEOgtl4ldJJ8Arb2WeSlAyBkJS"
             await interface.connect(self.voice_channel)
             await interface.assert_reply_equals(
-                ",p " + spotify_url, ":asterisk: Added 100 Tracks to Queue. :asterisk:"
+                ",p " + spotify_url,
+                ":asterisk: Added 100 Tracks to Queue. :asterisk:",
             )
             # top 100 so its 100 songs every time
             await asyncio.sleep(3)
@@ -246,7 +262,7 @@ class TestClient:
             )
             await asyncio.sleep(2)
             await interface.send_message(",s")
-            await asyncio.sleep(3)
+            await asyncio.sleep(5)
             last_message = await interface.get_last_message()
             await interface.assert_message_equals(
                 last_message, "`Kanye West - Follow God`"

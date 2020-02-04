@@ -1,5 +1,4 @@
 import json
-import math
 import os
 import re
 import socket
@@ -7,9 +6,7 @@ import threading
 import time
 import traceback
 from urllib.parse import quote
-from urllib.request import urlopen
 
-import bjoern
 import requests
 import yaml
 import youtube_dl
@@ -24,7 +21,9 @@ def __real_initialize(self):
     self._CLIENT_ID = "YUKXoArFcqrlQn9tfNHvvyfnDISj04zk"
 
 
-youtube_dl.extractor.soundcloud.SoundcloudIE._real_initialize = __real_initialize
+youtube_dl.extractor.soundcloud.SoundcloudIE._real_initialize = (
+    __real_initialize
+)
 
 
 class Errors:
@@ -35,11 +34,17 @@ class Errors:
         "**There was an error pulling the Playlist, 0 Songs were added. "
         "This may be caused by the playlist being private or deleted.**"
     )
-    cant_reach_youtube = "Can't reach YouTube. Server Error on their side maybe?"
+    cant_reach_youtube = (
+        "Can't reach YouTube. Server Error on their side maybe?"
+    )
     youtube_url_invalid = "This YouTube Url is invalid."
-    youtube_video_not_available = "The requested YouTube Video is not available."
+    youtube_video_not_available = (
+        "The requested YouTube Video is not available."
+    )
     error_please_retry = "error_please_retry"
-    backend_down = "Our backend seems to be down right now, try again in a few minutes."
+    backend_down = (
+        "Our backend seems to be down right now, try again in a few minutes."
+    )
 
     @staticmethod
     def as_list():
@@ -101,11 +106,11 @@ class YouTube:
     def get_format(formats: list):
         for item in formats:
             if item["format_id"] == "250":
-                return item["url"], item["acodec"]
+                return item["url"], item["acodec"], item["abr"]
         for item in formats:
             # return some audio stream
             if "audio only" in item["format"]:
-                return item["url"], item["acodec"]
+                return item["url"], item["acodec"], item["abr"]
 
     def youtube_extraction(self, video_id, url, own_ip, custom_port):
         try:
@@ -127,13 +132,14 @@ class YouTube:
                         + video_id
                     ),
                 }
-                yt_s, c = self.get_format(info_dict["formats"])
+                yt_s, c, abr = self.get_format(info_dict["formats"])
                 song["youtube_stream"] = yt_s
                 song["codec"] = c
-
+                song["abr"] = abr
                 # preferring format 250: 78k bitrate (discord default = 64, max = 96) + already opus formatted
 
                 if "manifest" in song["youtube_stream"]:
+                    # youtube-dl doesn't handle manifest extraction, so I need to do it.
                     song["youtube_stream"] = self.extract_manifest(
                         song["youtube_stream"]
                     )
@@ -143,7 +149,6 @@ class YouTube:
             song["term"] = ""
             song["loadtime"] = int(time.time() - start)
             self.research_cache[song["id"]] = song
-            print("Loaded", url, "in", time.time() - start, "secs.")
             return song
         except NotAvailableException:
             return Errors.youtube_video_not_available
@@ -236,7 +241,9 @@ class SoundCloud:
                     + " - "
                     + info_dict.get("title", ""),
                 }
-                url, codec, abr = self.decide_on_format(info_dict.get("formats", []))
+                url, codec, abr = self.decide_on_format(
+                    info_dict.get("formats", [])
+                )
                 stream_dict = {"stream": url, "codec": codec, "abr": abr}
                 song = {**song, **stream_dict}
                 self.cache[url] = song
@@ -247,7 +254,10 @@ class SoundCloud:
     @staticmethod
     def playlist(url):
         try:
-            youtube_dl_opts = {"extract_flat": True, "logger": YoutubeDLLogger()}
+            youtube_dl_opts = {
+                "extract_flat": True,
+                "logger": YoutubeDLLogger(),
+            }
             with YoutubeDL(youtube_dl_opts) as ydl:
                 info_dict: dict = ydl.extract_info(url=url, download=False)
                 songs = []
@@ -333,29 +343,6 @@ class Node:
                     s.sendall(data)
                     time.sleep(1)
 
-    @staticmethod
-    def get_index(_list, index, default):
-        try:
-            return _list[index]
-        except IndexError:
-            return default
-
-    @staticmethod
-    def to_hex(x: int):
-        if x < 0:
-            h = hex(((abs(x) ^ 0xFFFF) + 1) & 0xFFFF)
-            first = int("0x" + Node.get_index(h, 2, "0") + Node.get_index(h, 3, "0"), 0)
-            second = int(
-                "0x" + Node.get_index(h, 4, "0") + Node.get_index(h, 5, "0"), 0
-            )
-            return [first, second]
-        if x == 0:
-            return [0x00, 0x00]
-        h = list(hex(x))
-        first = int("0x" + Node.get_index(h, 2, "0") + Node.get_index(h, 3, "0"), 0)
-        second = int("0x" + Node.get_index(h, 4, "0") + Node.get_index(h, 5, "0"), 0)
-        return [first, second]
-
     def add_routes(self):
         @self.app.route("/research/youtube_video", methods=["POST"])
         def research__youtube_video():
@@ -378,7 +365,9 @@ class Node:
             if playlist_id is "":
                 return Response("No PlaylistID provided", 400)
             try:
-                playlist = self.youtube.extract_playlist(playlist_id=playlist_id)
+                playlist = self.youtube.extract_playlist(
+                    playlist_id=playlist_id
+                )
                 playlist_string = "["
                 for n in playlist:
                     playlist_string += json.dumps(n)
@@ -424,16 +413,6 @@ class Node:
         @self.app.route("/stream/youtube_video")
         def stream():
             url = request.args.get("id", "")
-            volume = request.args.get("volume", "")
-            if volume == "":
-                volume = 0.5
-
-            volume = float(volume)
-
-            volume = math.log(volume, 10) * 20
-
-            hex_volume = self.to_hex(round(volume))
-
             if url == "":
                 return Response("No URL provided", 400)
             stream_dict = self.youtube.youtube_extraction(
@@ -444,34 +423,9 @@ class Node:
             )
 
             if not isinstance(stream_dict, str):
-                # req = urlopen(url=stream_dict["youtube_stream"])
-
                 req = requests.get(stream_dict["youtube_stream"], stream=True)
-
-                def gen():
-                    g = req.iter_content(chunk_size=1024)
-                    chunk = next(g)
-                    index = chunk.index(
-                        b"\x4F\x70\x75\x73\x48\x65\x61\x64"  # "OpusHead"
-                    )  # Finds the position of the opus file header in the stream
-                    chunk_list = bytearray(chunk)
-                    chunk_list[index + 16] = hex_volume[
-                        0
-                    ]  # moves 16 positions to the right from there to
-                    chunk_list[index + 17] = hex_volume[1]  # modify the volume bits
-                    chunk = bytes(chunk_list)
-                    yield chunk
-                    try:
-                        for chunk in g:
-                            if not chunk:
-                                yield b""
-                            yield chunk
-                    except requests.exceptions.ChunkedEncodingError:
-                        # Throws EOF error on discord, but I don't see a better way to do it.
-                        yield b""
-
                 return Response(
-                    gen(),
+                    req.iter_content(chunk_size=1024),
                     content_type=req.headers["Content-Type"],
                     headers={"Content-Length": req.headers["Content-Length"]},
                 )
@@ -479,9 +433,9 @@ class Node:
 
     def startup(self):
         self.add_routes()
-        print("Startup done.")
+        return self.app
         # self.app.run("0.0.0.0", int(self.port), threaded=True)
-        bjoern.run(self.app, "0.0.0.0", int(self.port), True)
+        # bjoern.run(self.app, "0.0.0.0", int(self.port), True)
 
 
 def login_loop(n: Node):
@@ -490,8 +444,7 @@ def login_loop(n: Node):
         time.sleep(30)
 
 
-if __name__ == "__main__":
-    print("Beginning to start up.")
-    node = Node()
-    threading.Thread(target=login_loop, args=(node,)).start()
-    node.startup()
+print("Beginning to start up.")
+node = Node()
+threading.Thread(target=login_loop, args=(node,)).start()
+app = node.startup()

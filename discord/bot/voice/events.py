@@ -69,9 +69,15 @@ class Events(Cog):
             with async_timeout.timeout(300):
                 while 1:
                     await asyncio.sleep(2)
-                    if self.parent.guilds[guild_id].voice_channel is not channel:
+                    if (
+                        self.parent.guilds[guild_id].voice_channel
+                        is not channel
+                    ):
                         return
-                    if len(self.parent.guilds[guild_id].voice_channel.members) > 1:
+                    if (
+                        len(self.parent.guilds[guild_id].voice_channel.members)
+                        > 1
+                    ):
                         return
                     if time.time() == 0:
                         break

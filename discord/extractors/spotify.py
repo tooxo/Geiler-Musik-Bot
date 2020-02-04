@@ -22,7 +22,9 @@ class Spotify:
 
     async def request_post(self, url, header=None, body=None):
         with async_timeout.timeout(3):
-            async with self.session.post(url, headers=header, data=body) as response:
+            async with self.session.post(
+                url, headers=header, data=body
+            ) as response:
                 return await response.text()
 
     async def request_get(self, url, header):
@@ -53,6 +55,7 @@ class Spotify:
             test = await self.request_post(url, header, payload)
             asyncio.ensure_future(self.invalidate_token())
             self.token = json.loads(test)["access_token"]
+            self.log.logger.info("Got new Spotify Token: " + self.token)
         return self.token
 
     async def spotify_track(self, track_url):
@@ -67,6 +70,8 @@ class Spotify:
         return SpotifySong(
             title=result["artists"][0]["name"] + " - " + result["name"],
             image_url=result["album"]["images"][0]["url"],
+            song_name=result["name"],
+            artist=result["artists"][0]["name"],
         )
         # return result["artists"][0]["name"] + " - " + result["name"]
 
@@ -91,18 +96,32 @@ class Spotify:
                     if track["is_local"]:
                         try:
                             t_list.append(
-                                track["track"]["artists"][0]["name"]
-                                + " - "
-                                + track["track"]["name"]
+                                SpotifySong(
+                                    title=track["track"]["artists"][0]["name"]
+                                    + " - "
+                                    + track["track"]["name"],
+                                    image_url=None,
+                                    song_name=track["track"]["name"],
+                                    artist=track["track"]["artists"][0]["name"],
+                                )
                             )
                         except (IndexError, KeyError):
                             # Probably invalid local file
                             continue
                     else:
                         t_list.append(
-                            track["track"]["album"]["artists"][0]["name"]
-                            + " - "
-                            + track["track"]["name"]
+                            SpotifySong(
+                                title=track["track"]["album"]["artists"][0][
+                                    "name"
+                                ]
+                                + " - "
+                                + track["track"]["name"],
+                                image_url=track["track"]["album"]["images"][0][
+                                    "url"
+                                ],
+                                song_name=track["track"]["name"],
+                                artist=track["track"]["artists"][0]["name"],
+                            )
                         )
 
                 if js["next"] is None:
@@ -125,7 +144,9 @@ class Spotify:
         album = SpotifyType(album_url)
         if not album.valid:
             return []
-        url = "https://api.spotify.com/v1/albums/" + album.id + "/tracks?limit=50"
+        url = (
+            "https://api.spotify.com/v1/albums/" + album.id + "/tracks?limit=50"
+        )
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
         js = json.loads(result)
@@ -142,7 +163,9 @@ class Spotify:
         if not artist.valid:
             return []
         url = (
-            "https://api.spotify.com/v1/artists/" + artist.id + "/top-tracks?country=DE"
+            "https://api.spotify.com/v1/artists/"
+            + artist.id
+            + "/top-tracks?country=DE"
         )
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)

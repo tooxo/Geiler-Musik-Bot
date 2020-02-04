@@ -36,12 +36,15 @@ class TextResponse(commands.Cog):
     @commands.command()
     async def help(self, ctx):
         embed = (
-            discord.Embed(title="Help", color=0x00FFCC, url="https://d.chulte.de")
+            discord.Embed(
+                title="Help", color=0x00FFCC, url="https://d.chulte.de"
+            )
             .add_field(
                 name="Play Music",
                 value="`.play [songname | link]` - `Plays / Queues a song.`\n"
                 "`.ps [songname | link]` - `Queues a song and instantly skips to it.`\n"
                 "`.pn [songname | link]` - `Queues a song at first position in queue.`\n",
+                inline=False,
             )
             .add_field(
                 name="Music Control",
@@ -50,12 +53,14 @@ class TextResponse(commands.Cog):
                 "`.stop` - `Stops the playback.`\n"
                 "`.skip [songs (optional)]` - `Skips a specific amount of songs.`\n"
                 "`.info` - `Shows General Information about the current song.`\n",
+                inline=False,
             )
             .add_field(
                 name="Queue Control",
                 value="`.queue` - `Displays the Queue.`\n"
                 "`.shuffle` - `Shuffles the Queue`\n"
                 "`.clear` - `Empties the Queue`\n",
+                inline=False,
             )
             .add_field(
                 name="General",
@@ -63,6 +68,7 @@ class TextResponse(commands.Cog):
                 "`.rename <new name>` - `Renames the Bot`\n"
                 "`.chars <full> <empty>` - `Changes the Characters used for the Song Progress Bar.`\n"
                 "",
+                inline=False,
             )
         )
 
@@ -76,10 +82,13 @@ class TextResponse(commands.Cog):
     async def support(self, ctx):
         embed = (
             discord.Embed(
-                title="Supported Services", color=0x00FFCC, url="https://d.chulte.de"
+                title="Supported Services",
+                color=0x00FFCC,
+                url="https://d.chulte.de",
             )
             .add_field(
-                name="YouTube", value="Video Urls\nVideo Search Terms\nPlaylist Urls"
+                name="YouTube",
+                value="Video Urls\nVideo Search Terms\nPlaylist Urls",
             )
             .add_field(
                 name="Spotify",

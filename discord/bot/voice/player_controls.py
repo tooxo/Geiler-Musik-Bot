@@ -31,7 +31,9 @@ class PlayerControls(Cog):
             return
         if self.parent.guilds[ctx.guild.id].song_queue.qsize() != 0:
             self.parent.guilds[ctx.guild.id].song_queue = Queue()
-            await self.parent.send_embed_message(ctx, "Cleared the Queue. :cloud:")
+            await self.parent.send_embed_message(
+                ctx, "Cleared the Queue. :cloud:"
+            )
         else:
             await self.parent.send_error_message(
                 ctx, "The Playlist was already empty! :cloud:"
@@ -47,7 +49,9 @@ class PlayerControls(Cog):
                 ctx, "Shuffled! :twisted_rightwards_arrows:"
             )
         else:
-            await self.parent.send_error_message(ctx, "The queue is empty. :cloud:")
+            await self.parent.send_error_message(
+                ctx, "The queue is empty. :cloud:"
+            )
 
     @commands.command(aliases=["yeehee"])
     async def stop(self, ctx):
@@ -57,7 +61,9 @@ class PlayerControls(Cog):
             self.parent.guilds[ctx.guild.id].song_queue = Queue()
             self.parent.guilds[ctx.guild.id].now_playing = None
             self.parent.guilds[ctx.guild.id].voice_client.stop()
-            await self.parent.send_embed_message(ctx, "Music Stopped! :octagonal_sign:")
+            await self.parent.send_embed_message(
+                ctx, "Music Stopped! :octagonal_sign:"
+            )
         else:
             await self.parent.send_error_message(
                 ctx, ":thinking: The Bot isn't connected. :thinking:"
@@ -88,7 +94,9 @@ class PlayerControls(Cog):
         try:
             count = int(count)
         except ValueError:
-            await self.parent.send_error_message(ctx, "Please provide a valid number.")
+            await self.parent.send_error_message(
+                ctx, "Please provide a valid number."
+            )
             return
         if self.parent.guilds[ctx.guild.id].voice_client is not None:
             if self.parent.guilds[ctx.guild.id].now_playing is not None:
@@ -103,19 +111,26 @@ class PlayerControls(Cog):
                     )
                     return
                 else:
-                    if count > self.parent.guilds[ctx.guild.id].song_queue.qsize():
+                    if (
+                        count
+                        > self.parent.guilds[ctx.guild.id].song_queue.qsize()
+                    ):
                         await self.parent.send_embed_message(
                             ctx,
                             "Skipped "
                             + str(
-                                self.parent.guilds[ctx.guild.id].song_queue.qsize()
+                                self.parent.guilds[
+                                    ctx.guild.id
+                                ].song_queue.qsize()
                             )
                             + " Tracks! :track_next:",
                         )
                         self.parent.guilds[ctx.guild.id].voice_client.stop()
                     else:
 
-                        queue = self.parent.guilds[ctx.guild.id].song_queue.queue
+                        queue = self.parent.guilds[
+                            ctx.guild.id
+                        ].song_queue.queue
 
                         self.parent.guilds[
                             ctx.guild.id
@@ -133,7 +148,9 @@ class PlayerControls(Cog):
                 )
 
         else:
-            await self.parent.send_error_message(ctx, "Not connected!", delete_after=10)
+            await self.parent.send_error_message(
+                ctx, "Not connected!", delete_after=10
+            )
 
         await asyncio.sleep(10)
         await ctx.message.delete()
@@ -147,7 +164,9 @@ class PlayerControls(Cog):
         if self.parent.guilds[ctx.guild.id].voice_client is not None:
             if self.parent.guilds[ctx.guild.id].voice_client.is_paused():
                 self.parent.guilds[ctx.guild.id].voice_client.resume()
-                await self.parent.send_embed_message(ctx, "Unpaused! :play_pause:")
+                await self.parent.send_embed_message(
+                    ctx, "Unpaused! :play_pause:"
+                )
             else:
                 await self.parent.send_error_message(ctx, "Not Paused.")
 
@@ -178,13 +197,17 @@ class PlayerControls(Cog):
                 )
             else:
                 embed.add_field(
-                    name="**Currently Playing...**", value="Nothing.\n", inline=False
+                    name="**Currently Playing...**",
+                    value="Nothing.\n",
+                    inline=False,
                 )
         else:
             no_embed_string += "**Currently Playing ...**" + "\n"
             try:
                 no_embed_string += (
-                    "`" + self.parent.guilds[ctx.guild.id].now_playing.title + "`\n"
+                    "`"
+                    + self.parent.guilds[ctx.guild.id].now_playing.title
+                    + "`\n"
                 )
             except AttributeError:
                 no_embed_string += "Nothing.\n"
@@ -209,7 +232,9 @@ class PlayerControls(Cog):
                         )
 
                     elif (
-                        self.parent.guilds[ctx.guild.id].song_queue.queue[x].link
+                        self.parent.guilds[ctx.guild.id]
+                        .song_queue.queue[x]
+                        .link
                         is not None
                     ):
 
@@ -230,7 +255,8 @@ class PlayerControls(Cog):
                 _t += (
                     "`(+)` `"
                     + str(
-                        len(self.parent.guilds[ctx.guild.id].song_queue.queue) - 9
+                        len(self.parent.guilds[ctx.guild.id].song_queue.queue)
+                        - 9
                     )
                     + " Tracks...`"
                 )
@@ -248,7 +274,9 @@ class PlayerControls(Cog):
                 )
             else:
                 no_embed_string += "**Coming up:**\n"
-                no_embed_string += "Nothing in Queue. Use .play to add something."
+                no_embed_string += (
+                    "Nothing in Queue. Use .play to add something."
+                )
 
         if use_embeds:
             await ctx.send(embed=embed)

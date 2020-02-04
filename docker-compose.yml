@@ -1,4 +1,4 @@
-version: '3.7'
+version: '2.4'
 services:
     discord:
         build:
@@ -12,8 +12,6 @@ services:
         env_file:
             - sysenv.env
         stop_grace_period: 15s
-        # depends_on:
-        #     - database
         networks:
             - web
         init: true
@@ -29,8 +27,6 @@ services:
             - ./web/:/usr/src/app
         env_file:
             - sysenv.env
-        #   depends_on:
-        #       - database
         networks:
             - web
         labels:
@@ -38,16 +34,11 @@ services:
             - traefik.enable=true
             - traefik.frontend.priority=5
             - traefik.port=80
-    #database:
-    #    image: tooxo/alpine-mongo-silent
-    #    volumes:
-    #        - ./mongodb:/data/db
-    #    networks:
-    #        - web
     node:
         build: youtube/node
         working_dir: /home/src/app/
-        command: "python3 -u node.py"
+        #command: "python3 -u node.py"
+        command: gunicorn node:app -k gevent --worker-connections 1000 --preload --bind=0.0.0.0:9123 --capture-output
         restart: always
         depends_on:
             - parent
@@ -55,6 +46,8 @@ services:
             - ./youtube/node/:/home/src/app
         env_file:
             - youtube/node/settings.env
+        environment:
+            - PYTHONUNBUFFERED=TRUE
         networks:
             - web
         init: true
