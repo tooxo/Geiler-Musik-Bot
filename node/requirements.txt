@@ -8,3 +8,8 @@ pyyaml
 gunicorn
 gevent
 pyopenssl
+discord.py
+opuslib
+pynacl
+aiohttp
+psutil

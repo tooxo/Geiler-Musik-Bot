@@ -1,29 +1,25 @@
+import asyncio
 import json
+import logging
 import os
+import random
 import re
-import socket
-import threading
+import string
+import functools
 import time
 import traceback
 from urllib.parse import quote
 
+import aiohttp
 import requests
 import yaml
-import youtube_dl
 from bs4 import BeautifulSoup
 from expiringdict import ExpiringDict
 from flask import Flask, Response, request
 from youtube_dl import YoutubeDL
 from youtube_dl.utils import DownloadError, ExtractorError
 
-
-def __real_initialize(self):
-    self._CLIENT_ID = "YUKXoArFcqrlQn9tfNHvvyfnDISj04zk"
-
-
-youtube_dl.extractor.soundcloud.SoundcloudIE._real_initialize = (
-    __real_initialize
-)
+from discord_handler import DiscordHandler
 
 
 class Errors:
@@ -45,14 +41,6 @@ class Errors:
     backend_down = (
         "Our backend seems to be down right now, try again in a few minutes."
     )
-
-    @staticmethod
-    def as_list():
-        l = []
-        for att in Errors.__dict__:
-            if isinstance(Errors.__dict__[att], list):
-                l.append(Errors.__dict__[att])
-        return l
 
 
 class YoutubeDLLogger(object):
@@ -84,6 +72,14 @@ class YouTube:
     def __init__(self):
         self.research_cache = ExpiringDict(1000, 10000)
         self.search_cache = dict()
+        self.cipher = self.create_cipher()
+
+    @staticmethod
+    def create_cipher():
+        st = ""
+        for x in range(16):
+            st += random.choice(string.ascii_lowercase)
+        return st
 
     @staticmethod
     def extract_manifest(manifest_url):
@@ -131,6 +127,7 @@ class YouTube:
                         + "/stream/youtube_video?id="
                         + video_id
                     ),
+                    "cipher": self.cipher,
                 }
                 yt_s, c, abr = self.get_format(info_dict["formats"])
                 song["youtube_stream"] = yt_s
@@ -272,8 +269,8 @@ class Node:
     def __init__(self):
         # loading config
         filename = ""
-        if os.path.exists("./configuration.yaml"):
-            filename = "./configuration.yaml"
+        if os.path.exists("configuration.yaml"):
+            filename = "configuration.yaml"
         elif os.path.exists("./configuration.yml"):
             filename = "./configuration.yml"
         else:
@@ -291,12 +288,14 @@ class Node:
         self._host = y.get("parent_host", "")
         self.parent_port = y.get("parent_port", "")
         self.node_id = y.get("node_id", "")
-        self.port = y.get("port", y.get("PORT", ""))
 
         if "custom_port" not in y:
             self.custom_port = y.get("port", y.get("PORT", ""))
         else:
             self.custom_port = y.get("custom_port", "")
+
+        if self.custom_port == "":
+            self.custom_port = os.environ.get("PORT", 0)
 
         self.host = "http://" + self._host
 
@@ -310,44 +309,76 @@ class Node:
         self.app = Flask(__name__)
         self.youtube = YouTube()
         self.soundcloud = SoundCloud()
+        self.discord = None
 
     @staticmethod
-    def youtube_check():
-        with requests.get("https://www.youtube.com") as req:
-            if req.status_code in (200, 301, 302):
+    async def youtube_check() -> bool:
+        async with aiohttp.request("GET", "https://www.youtube.com") as req:
+            await req.text()
+            if req.status in (200, 301, 302):
                 return True
+            req.close()
         return False
 
-    def login(self):
-        if self.youtube_check() is True:
+    async def login(self):
+        if await self.youtube_check() is True:
             document = {
                 "name": self.node_id,
                 "ip": self.own_ip,
                 "port": self.custom_port,
             }
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.connect((self._host, 9988))
-                s.sendall(self.api_key.encode())
-                if s.recv(1024).decode() != "ACCEPTED":
-                    print("API Key is wrong. Check your configuration.")
-                    exit(100)
-                    return False
-                s.sendall(json.dumps(document).encode("UTF-8"))
+
+            reader, writer = await asyncio.open_connection(
+                self._host, self.parent_port, loop=asyncio.get_event_loop()
+            )
+            reader: asyncio.StreamReader
+            writer: asyncio.StreamWriter
+
+            writer.write(f"A_{self.api_key}".encode())
+            await writer.drain()
+            if (await reader.read(1024)).decode() != "A_ACCEPT":
+                print("API Key is wrong. Check your configuration.")
+                exit(100)
+                return False
+            writer.write(json.dumps(document).encode("UTF-8"))
+            await writer.drain()
+
+            discord_api_key = ""
+            while not DiscordHandler.validate_token(discord_api_key):
+                discord_api_key = (await reader.read(1024)).decode()[3:]
+
+            writer.write(b"BT_ACCEPT")
+            await writer.drain()
+
+            self.discord = DiscordHandler(discord_api_key, writer, reader, self)
+
+            async def socket_thread(discord: DiscordHandler):
                 while True:
+                    await asyncio.sleep(0.1)
                     try:
-                        data = s.recv(1024)
+                        data = await reader.read(4096)
                     except BrokenPipeError:
-                        return
-                    if data is None:
+                        break
+                    if not data:
                         continue
-                    s.sendall(data)
-                    time.sleep(1)
+                    d = data.decode()
+                    if d.startswith("C"):
+                        try:
+                            await discord.handle_command(d)
+                        except Exception as e:
+                            traceback.print_exc()
+
+            asyncio.ensure_future(
+                socket_thread(self.discord)
+            ).add_done_callback(lambda _: exit(1))
+
+            await self.discord.start()
 
     def add_routes(self):
         @self.app.route("/research/youtube_video", methods=["POST"])
         def research__youtube_video():
             video_id = request.data.decode()
-            if video_id is "":
+            if video_id == "":
                 return Response("No VideoID provided", 400)
             extracted_content: dict = self.youtube.youtube_extraction(
                 video_id=video_id,
@@ -362,7 +393,7 @@ class Node:
         @self.app.route("/research/youtube_playlist", methods=["POST"])
         def research__youtube_playlist():
             playlist_id = request.data.decode()
-            if playlist_id is "":
+            if playlist_id == "":
                 return Response("No PlaylistID provided", 400)
             try:
                 playlist = self.youtube.extract_playlist(
@@ -431,20 +462,33 @@ class Node:
                 )
             return Response("Error", 400)
 
-    def startup(self):
+    async def startup(self):
         self.add_routes()
-        return self.app
-        # self.app.run("0.0.0.0", int(self.port), threaded=True)
-        # bjoern.run(self.app, "0.0.0.0", int(self.port), True)
+        logging.getLogger("werkzeug").setLevel(logging.ERROR)
+        asyncio.get_event_loop().run_in_executor(
+            None,
+            functools.partial(
+                self.app.run,
+                host="0.0.0.0",
+                port=int(self.custom_port),
+                threaded=True,
+            ),
+        )
 
 
-def login_loop(n: Node):
+async def login_loop(n: Node):
     while True:
-        n.login()
-        time.sleep(30)
+        await n.login()
+        await asyncio.sleep(30)
 
 
-print("Beginning to start up.")
 node = Node()
-threading.Thread(target=login_loop, args=(node,)).start()
-app = node.startup()
+
+asyncio.get_event_loop().create_task(node.startup())
+asyncio.get_event_loop().create_task(login_loop(node))
+
+try:
+    asyncio.get_event_loop().run_forever()
+except (KeyboardInterrupt, SystemExit):
+    asyncio.get_event_loop().close()
+    print("Goodbye!")

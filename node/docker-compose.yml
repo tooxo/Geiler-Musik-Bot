@@ -2,7 +2,7 @@ version: "2"
 
 services:
   node:
-    build: .
+    build: bot/voice
     command: "python3 -u /home/src/app/node.py"
     restart: always
     volumes:

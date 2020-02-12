@@ -1,6 +1,0 @@
-flask
-youtube_dl
-requests
-expiringdict
-beautifulsoup4
-bjoern

@@ -12,6 +12,8 @@ services:
         env_file:
             - sysenv.env
         stop_grace_period: 15s
+        ports:
+            - 9988:9988
         networks:
             - web
         init: true
@@ -35,36 +37,18 @@ services:
             - traefik.frontend.priority=5
             - traefik.port=80
     node:
-        build: youtube/node
+        build: node/
         working_dir: /home/src/app/
-        #command: "python3 -u node.py"
-        command: gunicorn node:app -k gevent --worker-connections 1000 --preload --bind=0.0.0.0:9123 --capture-output
+        command: /wait.sh -t 0 discord:9988 -- python node.py
         restart: always
-        depends_on:
-            - parent
         volumes:
-            - ./youtube/node/:/home/src/app
-        env_file:
-            - youtube/node/settings.env
+            - ./node/:/home/src/app
         environment:
             - PYTHONUNBUFFERED=TRUE
         networks:
             - web
         init: true
-    parent:
-        build: youtube
-        working_dir: /home/src/app/
-        command: "python3 -u parent.py"
-        restart: always
-        volumes:
-            - ./youtube/:/home/src/app
-        env_file:
-            - youtube/settings.env
-        networks:
-            - web
-        ports:
-            - 9988:9988
-        init: true
+
 networks:
     web:
         external: true
