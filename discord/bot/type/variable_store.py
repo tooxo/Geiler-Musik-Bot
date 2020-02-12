@@ -6,6 +6,7 @@ import re
 def strip_youtube_title(title):
     title = re.sub(VariableStore.youtube_title_pattern, "", title)
     title = re.sub(VariableStore.space_cut_pattern, "", title)
+    title = re.sub(VariableStore.empty_brackets_pattern, "", title)
     while "  " in title:
         title = title.replace("  ", " ")
     return title
@@ -41,9 +42,13 @@ class VariableStore:
 
     youtube_title_pattern = re.compile(
         r"([\[(]?"
-        r"(((official )?lyric(s)?( video)?)|of(f)?icial (music )?video|video oficial|[24]K|((FULL[ -]?)HD)|(MV))"
+        r"(((official )?lyric(s)?( video)?)|of(f)?icial (music )?video|video oficial| [24]K|((FULL[ -]?)HD)|(MV))"
         r"[\])]?)",
         re.MULTILINE | re.IGNORECASE,
+    )
+
+    empty_brackets_pattern = re.compile(
+        r"\([ ]+\)", re.MULTILINE | re.IGNORECASE
     )
 
     soundcloud_url_pattern = re.compile(

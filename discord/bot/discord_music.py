@@ -2,6 +2,8 @@ import asyncio
 import datetime
 import random
 import string
+import sys
+import threading
 from os import environ
 from typing import Dict, Optional
 
@@ -9,6 +11,7 @@ import dbl
 
 import discord
 import logging_manager
+from bot.node_controller.controller import Controller
 from bot.type.error import Error
 from bot.type.errors import Errors
 from bot.type.guild import Guild
@@ -35,11 +38,19 @@ class DiscordBot(commands.Cog):
         self.bot.add_cog(Events(self.bot, self))
         self.bot.add_cog(PlayerControls(self.bot, self))
 
+        self.node_controller = Controller(self)
+        # threading.Thread(
+        #    target=self.node_controller.start_listener, args=()
+        # ).start()
+        asyncio.ensure_future(self.node_controller.start_server())
+
         self.spotify = spotify.Spotify()
-        self.soundcloud = soundcloud.SoundCloud()
         self.mongo = mongo.Mongo()
 
-        self.youtube = youtube.Youtube(mongo_client=self.mongo)
+        self.soundcloud = soundcloud.SoundCloud(
+            node_controller=self.node_controller
+        )
+        self.youtube = youtube.Youtube(node_controller=self.node_controller)
 
         restart_key = self.generate_key(64)
         asyncio.run_coroutine_threadsafe(
@@ -54,8 +65,8 @@ class DiscordBot(commands.Cog):
 
         self.dbl_key = environ.get("DBL_KEY", "")
 
-        # reconnect all pending clients
-        self.reconnect()
+        # disconnects all pending clients
+        self.disconnect()
 
         # start server count
         self.run_dbl_stats()
@@ -86,7 +97,7 @@ class DiscordBot(commands.Cog):
             )
         return message
 
-    def reconnect(self):
+    def disconnect(self):
         for _guild in self.bot.guilds:
             self.guilds[_guild.id] = Guild()
             if _guild.me.voice is not None:
@@ -99,7 +110,7 @@ class DiscordBot(commands.Cog):
                         :return:
                         """
                         self.log.debug(
-                            "[Reconnect] Reconnecting " + str(_guild)
+                            "[Disconnect] Disconnecting " + str(_guild)
                         )
                         self.guilds[
                             _guild.id
@@ -108,11 +119,6 @@ class DiscordBot(commands.Cog):
                             timeout=5, reconnect=False
                         )
                         await t.disconnect(force=True)
-                        self.guilds[
-                            _guild.id
-                        ].voice_client = await _guild.me.voice.channel.connect(
-                            timeout=5, reconnect=True
-                        )
 
                     asyncio.run_coroutine_threadsafe(
                         reconnect(_guild), self.bot.loop
@@ -240,7 +246,7 @@ class DiscordBot(commands.Cog):
         await self.mongo.set_volume(ctx.guild.id, var)
         self.guilds[ctx.guild.id].volume = var
         try:
-            self.guilds[ctx.guild.id].voice_client.source.set_volume(var)
+            self.guilds[ctx.guild.id].voice_client.set_volume(var)
         except (AttributeError, TypeError):
             # if pcm source, can be ignored simply
             pass
@@ -439,7 +445,6 @@ class DiscordBot(commands.Cog):
 
     @commands.command(aliases=["albumart", "a", "art"])
     async def album_art(self, ctx):
-        # TODO: To be tested
         if not self.guilds.get(ctx.guild.id, None):
             return
         if not await self.control_check.manipulation_checks(ctx):

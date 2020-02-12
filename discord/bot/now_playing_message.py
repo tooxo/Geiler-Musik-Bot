@@ -7,7 +7,7 @@ import aiohttp
 
 import discord
 import logging_manager
-from bot.FFmpegPCMAudio import PCMVolumeTransformerB
+from bot.node_controller.NodeVoiceClient import NodeVoiceClient
 
 
 class NowPlayingMessage:
@@ -19,7 +19,7 @@ class NowPlayingMessage:
         full=None,
         empty=None,
         discord_music=None,
-        voice_client: discord.VoiceClient = None,
+        voice_client: NodeVoiceClient = None,
     ):
         self.discord_music = discord_music
         self.log = logging_manager.LoggingManager()
@@ -30,8 +30,7 @@ class NowPlayingMessage:
         self.full = full
         self.empty = empty
         if voice_client is not None:
-            self.voice_client: discord.VoiceClient = voice_client
-            self.source: PCMVolumeTransformerB = voice_client.source
+            self.voice_client: NodeVoiceClient = voice_client
         if self.song is not None:
             if self.song.title == "_" or self.song.title is None:
                 self.title = "`" + self.song.term + "`"
@@ -40,6 +39,7 @@ class NowPlayingMessage:
         self.no_embed_mode = environ.get("USE_EMBEDS", "True") == "False"
         self.add_subroutine: (None, asyncio.Future) = None
         self.remove_subroutine: (None, asyncio.Future) = None
+        self.bytes_read = 0
 
     def calculate_recurrences(self):
         """
@@ -90,7 +90,7 @@ class NowPlayingMessage:
             return
         try:
             if not (self.voice_client.is_paused()):
-                now_time = round(self.source.bytes_read / 192000)
+                now_time = round(self.bytes_read / 192000)
                 finish_second = int(
                     self.discord_music.guilds[
                         self.ctx.guild.id
@@ -156,7 +156,7 @@ class NowPlayingMessage:
         def same_channel_check(user: discord.Member):
             if hasattr(user, "voice"):
                 if hasattr(user.voice, "channel"):
-                    if self.voice_client.channel == user.voice.channel:
+                    if self.voice_client.channel_id == user.voice.channel.id:
                         return True
             return False
 

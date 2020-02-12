@@ -1,3 +1,5 @@
+import json
+
 from bot.type.variable_store import strip_youtube_title
 
 from .error import Error
@@ -9,7 +11,7 @@ class Song:
         song=None,
         title=None,
         term=None,
-        id=None,
+        _id=None,
         link=None,
         stream=None,
         duration=None,
@@ -22,6 +24,7 @@ class Song:
         codec=None,
         song_name=None,
         artist=None,
+        guild_id=None,
     ):
         if song:
             self.title = song.title
@@ -39,10 +42,11 @@ class Song:
 
             self.song_name = song.song_name
             self.artist = song.artist
+            self.guild_id = song.guild_id
         else:
             self.title = title
             self.term = term
-            self.id = id
+            self.id = _id
             self.link = link
             self.stream = stream
             self.duration = duration
@@ -56,6 +60,10 @@ class Song:
 
             self.song_name = song_name
             self.artist = artist
+            self.guild_id = guild_id
+
+        self.cipher = ""
+        self.youtube_stream = None
 
     @property
     def image(self):
@@ -68,16 +76,11 @@ class Song:
     @staticmethod
     def from_dict(d: dict):
         song = Song()
-        song.title = strip_youtube_title(d["title"])
-        song.term = d["term"]
-        song.id = d["id"]
-        song.link = d["link"]
-        song.stream = d["stream"]
-        song.duration = d["duration"]
-        song.loadtime = d["loadtime"]
-        song.thumbnail = d["thumbnail"]
-        song.codec = d["codec"]
-        song.abr = d.get("abr", 0)
+        for a in d.keys():
+            if a == "title":
+                setattr(song, a, strip_youtube_title(d[a]))
+            else:
+                setattr(song, a, d.get(a, None))
         return song
 
     @staticmethod
@@ -91,4 +94,8 @@ class Song:
         return _to
 
     def to_string(self):
-        return self.__dict__
+        x = {}
+        for attr in self.__dict__:
+            if type(self.__dict__.get(attr)) in (str, int, list, None):
+                x[attr] = self.__dict__.get(attr)
+        return json.dumps(x)

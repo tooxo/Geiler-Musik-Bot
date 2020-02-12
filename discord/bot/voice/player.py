@@ -3,10 +3,9 @@ import random
 import re
 import traceback
 
+import bot.node_controller.NodeVoiceClient
 import discord
 import logging_manager
-from bot.FFmpegPCMAudio import (FFmpegOpusAudioB, FFmpegPCMAudioB,
-                                PCMVolumeTransformerB)
 from bot.now_playing_message import NowPlayingMessage
 from bot.type.error import Error
 from bot.type.errors import Errors
@@ -53,7 +52,7 @@ class Player(Cog):
                     if _type == Url.youtube:
                         youtube_dict = Song.copy_song(
                             await self.parent.youtube.youtube_url(
-                                small_dict.link
+                                small_dict.link, ctx.guild.id
                             ),
                             small_dict,
                         )
@@ -74,9 +73,7 @@ class Player(Cog):
                         self.parent.log.warning(small_dict)
                     # term
                     youtube_dict = Song.copy_song(
-                        await self.parent.youtube.youtube_term(
-                            small_dict.title
-                        ),
+                        await self.parent.youtube.youtube_term(small_dict),
                         small_dict,
                     )
                 if isinstance(youtube_dict, Error):
@@ -239,6 +236,9 @@ class Player(Cog):
             self.parent.guilds[ctx.guild.id].song_queue = Queue()
 
         songs: list = await self.extract_infos(url=url, ctx=ctx)
+        for __song in songs:
+            __song: Song
+            __song.guild_id = ctx.guild.id
         if len(songs) != 0:
             song_1: Song = songs.__getitem__(0)
             if isinstance(song_1, Error):
@@ -286,7 +286,6 @@ class Player(Cog):
                         self.parent.guilds[ctx.guild.id].voice_client.stop()
             if not self.parent.guilds[ctx.guild.id].voice_client.is_playing():
                 await self.pre_player(ctx)
-            await self.preload_song(ctx)
         except Exception as e:
             self.parent.log.error(traceback.format_exc())
             self.parent.log.error(logging_manager.debug_info(str(e)))
@@ -319,13 +318,7 @@ class Player(Cog):
                     <= len(ctx.author.voice.channel.members)
                     and ctx.author.voice.channel.user_limit != 0
                 ):
-                    if ctx.guild.me.guild_permissions.administrator is True:
-                        self.parent.guilds[
-                            ctx.guild.id
-                        ].voice_client = await ctx.author.voice.channel.connect(
-                            timeout=60, reconnect=True
-                        )
-                    else:
+                    if not ctx.guild.me.guild_permissions.administrator is True:
                         await self.parent.send_embed_message(
                             ctx,
                             "Error while joining your channel. :frowning: (1)",
@@ -334,9 +327,14 @@ class Player(Cog):
                 else:
                     self.parent.guilds[
                         ctx.guild.id
-                    ].voice_client = await ctx.author.voice.channel.connect(
-                        timeout=10, reconnect=True
-                    )
+                    ].voice_client = await bot.node_controller.NodeVoiceClient.NodeVoiceChannel.from_channel(
+                        ctx.author.voice.channel, self.parent.node_controller
+                    ).connect()
+                    # self.parent.guilds[
+                    #    ctx.guild.id
+                    # ].voice_client = await ctx.author.voice.channel.connect(
+                    #    timeout=10, reconnect=True
+                    # )
             except (
                 TimeoutError,
                 discord.HTTPException,
@@ -398,7 +396,7 @@ class Player(Cog):
             return False
         return True
 
-    def song_conclusion(self, ctx, error=None):
+    def sync_song_conclusion(self, ctx, error=None):
         if len(self.parent.guilds[ctx.guild.id].song_queue.queue) == 0:
             self.parent.guilds[ctx.guild.id].now_playing = None
         if error is not None:
@@ -434,6 +432,27 @@ class Player(Cog):
         except Exception as e:
             self.parent.log.error(logging_manager.debug_info(str(e)))
 
+    async def song_conclusion(self, ctx, error=None):
+        if len(self.parent.guilds[ctx.guild.id].song_queue.queue) == 0:
+            self.parent.guilds[ctx.guild.id].now_playing = None
+        if error is not None:
+            self.parent.log.error(str(error))
+            await self.parent.send_error_message(ctx, str(error))
+
+        # catch all one after another to make most of them succeed
+
+        tasks = [
+            self.parent.guilds[ctx.guild.id].now_playing_message.stop(),
+            self.parent.clear_presence(ctx),
+            self.empty_channel(ctx),
+            self.pre_player(ctx)
+        ]
+        for task in tasks:
+            try:
+                await task
+            except Exception as e:
+                self.parent.log.error(str(e))
+
     async def player(self, ctx, small_dict):
         if isinstance(small_dict, Error):
             error_message = small_dict.reason
@@ -445,7 +464,9 @@ class Player(Cog):
                 return
 
             small_dict = Song.copy_song(
-                await self.parent.youtube.youtube_url(small_dict.link),
+                await self.parent.youtube.youtube_url(
+                    small_dict.link, ctx.guild.id
+                ),
                 small_dict,
             )
 
@@ -465,26 +486,31 @@ class Player(Cog):
             )
             if small_dict.codec == "opus":
                 self.parent.log.debug("Using OPUS Audio.")
-                source = await FFmpegOpusAudioB.from_probe(
-                    small_dict.stream,
-                    volume=volume,
-                    # before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-                    # commented, because of spamming messages of failed reconnects.
-                )
+                # source = await FFmpegOpusAudioB.from_probe(
+                #    small_dict.stream,
+                #    volume=volume,
+                # before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                # commented, because of spamming messages of failed reconnects.
+                # )
             else:
                 # only used for backup soundcloud atm
                 self.parent.log.debug("Using PCM Audio.")
-                source = PCMVolumeTransformerB(
-                    FFmpegPCMAudioB(
-                        small_dict.stream,
-                        before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-                    ),
-                    volume=volume,
-                )
+                # source = PCMVolumeTransformerB(
+                #   FFmpegPCMAudioB(
+                #      small_dict.stream,
+                #     before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                # ),
+                # volume=volume,
+                # )
             try:
+                small_dict.guild_id = ctx.guild.id
                 self.parent.guilds[ctx.guild.id].voice_client.play(
-                    source,
-                    after=lambda error: self.song_conclusion(ctx, error=error),
+                    small_dict
+                    # source,
+                    # after=lambda error: self.song_conclusion(ctx, error=error),
+                )
+                self.parent.guilds[ctx.guild.id].voice_client.set_after(
+                    self.song_conclusion, ctx, error=None
                 )
             except discord.ClientException:
                 if ctx.guild.voice_client is None:
@@ -499,11 +525,15 @@ class Player(Cog):
                         ].voice_channel.connect(
                             timeout=10, reconnect=True
                         )
+                        small_dict.guild_id = ctx.guild.id
                         self.parent.guilds[ctx.guild.id].voice_client.play(
-                            source,
-                            after=lambda error: self.song_conclusion(
-                                ctx, error=error
-                            ),
+                            small_dict,
+                            # after=lambda error: self.song_conclusion(
+                            #    ctx, error=error
+                            # ),
+                        )
+                        self.parent.guilds[ctx.guild.id].voice_client.set_after(
+                            self.song_conclusion, ctx, error=None
                         )
             full, empty = await self.parent.mongo.get_chars(ctx.guild.id)
             self.parent.guilds[
@@ -541,17 +571,17 @@ class Player(Cog):
                         backup_title: str = str(item.title)
                         if item.link is not None:
                             youtube_dict = await self.parent.youtube.youtube_url(
-                                item.link
+                                item.link, ctx.guild.id
                             )
                             youtube_dict.user = item.user
                         else:
                             if item.title is not None:
                                 youtube_dict = await self.parent.youtube.youtube_term(
-                                    item.title
+                                    item
                                 )
                             else:
                                 youtube_dict = await self.parent.youtube.youtube_term(
-                                    item.term
+                                    item
                                 )
                             youtube_dict.user = item.user
                         j: int = 0
