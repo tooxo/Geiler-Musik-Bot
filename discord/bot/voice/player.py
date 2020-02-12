@@ -445,7 +445,7 @@ class Player(Cog):
             self.parent.guilds[ctx.guild.id].now_playing_message.stop(),
             self.parent.clear_presence(ctx),
             self.empty_channel(ctx),
-            self.pre_player(ctx)
+            self.pre_player(ctx),
         ]
         for task in tasks:
             try:

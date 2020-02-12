@@ -1,1 +1,0 @@
-gunicorn node:app -k gevent --worker-connections 1000 --preload --bind=0.0.0.0:"$PORT" --capture-output

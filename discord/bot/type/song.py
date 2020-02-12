@@ -96,6 +96,11 @@ class Song:
     def to_string(self):
         x = {}
         for attr in self.__dict__:
-            if type(self.__dict__.get(attr)) in (str, int, list, None):
+            if type(self.__dict__.get(attr)) in (
+                str,
+                int,
+                list,
+                None,
+            ):  # pylint: disable=unidiomatic-typecheck
                 x[attr] = self.__dict__.get(attr)
         return json.dumps(x)

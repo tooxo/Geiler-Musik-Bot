@@ -283,7 +283,6 @@ class Node:
         except yaml.YAMLError as ex:
             print(ex)
             exit(1)
-        assert y is not None
 
         self._host = y.get("parent_host", "")
         self.parent_port = y.get("parent_port", "")
@@ -469,7 +468,7 @@ class Node:
             None,
             functools.partial(
                 self.app.run,
-                host="0.0.0.0",
+                host="0.0.0.0",  # nosec
                 port=int(self.custom_port),
                 threaded=True,
             ),

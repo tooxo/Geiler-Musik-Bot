@@ -82,12 +82,11 @@ class NodeVoiceClient:
                 return asyncio.ensure_future(
                     self.after_fn(*self.after_args, **self.after_kwargs)
                 )
-            else:
-                return asyncio.ensure_future(
-                    asyncio.get_event_loop().run_in_executor(
-                        None, self.after_fn, self.after_args
-                    )
+            return asyncio.ensure_future(
+                asyncio.get_event_loop().run_in_executor(
+                    None, self.after_fn, self.after_args
                 )
+            )
 
 
 class NodeVoiceChannel(discord.VoiceChannel):
