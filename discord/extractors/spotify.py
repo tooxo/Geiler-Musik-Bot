@@ -32,30 +32,27 @@ class Spotify:
             async with self.session.get(url, headers=header) as response:
                 return await response.text()
 
-    async def invalidate_token(self):
-        if self.token != "":
-            for x in range(1, 3000):
-                try:
-                    await asyncio.sleep(x)
-                except InterruptedError:
-                    self.token = ""
-                    break
-            self.token = ""
+    def invalidate_token(self):
+        self.log.info("Spotify Token Invalidated.")
+        self.token = ""
 
     async def request_token(self):
         if self.token == "":
-            string = self.client_id + ":" + self.client_secret
-            enc = base64.b64encode(string.encode())
-            url = "https://accounts.spotify.com/api/token"
-            header = {
-                "Authorization": "Basic " + enc.decode(),
-                "Content-Type": "application/x-www-form-urlencoded",
-            }
-            payload = "grant_type=client_credentials&undefined="
-            test = await self.request_post(url, header, payload)
-            asyncio.ensure_future(self.invalidate_token())
-            self.token = json.loads(test)["access_token"]
-            self.log.logger.info("Got new Spotify Token: " + self.token)
+            try:
+                string = self.client_id + ":" + self.client_secret
+                enc = base64.b64encode(string.encode())
+                url = "https://accounts.spotify.com/api/token"
+                header = {
+                    "Authorization": "Basic " + enc.decode(),
+                    "Content-Type": "application/x-www-form-urlencoded",
+                }
+                payload = "grant_type=client_credentials&undefined="
+                test = await self.request_post(url, header, payload)
+                asyncio.get_event_loop().call_later(3000, self.invalidate_token)
+                self.token = json.loads(test)["access_token"]
+                self.log.logger.info("Got new Spotify Token: " + self.token)
+            except asyncio.TimeoutError:
+                return await self.request_token()
         return self.token
 
     async def spotify_track(self, track_url):

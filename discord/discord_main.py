@@ -71,7 +71,6 @@ async def on_command_error(ctx, error):
     if "not found" in str(error):
         # await DiscordBot.send_error_message(ctx=ctx, message=str(error))
         print(error)
-        pass
     elif "Invalid Data" in str(error):
         await DiscordBot.send_error_message(
             ctx=ctx, message="Error while playback. Try again."

@@ -9,29 +9,32 @@ from bot.type.song import Song
 
 
 class SoundCloud:
-    def __init__(self):
+    def __init__(self, node_controller):
         self.log = logging_manager.LoggingManager()
         self.log.debug("[Startup]: Initializing SoundCloud Module . . .")
         self.client = aiohttp.ClientSession()
+        self.node_controller = node_controller
 
     async def soundcloud_track(self, url: str):
+        node = self.node_controller.get_best_node()
         try:
             async with async_timeout.timeout(timeout=10):
                 async with self.client.post(
-                    "http://parent:8008/research/soundcloud_track", data=url
+                    f"http://{node.ip}:{node.port}/research/soundcloud_track",
+                    data=url,
                 ) as r:
                     if r.status != 200:
                         return Error(True)
-                    response: dict = await r.json()
+                    response: dict = json.loads(await r.text())
                     song: Song = Song(
                         title=response.get("title", None),
+                        term=response.get("term", ""),
                         link=response.get("link", ""),
                         stream=response.get("stream", None),
                         duration=response.get("duration", 0),
-                        thumbnail=response.get("thumbnail", ""),
                         loadtime=response.get("loadtime", 0),
+                        thumbnail=response.get("thumbnail", ""),
                         abr=response.get("abr", None),
-                        term=response.get("term", ""),
                         codec=response.get("codec", ""),
                     )
                     if song.duration == 0:
