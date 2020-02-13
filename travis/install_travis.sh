@@ -22,7 +22,7 @@ podman-compose version
 } >> sysenv.env
 touch youtube/settings.env
 docker network create web
-sudo apt-get install libopus0 python3.7-dev cython3 libopus-dev python3.7m
+sudo apt-get install libopus0 python3.7-dev cython3 libopus-dev
 git clone https://github.com/tooxo/distest.git --depth 1 -b develop
 cd distest/ || exit
 pip install -r requirements-dev.txt
