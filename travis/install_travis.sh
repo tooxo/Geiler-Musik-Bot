@@ -2,6 +2,7 @@
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
 sudo add-apt-repository -y ppa:projectatomic/ppa
+sudo add-apt-repository -y ppa:deadsnakes/ppa
 sudo apt-get update
 sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce podman slirp4netns
 pip install pytest python-coveralls docker-compose podman-compose pyyaml==3.13
@@ -21,10 +22,7 @@ podman-compose version
 } >> sysenv.env
 touch youtube/settings.env
 docker network create web
-sudo apt-get install libopus0 python3-dev cython3 python3-dev libopus-dev python3.6m
-ls /usr/include/ | grep python
-ls /usr/include/python3.6m
-ls /usr/include/python3.7m
+sudo apt-get install libopus0 python3.7-dev cython3 libopus-dev python3.7m
 git clone https://github.com/tooxo/distest.git --depth 1 -b develop
 cd distest/ || exit
 pip install -r requirements-dev.txt
