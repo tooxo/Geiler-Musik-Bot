@@ -1,13 +1,18 @@
 import asyncio
+import datetime
 import random
 import string
+import sys
+import threading
 from os import environ
-from typing import Dict
+from typing import Dict, Optional
 
 import dbl
 
 import discord
 import logging_manager
+from bot.node_controller.controller import Controller
+from bot.type.error import Error
 from bot.type.errors import Errors
 from bot.type.guild import Guild
 from bot.type.song import Song
@@ -16,7 +21,7 @@ from bot.voice.events import Events
 from bot.voice.player import Player
 from bot.voice.player_controls import PlayerControls
 from discord.ext import commands
-from extractors import mongo, spotify, youtube
+from extractors import genius, mongo, soundcloud, spotify, youtube
 
 
 class DiscordBot(commands.Cog):
@@ -24,7 +29,7 @@ class DiscordBot(commands.Cog):
         self.log = logging_manager.LoggingManager()
         self.log.debug("[Startup]: Initializing Music Module . . .")
 
-        self.dictionary: Dict[Guild] = {}
+        self.guilds: Dict[Guild] = {}
 
         self.bot = bot
         self.bot.remove_command("help")
@@ -33,10 +38,19 @@ class DiscordBot(commands.Cog):
         self.bot.add_cog(Events(self.bot, self))
         self.bot.add_cog(PlayerControls(self.bot, self))
 
+        self.node_controller = Controller(self)
+        # threading.Thread(
+        #    target=self.node_controller.start_listener, args=()
+        # ).start()
+        asyncio.ensure_future(self.node_controller.start_server())
+
         self.spotify = spotify.Spotify()
         self.mongo = mongo.Mongo()
 
-        self.youtube = youtube.Youtube(mongo_client=self.mongo)
+        self.soundcloud = soundcloud.SoundCloud(
+            node_controller=self.node_controller
+        )
+        self.youtube = youtube.Youtube(node_controller=self.node_controller)
 
         restart_key = self.generate_key(64)
         asyncio.run_coroutine_threadsafe(
@@ -45,16 +59,16 @@ class DiscordBot(commands.Cog):
 
         # Fix for OpusNotLoaded Error.
         if not discord.opus.is_loaded():
-            discord.opus.load_opus("/usr/lib/libopus.so")
+            discord.opus.load_opus("/usr/lib/x86_64-linux-gnu/libopus.so")
 
         self.control_check = Checks(self.bot, self)
 
         self.dbl_key = environ.get("DBL_KEY", "")
 
-        # reconnect all pending clients
-        self.reconnect()
+        # disconnects all pending clients
+        self.disconnect()
 
-        # start stats
+        # start server count
         self.run_dbl_stats()
 
     @staticmethod
@@ -69,18 +83,23 @@ class DiscordBot(commands.Cog):
     async def send_embed_message(
         ctx: discord.ext.commands.Context,
         message: str,
-        delete_after: float = None,
+        delete_after: Optional[int] = 10,
+        url: str = "https://d.chulte.de",
     ):
         if environ.get("USE_EMBEDS", "True") == "True":
-            embed = discord.Embed(
-                title=message, url="https://d.chulte.de", colour=0x00FFCC
+            embed = discord.Embed(title=message, url=url, colour=0x00FFCC)
+            message = await ctx.send(embed=embed, delete_after=delete_after)
+        else:
+            message = await ctx.send(message, delete_after=delete_after)
+        if delete_after is not None:
+            asyncio.ensure_future(
+                DiscordBot.delete_message(ctx.message, delete_after)
             )
-            return await ctx.send(embed=embed, delete_after=delete_after)
-        return await ctx.send(message, delete_after=delete_after)
+        return message
 
-    def reconnect(self):
+    def disconnect(self):
         for _guild in self.bot.guilds:
-            self.dictionary[_guild.id] = Guild()
+            self.guilds[_guild.id] = Guild()
             if _guild.me.voice is not None:
                 if hasattr(_guild.me.voice, "channel"):
 
@@ -91,20 +110,15 @@ class DiscordBot(commands.Cog):
                         :return:
                         """
                         self.log.debug(
-                            "[Reconnect] Reconnecting " + str(_guild)
+                            "[Disconnect] Disconnecting " + str(_guild)
                         )
-                        self.dictionary[
+                        self.guilds[
                             _guild.id
                         ].voice_channel = _guild.me.voice.channel
                         t = await _guild.me.voice.channel.connect(
                             timeout=5, reconnect=False
                         )
                         await t.disconnect(force=True)
-                        self.dictionary[
-                            _guild.id
-                        ].voice_client = await _guild.me.voice.channel.connect(
-                            timeout=5, reconnect=True
-                        )
 
                     asyncio.run_coroutine_threadsafe(
                         reconnect(_guild), self.bot.loop
@@ -144,17 +158,26 @@ class DiscordBot(commands.Cog):
         :return:
         """
         try:
-            if self.dictionary[ctx.guild.id].now_playing_message is not None:
-                await self.dictionary[ctx.guild.id].now_playing_message.stop()
+            if self.guilds[ctx.guild.id].now_playing_message is not None:
+                await self.guilds[ctx.guild.id].now_playing_message.stop()
                 try:
                     await ctx.message.delete()
                 except discord.NotFound:
                     pass
         except discord.NotFound:
-            self.dictionary[ctx.guild.id].now_playing_message = None
+            self.guilds[ctx.guild.id].now_playing_message = None
 
     @staticmethod
-    async def send_error_message(ctx, message, delete_after=None):
+    async def delete_message(message: discord.Message, delay: int = None):
+        try:
+            await message.delete(delay=delay)
+        except (discord.HTTPException, discord.Forbidden) as e:
+            logging_manager.LoggingManager().warning(
+                logging_manager.debug_info(e)
+            )
+
+    @staticmethod
+    async def send_error_message(ctx, message, delete_after=30):
         """
         Sends an error message
         :param delete_after:
@@ -167,6 +190,8 @@ class DiscordBot(commands.Cog):
             await ctx.send(embed=embed, delete_after=delete_after)
         else:
             await ctx.send(message, delete_after=delete_after)
+        if delete_after is not None:
+            await DiscordBot.delete_message(ctx.message, delete_after)
 
     @commands.command()
     async def rename(self, ctx, *, name: str):
@@ -198,13 +223,14 @@ class DiscordBot(commands.Cog):
     async def volume(self, ctx, volume=None):
         if not await self.control_check.manipulation_checks(ctx):
             return
-        current_volume = await self.mongo.get_volume(ctx.guild.id)
+        current_volume = getattr(
+            self.guilds[ctx.guild.id],
+            "volume",
+            await self.mongo.get_volume(ctx.guild.id),
+        )
         if volume is None:
             await self.send_embed_message(
-                ctx,
-                "The current volume is: "
-                + str(current_volume)
-                + ". It only updates on song changes, so beware.",
+                ctx, "The current volume is: " + str(current_volume) + "."
             )
             return
         try:
@@ -218,14 +244,18 @@ class DiscordBot(commands.Cog):
             )
             return
         await self.mongo.set_volume(ctx.guild.id, var)
-        await self.send_embed_message(
-            ctx, "The Volume was set to: " + str(var)
-        )
+        self.guilds[ctx.guild.id].volume = var
+        try:
+            self.guilds[ctx.guild.id].voice_client.set_volume(var)
+        except (AttributeError, TypeError):
+            # if pcm source, can be ignored simply
+            pass
+        await self.send_embed_message(ctx, "The Volume was set to: " + str(var))
 
-    @commands.command()
+    @commands.command(aliases=["i", "information"])
     async def info(self, ctx):
-        self.dictionary = self.dictionary
-        if self.dictionary[ctx.guild.id].now_playing is None:
+        self.guilds = self.guilds
+        if self.guilds[ctx.guild.id].now_playing is None:
             embed = discord.Embed(
                 title="Information",
                 description="Nothing is playing right now.",
@@ -236,30 +266,32 @@ class DiscordBot(commands.Cog):
             return
         try:
             embed = discord.Embed(
-                title="Information",
-                description="Name: "
-                + str(self.dictionary[ctx.guild.id].now_playing.title)
-                + "\nStreamed from: "
-                + str(self.dictionary[ctx.guild.id].now_playing.link)
-                + "\nDuration: "
-                + str(self.dictionary[ctx.guild.id].now_playing.duration)
-                + "\nRequested by: <@!"
-                + str(self.dictionary[ctx.guild.id].now_playing.user.id)
-                + ">\nLoaded in: "
-                + str(
-                    round(
-                        self.dictionary[ctx.guild.id].now_playing.loadtime, 2
-                    )
-                )
-                + " sec."
-                + "\nSearched Term: "
-                + str(self.dictionary[ctx.guild.id].now_playing.term),
-                color=0x00FFCC,
-                url="https://d.chulte.de",
+                title="Information", color=0x00FFCC, url="https://d.chulte.de"
             )
-            if self.dictionary[ctx.guild.id].now_playing.image is not None:
+            song: Song = self.guilds[ctx.guild.id].now_playing
+            embed.add_field(
+                name="Basic Information",
+                inline=False,
+                value=(
+                    f"**Name**: `{song.title}`\n"
+                    + f"**Url**: `{song.link}`\n"
+                    + f"**Duration**: `{datetime.timedelta(seconds=song.duration)}`\n"
+                    + f"**User**: `{song.user}`\n"
+                    + f"**Term**: `{song.term}`\n"
+                ),
+            )
+            embed.add_field(
+                name="Stream Information",
+                inline=False,
+                value=(
+                    f"**Successful**: `{not song.error.error}`\n"
+                    + f"**Codec**: `{song.codec}\n`"
+                    + f"**Bitrate**: `{song.abr} kb/s`"
+                ),
+            )
+            if self.guilds[ctx.guild.id].now_playing.image is not None:
                 embed.set_thumbnail(
-                    url=self.dictionary[ctx.guild.id].now_playing.image
+                    url=self.guilds[ctx.guild.id].now_playing.image
                 )
             await ctx.send(embed=embed)
         except (KeyError, TypeError) as e:
@@ -380,10 +412,10 @@ class DiscordBot(commands.Cog):
     @commands.command(aliases=["np", "nowplaying"])
     async def now_playing(self, ctx):
         songs = []
-        for server in self.dictionary:
+        for server in self.guilds:
             if server == ctx.guild.id:
                 continue
-            server = self.dictionary[server]
+            server = self.guilds[server]
             if server.now_playing is not None:
                 songs.append(server.now_playing)
         if len(songs) == 0:
@@ -410,3 +442,51 @@ class DiscordBot(commands.Cog):
                 + " Servers playing!",
             )
         await ctx.send(embed=embed)
+
+    @commands.command(aliases=["albumart", "a", "art"])
+    async def album_art(self, ctx):
+        if not self.guilds.get(ctx.guild.id, None):
+            return
+        if not await self.control_check.manipulation_checks(ctx):
+            return
+        if not self.guilds[ctx.guild.id].now_playing:
+            return await self.send_error_message(
+                ctx, "Nothing is playing right now."
+            )
+        return await ctx.send(self.guilds[ctx.guild.id].now_playing.image)
+
+    @commands.command(aliases=["lyric", "songtext", "text"])
+    async def lyrics(self, ctx):
+        if hasattr(self.guilds.get(ctx.guild.id, None), "now_playing"):
+            if isinstance(self.guilds[ctx.guild.id].now_playing, Song):
+                song: Song = self.guilds[ctx.guild.id].now_playing
+                if hasattr(song, "song_name") and hasattr(song, "artist"):
+                    # needs song_name and artist, because it needs to be separated for genius
+                    if song.song_name is not None and song.artist is not None:
+                        url = await genius.Genius.search_genius(
+                            song.song_name.replace("(", "").replace(")", ""),
+                            song.artist.replace("(", "").replace(")", ""),
+                        )
+                    else:
+                        url = await genius.Genius.search_genius(song.title, "")
+                    if isinstance(url, Error):
+                        return await self.send_error_message(ctx, url.reason)
+                    lyrics, header = await genius.Genius.extract_from_genius(
+                        url
+                    )
+                    if isinstance(lyrics, Error):
+                        return await self.send_error_message(ctx, lyrics.reason)
+                    lines = lyrics.split("\n")
+                    await self.send_embed_message(
+                        ctx, header, delete_after=None, url=url
+                    )
+                    t = ""
+                    for line in lines:
+                        if (len(t) + len(line)) > 1900:
+                            await ctx.send(content=t)
+                            t = ""
+                        t += line + "\n"
+                    return await ctx.send(content=t)
+        return await self.send_error_message(
+            ctx, "Currently not supported for this song."
+        )

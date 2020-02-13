@@ -32,29 +32,27 @@ class Spotify:
             async with self.session.get(url, headers=header) as response:
                 return await response.text()
 
-    async def invalidate_token(self):
-        if self.token != "":
-            for x in range(1, 3000):
-                try:
-                    await asyncio.sleep(x)
-                except InterruptedError:
-                    self.token = ""
-                    break
-            self.token = ""
+    def invalidate_token(self):
+        self.log.info("Spotify Token Invalidated.")
+        self.token = ""
 
     async def request_token(self):
         if self.token == "":
-            string = self.client_id + ":" + self.client_secret
-            enc = base64.b64encode(string.encode())
-            url = "https://accounts.spotify.com/api/token"
-            header = {
-                "Authorization": "Basic " + enc.decode(),
-                "Content-Type": "application/x-www-form-urlencoded",
-            }
-            payload = "grant_type=client_credentials&undefined="
-            test = await self.request_post(url, header, payload)
-            asyncio.ensure_future(self.invalidate_token())
-            self.token = json.loads(test)["access_token"]
+            try:
+                string = self.client_id + ":" + self.client_secret
+                enc = base64.b64encode(string.encode())
+                url = "https://accounts.spotify.com/api/token"
+                header = {
+                    "Authorization": "Basic " + enc.decode(),
+                    "Content-Type": "application/x-www-form-urlencoded",
+                }
+                payload = "grant_type=client_credentials&undefined="
+                test = await self.request_post(url, header, payload)
+                asyncio.get_event_loop().call_later(3000, self.invalidate_token)
+                self.token = json.loads(test)["access_token"]
+                self.log.logger.info("Got new Spotify Token: " + self.token)
+            except asyncio.TimeoutError:
+                return await self.request_token()
         return self.token
 
     async def spotify_track(self, track_url):
@@ -69,6 +67,8 @@ class Spotify:
         return SpotifySong(
             title=result["artists"][0]["name"] + " - " + result["name"],
             image_url=result["album"]["images"][0]["url"],
+            song_name=result["name"],
+            artist=result["artists"][0]["name"],
         )
         # return result["artists"][0]["name"] + " - " + result["name"]
 
@@ -93,18 +93,32 @@ class Spotify:
                     if track["is_local"]:
                         try:
                             t_list.append(
-                                track["track"]["artists"][0]["name"]
-                                + " - "
-                                + track["track"]["name"]
+                                SpotifySong(
+                                    title=track["track"]["artists"][0]["name"]
+                                    + " - "
+                                    + track["track"]["name"],
+                                    image_url=None,
+                                    song_name=track["track"]["name"],
+                                    artist=track["track"]["artists"][0]["name"],
+                                )
                             )
                         except (IndexError, KeyError):
                             # Probably invalid local file
                             continue
                     else:
                         t_list.append(
-                            track["track"]["album"]["artists"][0]["name"]
-                            + " - "
-                            + track["track"]["name"]
+                            SpotifySong(
+                                title=track["track"]["album"]["artists"][0][
+                                    "name"
+                                ]
+                                + " - "
+                                + track["track"]["name"],
+                                image_url=track["track"]["album"]["images"][0][
+                                    "url"
+                                ],
+                                song_name=track["track"]["name"],
+                                artist=track["track"]["artists"][0]["name"],
+                            )
                         )
 
                 if js["next"] is None:
@@ -128,9 +142,7 @@ class Spotify:
         if not album.valid:
             return []
         url = (
-            "https://api.spotify.com/v1/albums/"
-            + album.id
-            + "/tracks?limit=50"
+            "https://api.spotify.com/v1/albums/" + album.id + "/tracks?limit=50"
         )
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)

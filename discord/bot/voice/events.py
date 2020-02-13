@@ -21,7 +21,7 @@ class Events(Cog):
             :return:
             """
             self.parent.log.debug("Joined a new Guild! Hello, " + guild.name)
-            self.parent.dictionary[guild.id] = Guild()
+            self.parent.guilds[guild.id] = Guild()
 
         @self.bot.event
         async def on_voice_state_update(member, before, after):
@@ -38,18 +38,17 @@ class Events(Cog):
                 else:
                     guild_id = after.channel.guild.id
 
-                if self.parent.dictionary[guild_id].voice_channel is None:
+                if self.parent.guilds[guild_id].voice_channel is None:
                     return
                 if member is self.bot.user:
                     if self.bot.get_guild(guild_id).voice_client is not None:
-                        self.parent.dictionary[guild_id].voice_channel = None
-                        self.parent.dictionary[guild_id].voice_client = None
+                        self.parent.guilds[guild_id].voice_channel = None
+                        self.parent.guilds[guild_id].voice_client = None
                         return
 
                 if (
-                    self.parent.dictionary[guild_id].voice_channel
-                    is before.channel
-                    and self.parent.dictionary[guild_id].voice_channel
+                    self.parent.guilds[guild_id].voice_channel is before.channel
+                    and self.parent.guilds[guild_id].voice_channel
                     is not after.channel
                 ):
                     if len(before.channel.members) == 1:
@@ -71,23 +70,19 @@ class Events(Cog):
                 while 1:
                     await asyncio.sleep(2)
                     if (
-                        self.parent.dictionary[guild_id].voice_channel
+                        self.parent.guilds[guild_id].voice_channel
                         is not channel
                     ):
                         return
                     if (
-                        len(
-                            self.parent.dictionary[
-                                guild_id
-                            ].voice_channel.members
-                        )
+                        len(self.parent.guilds[guild_id].voice_channel.members)
                         > 1
                     ):
                         return
                     if time.time() == 0:
                         break
         except asyncio.TimeoutError:
-            if self.parent.dictionary[guild_id].voice_client is not None:
-                # await self.dictionary[guild_id].voice_client.disconnect()
-                self.parent.dictionary[guild_id].song_queue = Queue()
-                self.parent.dictionary[guild_id].voice_client.stop()
+            if self.parent.guilds[guild_id].voice_client is not None:
+                # await self.guilds[guild_id].voice_client.disconnect()
+                self.parent.guilds[guild_id].song_queue = Queue()
+                self.parent.guilds[guild_id].voice_client.stop()

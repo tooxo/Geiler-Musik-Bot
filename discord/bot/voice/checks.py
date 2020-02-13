@@ -40,14 +40,16 @@ class Checks:
         return True
 
     async def manipulation_checks(self, ctx):
-        return (
-            await self.bot_connection_check(ctx)
-            and await self.user_connection_check(ctx)
-            and await self.same_channel_check(ctx)
-        )
+        if not await self.bot_connection_check(ctx):
+            return False
+        if not await self.user_connection_check(ctx):
+            return False
+        if not await self.same_channel_check(ctx):
+            return False
+        return True
 
     async def song_playing_check(self, ctx):
-        if self.parent.dictionary[ctx.guild.id].now_playing is None:
+        if self.parent.guilds[ctx.guild.id].now_playing is None:
             await self.parent.send_error_message(
                 ctx, "Nothing is playing right now!"
             )

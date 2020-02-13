@@ -18,7 +18,8 @@ class TextResponse(commands.Cog):
     @commands.command()
     async def dani(self, ctx):
         await ctx.send(
-            "https://media.discordapp.net/attachments/357956193093812234/566737035541610526/i_actually_wann_die2.png?width=510&height=676"
+            "https://media.discordapp.net/attachments/357956193093812234/566737035541610526/"
+            "i_actually_wann_die2.png?width=510&height=676"
         )
 
     @commands.command()
@@ -44,6 +45,7 @@ class TextResponse(commands.Cog):
                 value="`.play [songname | link]` - `Plays / Queues a song.`\n"
                 "`.ps [songname | link]` - `Queues a song and instantly skips to it.`\n"
                 "`.pn [songname | link]` - `Queues a song at first position in queue.`\n",
+                inline=False,
             )
             .add_field(
                 name="Music Control",
@@ -52,12 +54,14 @@ class TextResponse(commands.Cog):
                 "`.stop` - `Stops the playback.`\n"
                 "`.skip [songs (optional)]` - `Skips a specific amount of songs.`\n"
                 "`.info` - `Shows General Information about the current song.`\n",
+                inline=False,
             )
             .add_field(
                 name="Queue Control",
                 value="`.queue` - `Displays the Queue.`\n"
                 "`.shuffle` - `Shuffles the Queue`\n"
                 "`.clear` - `Empties the Queue`\n",
+                inline=False,
             )
             .add_field(
                 name="General",
@@ -65,6 +69,7 @@ class TextResponse(commands.Cog):
                 "`.rename <new name>` - `Renames the Bot`\n"
                 "`.chars <full> <empty>` - `Changes the Characters used for the Song Progress Bar.`\n"
                 "",
+                inline=False,
             )
         )
 

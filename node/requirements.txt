@@ -1,0 +1,15 @@
+flask
+youtube_dl
+requests
+expiringdict
+beautifulsoup4
+bjoern
+pyyaml
+gunicorn
+gevent
+pyopenssl
+discord.py
+opuslib
+pynacl
+aiohttp
+psutil

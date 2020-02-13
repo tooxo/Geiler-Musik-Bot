@@ -262,7 +262,7 @@ class TestClient:
             )
             await asyncio.sleep(2)
             await interface.send_message(",s")
-            await asyncio.sleep(3)
+            await asyncio.sleep(5)
             last_message = await interface.get_last_message()
             await interface.assert_message_equals(
                 last_message, "`Kanye West - Follow God`"

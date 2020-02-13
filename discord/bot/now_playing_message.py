@@ -1,12 +1,13 @@
 import asyncio
 import time
+import traceback
 from os import environ
 
 import aiohttp
 
 import discord
 import logging_manager
-from bot.FFmpegPCMAudio import PCMVolumeTransformerB
+from bot.node_controller.NodeVoiceClient import NodeVoiceClient
 
 
 class NowPlayingMessage:
@@ -18,7 +19,7 @@ class NowPlayingMessage:
         full=None,
         empty=None,
         discord_music=None,
-        voice_client: discord.VoiceClient = None,
+        voice_client: NodeVoiceClient = None,
     ):
         self.discord_music = discord_music
         self.log = logging_manager.LoggingManager()
@@ -29,36 +30,69 @@ class NowPlayingMessage:
         self.full = full
         self.empty = empty
         if voice_client is not None:
-            self.voice_client: discord.VoiceClient = voice_client
-            self.source: PCMVolumeTransformerB = voice_client.source
+            self.voice_client: NodeVoiceClient = voice_client
         if self.song is not None:
             if self.song.title == "_" or self.song.title is None:
                 self.title = "`" + self.song.term + "`"
             else:
                 self.title = "`" + self.song.title + "`"
         self.no_embed_mode = environ.get("USE_EMBEDS", "True") == "False"
+        self.add_subroutine: (None, asyncio.Future) = None
+        self.remove_subroutine: (None, asyncio.Future) = None
+        self.bytes_read = 0
+
+    def calculate_recurrences(self):
+        """
+        calculates if the message will update more than 75 times to stop on long songs
+        :return: bool if too big
+        """
+        if hasattr(self.song, "duration"):
+            recurrences = self.song.duration / 5
+            if recurrences < 75:
+                return True
+        return False
 
     async def send(self):
         if self.song is None:
             return
         if not self.no_embed_mode:
-            embed = discord.Embed(
-                title=self.title, color=0x00FFCC, url=self.song.link
+            if self.calculate_recurrences():
+                embed = discord.Embed(
+                    title=self.title, color=0x00FFCC, url=self.song.link
+                )
+                embed.set_author(name="Currently Playing:")
+                embed.add_field(name="░░░░░░░░░░░░░░░░░░░░░░░░░", value=" 0%")
+                await self.message.edit(embed=embed)
+                asyncio.ensure_future(self.update())
+            else:
+                embed = discord.Embed(
+                    title=self.title, color=0x00FFCC, url=self.song.link
+                )
+                embed.set_author(name="Currently Playing:")
+                await self.message.edit(embed=embed)
+            await self.message.add_reaction(
+                "\N{BLACK RIGHT-POINTING TRIANGLE WITH DOUBLE VERTICAL BAR}"
+                # pause play
             )
-            embed.set_author(name="Currently Playing:")
-            embed.add_field(name="░░░░░░░░░░░░░░░░░░░░░░░░░", value=" 0%")
-            await self.message.edit(embed=embed)
+            await self.message.add_reaction(
+                "\N{BLACK RIGHT-POINTING DOUBLE TRIANGLE}"
+                # fast forward
+            )
+            await self.reaction_waiter()
         else:
-            await self.message.edit(content=self.title)
+            try:
+                await self.message.edit(content=self.title)
+            except discord.errors.NotFound as p:
+                self.log.warning(logging_manager.debug_info(p))
 
     async def update(self):
         if self._stop is True:
             return
         try:
             if not (self.voice_client.is_paused()):
-                now_time = round(self.source.bytes_read / 192000)
+                now_time = round(self.bytes_read / 192000)
                 finish_second = int(
-                    self.discord_music.dictionary[
+                    self.discord_music.guilds[
                         self.ctx.guild.id
                     ].now_playing.duration
                 )
@@ -69,7 +103,7 @@ class NowPlayingMessage:
                     + time.strftime(
                         "%H:%M:%S",
                         time.gmtime(
-                            self.discord_music.dictionary[
+                            self.discord_music.guilds[
                                 self.ctx.guild.id
                             ].now_playing.duration
                         ),
@@ -94,7 +128,10 @@ class NowPlayingMessage:
                 embed2 = discord.Embed(
                     title=self.title, color=0x00FFCC, url=self.song.link
                 )
-                embed2.set_author(name="Currently Playing:")
+                embed2.set_author(
+                    name="Currently Playing:",
+                    icon_url="https://i.imgur.com/dbS6H3k.gif",
+                )
                 embed2.add_field(name=hashes, value=description)
                 try:
                     await self.message.edit(embed=embed2)
@@ -115,17 +152,71 @@ class NowPlayingMessage:
         if self._stop is False:
             await self.update()
 
+    async def reaction_waiter(self):
+        def same_channel_check(user: discord.Member):
+            if hasattr(user, "voice"):
+                if hasattr(user.voice, "channel"):
+                    if self.voice_client.channel_id == user.voice.channel.id:
+                        return True
+            return False
+
+        def check_add(reaction: discord.Reaction, user: discord.Member):
+            if self.discord_music.bot.user.id != user.id:
+                if same_channel_check(user=user):
+                    if (
+                        reaction.emoji
+                        == "\N{BLACK RIGHT-POINTING DOUBLE TRIANGLE}"
+                    ):
+                        self.voice_client.stop()
+                        return True
+                    if (
+                        reaction.emoji
+                        == "\N{BLACK RIGHT-POINTING TRIANGLE WITH DOUBLE VERTICAL BAR}"
+                    ):
+                        try:
+                            if self.voice_client.is_paused():
+                                self.voice_client.resume()
+                            else:
+                                self.voice_client.pause()
+                        except AttributeError as ae:
+                            self.log.warning(logging_manager.debug_info(ae))
+            return False
+
+        def check_remove(reaction: discord.Reaction, user: discord.Member):
+            if self.discord_music.bot.user.id != user.id:
+                if same_channel_check(user=user):
+                    if (
+                        reaction.emoji
+                        == "\N{BLACK RIGHT-POINTING TRIANGLE WITH DOUBLE VERTICAL BAR}"
+                    ):
+                        try:
+                            if self.voice_client.is_paused():
+                                self.voice_client.resume()
+                            else:
+                                self.voice_client.pause()
+                        except AttributeError as ae:
+                            self.log.warning(logging_manager.debug_info(ae))
+            return False
+
+        self.add_subroutine = asyncio.ensure_future(
+            self.discord_music.bot.wait_for(
+                "reaction_add", timeout=None, check=check_add
+            )
+        )
+        self.remove_subroutine = asyncio.ensure_future(
+            self.discord_music.bot.wait_for(
+                "reaction_remove", timeout=None, check=check_remove
+            )
+        )
+
     async def stop(self):
         self._stop = True
         if self.song is None:
             await self.message.delete()
             return
         if not self.no_embed_mode:
-            embed = discord.Embed(
-                title="_`" + self.song.title + "`_",
-                color=0x00FF00,
-                url=self.song.link,
-            )
-            await self.message.edit(embed=embed)
+            await self.message.delete()
+            self.remove_subroutine.cancel()
+            self.add_subroutine.cancel()
         else:
-            await self.message.edit(content="_`" + self.song.title + "`_")
+            await self.message.delete()
