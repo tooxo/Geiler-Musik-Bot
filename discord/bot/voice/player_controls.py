@@ -135,7 +135,7 @@ class PlayerControls(Cog):
                         self.parent.guilds[
                             ctx.guild.id
                         ].song_queue.queue = collections.deque(
-                            list(queue)[(count - 1) :]
+                            list(queue)[(count - 1):]
                         )
                     self.parent.guilds[ctx.guild.id].voice_client.stop()
                     await self.parent.send_embed_message(
