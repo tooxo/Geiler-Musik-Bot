@@ -318,7 +318,7 @@ class Player(Cog):
                     <= len(ctx.author.voice.channel.members)
                     and ctx.author.voice.channel.user_limit != 0
                 ):
-                    if not ctx.guild.me.guild_permissions.administrator is True:
+                    if ctx.guild.me.guild_permissions.administrator is False:
                         await self.parent.send_embed_message(
                             ctx,
                             "Error while joining your channel. :frowning: (1)",
@@ -330,11 +330,6 @@ class Player(Cog):
                     ].voice_client = await bot.node_controller.NodeVoiceClient.NodeVoiceChannel.from_channel(
                         ctx.author.voice.channel, self.parent.node_controller
                     ).connect()
-                    # self.parent.guilds[
-                    #    ctx.guild.id
-                    # ].voice_client = await ctx.author.voice.channel.connect(
-                    #    timeout=10, reconnect=True
-                    # )
             except (
                 TimeoutError,
                 discord.HTTPException,

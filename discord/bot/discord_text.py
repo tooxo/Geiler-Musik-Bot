@@ -18,7 +18,8 @@ class TextResponse(commands.Cog):
     @commands.command()
     async def dani(self, ctx):
         await ctx.send(
-            "https://media.discordapp.net/attachments/357956193093812234/566737035541610526/i_actually_wann_die2.png?width=510&height=676"
+            "https://media.discordapp.net/attachments/357956193093812234/566737035541610526/"
+            "i_actually_wann_die2.png?width=510&height=676"
         )
 
     @commands.command()

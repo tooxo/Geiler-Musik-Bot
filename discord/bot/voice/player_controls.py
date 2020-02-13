@@ -135,7 +135,6 @@ class PlayerControls(Cog):
                         self.parent.guilds[
                             ctx.guild.id
                         ].song_queue.queue = collections.deque(
-                            # noinspection PyPep8
                             list(queue)[(count - 1) :]
                         )
                     self.parent.guilds[ctx.guild.id].voice_client.stop()
