@@ -24,7 +24,7 @@ from discord.ext import commands
 from extractors import genius, mongo, soundcloud, spotify, youtube
 
 
-class DiscordBot(commands.Cog):
+class DiscordBot(commands.Cog, name="Miscellaneous"):
     def __init__(self, bot):
         self.log = logging_manager.LoggingManager()
         self.log.debug("[Startup]: Initializing Music Module . . .")
@@ -32,16 +32,13 @@ class DiscordBot(commands.Cog):
         self.guilds: Dict[Guild] = {}
 
         self.bot = bot
-        self.bot.remove_command("help")
+        # self.bot.remove_command("help")
 
         self.bot.add_cog(Player(self.bot, self))
         self.bot.add_cog(Events(self.bot, self))
         self.bot.add_cog(PlayerControls(self.bot, self))
 
         self.node_controller = Controller(self)
-        # threading.Thread(
-        #    target=self.node_controller.start_listener, args=()
-        # ).start()
         asyncio.ensure_future(self.node_controller.start_server())
 
         self.spotify = spotify.Spotify()
@@ -53,12 +50,11 @@ class DiscordBot(commands.Cog):
         self.youtube = youtube.Youtube(node_controller=self.node_controller)
 
         restart_key = self.generate_key(64)
-        asyncio.run_coroutine_threadsafe(
-            self.mongo.set_restart_key(restart_key), self.bot.loop
-        )
+        asyncio.create_task(self.mongo.set_restart_key(restart_key))
 
         # Fix for OpusNotLoaded Error.
         if not discord.opus.is_loaded():
+            # this is the default opus installation on ubuntu / debian
             discord.opus.load_opus("/usr/lib/x86_64-linux-gnu/libopus.so")
 
         self.control_check = Checks(self.bot, self)
@@ -195,6 +191,12 @@ class DiscordBot(commands.Cog):
 
     @commands.command()
     async def rename(self, ctx, *, name: str):
+        """
+        Renames the bot.
+        :param ctx:
+        :param name:
+        :return:
+        """
         try:
             if ctx.guild.me.guild_permissions.administrator is False:
                 await self.send_error_message(
@@ -221,6 +223,12 @@ class DiscordBot(commands.Cog):
 
     @commands.command(aliases=["v"])
     async def volume(self, ctx, volume=None):
+        """
+        Changes playback volume.
+        :param ctx:
+        :param volume:
+        :return:
+        """
         if not await self.control_check.manipulation_checks(ctx):
             return
         current_volume = getattr(
@@ -254,6 +262,11 @@ class DiscordBot(commands.Cog):
 
     @commands.command(aliases=["i", "information"])
     async def info(self, ctx):
+        """
+        Shows song info.
+        :param ctx:
+        :return:
+        """
         self.guilds = self.guilds
         if self.guilds[ctx.guild.id].now_playing is None:
             embed = discord.Embed(
@@ -306,6 +319,13 @@ class DiscordBot(commands.Cog):
 
     @commands.command(aliases=[])
     async def chars(self, ctx, first=None, last=None):
+        """
+        Changes playback bar.
+        :param ctx:
+        :param first:
+        :param last:
+        :return:
+        """
         if first is None:
             full, empty = await self.mongo.get_chars(ctx.guild.id)
             if environ.get("USE_EMBEDS", "True") == "True":
@@ -369,7 +389,7 @@ class DiscordBot(commands.Cog):
             + "**",
         )
 
-    @commands.command()
+    @commands.command(hidden=True)
     async def restart(self, ctx, restart_string=None):
         if restart_string is None:
             embed = discord.Embed(
@@ -389,7 +409,7 @@ class DiscordBot(commands.Cog):
             )
             await ctx.send(embed=embed)
 
-    @commands.command()
+    @commands.command(hidden=True)
     async def eval(self, ctx, *, code: str = None):
         if ctx.author.id != 322807058254528522:
             embed = discord.Embed(title="No permission.", color=0xFF0000)
@@ -409,8 +429,13 @@ class DiscordBot(commands.Cog):
             sa = "```" + s[:1994] + "```"
             await ctx.send(sa)
 
-    @commands.command(aliases=["np", "nowplaying"])
-    async def now_playing(self, ctx):
+    @commands.command(aliases=["np", "now_playing"])
+    async def nowplaying(self, ctx):
+        """
+        Shows what other servers are playing.
+        :param ctx:
+        :return:
+        """
         songs = []
         for server in self.guilds:
             if server == ctx.guild.id:
@@ -443,8 +468,13 @@ class DiscordBot(commands.Cog):
             )
         await ctx.send(embed=embed)
 
-    @commands.command(aliases=["albumart", "a", "art"])
-    async def album_art(self, ctx):
+    @commands.command(aliases=["a", "art"])
+    async def albumart(self, ctx):
+        """
+        Displays the album art.
+        :param ctx:
+        :return:
+        """
         if not self.guilds.get(ctx.guild.id, None):
             return
         if not await self.control_check.manipulation_checks(ctx):
@@ -457,6 +487,11 @@ class DiscordBot(commands.Cog):
 
     @commands.command(aliases=["lyric", "songtext", "text"])
     async def lyrics(self, ctx):
+        """
+        Displays the lyrics.
+        :param ctx:
+        :return:
+        """
         if hasattr(self.guilds.get(ctx.guild.id, None), "now_playing"):
             if isinstance(self.guilds[ctx.guild.id].now_playing, Song):
                 song: Song = self.guilds[ctx.guild.id].now_playing
@@ -477,15 +512,17 @@ class DiscordBot(commands.Cog):
                     if isinstance(lyrics, Error):
                         return await self.send_error_message(ctx, lyrics.reason)
                     lines = lyrics.split("\n")
-                    await self.send_embed_message(
-                        ctx, header, delete_after=None, url=url
-                    )
+                    await ctx.send(content=f"> **{header}**")
                     t = ""
                     for line in lines:
+                        if line in ("", " "):
+                            line = (
+                                "\N{MONGOLIAN VOWEL SEPARATOR}"
+                            )  # the good ol' mongolian vowel separator
                         if (len(t) + len(line)) > 1900:
                             await ctx.send(content=t)
                             t = ""
-                        t += line + "\n"
+                        t += "> " + line + "\n"
                     return await ctx.send(content=t)
         return await self.send_error_message(
             ctx, "Currently not supported for this song."

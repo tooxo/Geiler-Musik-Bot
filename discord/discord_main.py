@@ -9,6 +9,7 @@ import discord
 import logging_manager
 from bot.discord_music import DiscordBot
 from bot.discord_text import TextResponse
+from bot.HelpCommand import Help
 from discord.ext import commands
 from discord.ext.commands.bot import BotBase
 
@@ -58,6 +59,7 @@ client = commands.Bot(command_prefix=prefix)
 async def on_ready():
     client.add_cog(DiscordBot(bot=client))
     client.add_cog(TextResponse(bot=client))
+    client.add_cog(Help(bot=client))
     log.debug("[Startup]: Finished.")
     await client.change_presence(
         activity=discord.Activity(

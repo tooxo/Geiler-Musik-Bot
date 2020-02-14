@@ -6,6 +6,7 @@ import traceback
 import bot.node_controller.NodeVoiceClient
 import discord
 import logging_manager
+from bot.node_controller.controller import NoNodeReadyException
 from bot.now_playing_message import NowPlayingMessage
 from bot.type.error import Error
 from bot.type.errors import Errors
@@ -335,7 +336,6 @@ class Player(Cog):
                 discord.HTTPException,
                 discord.ClientException,
                 discord.DiscordException,
-                Exception,
             ) as e:
                 self.parent.log.warning(
                     logging_manager.debug_info("channel_join " + str(e))
@@ -345,29 +345,53 @@ class Player(Cog):
                     ctx, "Error while joining your channel. :frowning: (2)"
                 )
                 return False
+            except NoNodeReadyException as nn:
+                await self.parent.send_error_message(ctx, str(nn))
+                return False
         return True
 
     # @commands.cooldown(1, 0.5, commands.BucketType.guild)
     @commands.command(aliases=["p"])
     async def play(self, ctx, *, url: str = None):
+        """
+        Plays a song.
+        :param ctx:
+        :param url:
+        :return:
+        """
         if not await self.play_check(ctx, url):
             return
         await self.add_to_queue(url, ctx)
 
     @commands.command(aliases=["pn"])
     async def playnext(self, ctx, *, url: str = None):
+        """
+        Adds a song to the first position in the queue.
+        """
         if not await self.play_check(ctx, url):
             return
         await self.add_to_queue(url, ctx, first_index_push=True)
 
     @commands.command(aliases=["ps"])
     async def playskip(self, ctx, *, url: str = None):
+        """
+        Queues a song and instantly skips to it.
+        :param ctx:
+        :param url:
+        :return:
+        """
         if not await self.play_check(ctx, url):
             return
         await self.add_to_queue(url, ctx, playskip=True)
 
     @commands.command(aliases=["sp"])
     async def shuffleplay(self, ctx, *, url: str = None):
+        """
+        Queues multiple songs in random order.
+        :param ctx:
+        :param url:
+        :return:
+        """
         if not await self.play_check(ctx, url):
             return
         await self.add_to_queue(url, ctx, shuffle=True)

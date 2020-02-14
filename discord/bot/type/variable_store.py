@@ -42,7 +42,8 @@ class VariableStore:
 
     youtube_title_pattern = re.compile(
         r"([\[(]?"
-        r"(((official )?lyric(s)?( video)?)|of(f)?icial (music )?video|video oficial| [24]K|((FULL[ -]?)HD)|(MV))"
+        r"(((official )?lyric(s)?( video)?)|of(f)?icial (music )?video|(of(f)?icial )?audio|"
+        r"video oficial| [24]K|((FULL[ -]?)HD)|(MV))"
         r"[\])]?)",
         re.MULTILINE | re.IGNORECASE,
     )
