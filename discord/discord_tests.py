@@ -77,22 +77,6 @@ class TestClient:
 
     def add_tests(self):
         @self.test_collector()
-        async def test_wrong_command(interface):
-            """
-            Test "Wrong Command"
-            :param interface:
-            :return:
-            """
-
-            embed = Embed(
-                title='Command "wrong_command" is not found',
-                color=0x00FFCC,
-                url="https://github.com/tooxo/Geiler-Musik-Bot/issues",
-            )
-
-            await interface.assert_reply_embed_equals(",wrong_command", embed)
-
-        @self.test_collector()
         async def test_nobody_in_channel(interface: TestInterface):
             await interface.assert_reply_equals(
                 ",skip", "The bot isn't connected."

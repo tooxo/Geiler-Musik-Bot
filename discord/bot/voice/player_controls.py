@@ -9,13 +9,18 @@ from discord.ext import commands
 from discord.ext.commands import Cog
 
 
-class PlayerControls(Cog):
+class PlayerControls(Cog, name="Player Controls"):
     def __init__(self, bot, parent):
         self.bot = bot
         self.parent = parent
 
     @commands.command(aliases=["exit"])
     async def quit(self, ctx):
+        """
+        Disconnects the bot.
+        :param ctx:
+        :return:
+        """
         if not await self.parent.control_check.manipulation_checks(ctx):
             return
         self.parent.guilds[ctx.guild.id].now_playing = None
@@ -27,6 +32,11 @@ class PlayerControls(Cog):
 
     @commands.command(aliases=["empty"])
     async def clear(self, ctx):
+        """
+        Clears the queue.
+        :param ctx:
+        :return:
+        """
         if not await self.parent.control_check.manipulation_checks(ctx):
             return
         if self.parent.guilds[ctx.guild.id].song_queue.qsize() != 0:
@@ -41,6 +51,11 @@ class PlayerControls(Cog):
 
     @commands.command(aliases=["mixer"])
     async def shuffle(self, ctx):
+        """
+        Shuffles the queue.
+        :param ctx:
+        :return:
+        """
         if not await self.parent.control_check.manipulation_checks(ctx):
             return
         if self.parent.guilds[ctx.guild.id].song_queue.qsize() > 0:
@@ -55,6 +70,11 @@ class PlayerControls(Cog):
 
     @commands.command(aliases=["yeehee"])
     async def stop(self, ctx):
+        """
+        Stops playback.
+        :param ctx:
+        :return:
+        """
         if not await self.parent.control_check.manipulation_checks(ctx):
             return
         if self.parent.guilds[ctx.guild.id].voice_client is not None:
@@ -71,6 +91,11 @@ class PlayerControls(Cog):
 
     @commands.command(aliases=["halteein"])
     async def pause(self, ctx):
+        """
+        Pauses playback.
+        :param ctx:
+        :return:
+        """
         if not await self.parent.control_check.manipulation_checks(ctx):
             return
         if not await self.parent.control_check.song_playing_check(ctx):
@@ -89,6 +114,12 @@ class PlayerControls(Cog):
 
     @commands.command(aliases=["next", "müll", "s", "n", "nein"])
     async def skip(self, ctx, count="1"):
+        """
+        Skips a song.
+        :param ctx:
+        :param count:
+        :return:
+        """
         if not await self.parent.control_check.manipulation_checks(ctx):
             return
         try:
@@ -135,7 +166,7 @@ class PlayerControls(Cog):
                         self.parent.guilds[
                             ctx.guild.id
                         ].song_queue.queue = collections.deque(
-                            list(queue)[(count - 1):]
+                            list(queue)[(count - 1) :]
                         )
                     self.parent.guilds[ctx.guild.id].voice_client.stop()
                     await self.parent.send_embed_message(
@@ -156,6 +187,11 @@ class PlayerControls(Cog):
 
     @commands.command(aliases=["unpause"])
     async def resume(self, ctx):
+        """
+        Resumes playback.
+        :param ctx:
+        :return:
+        """
         if not await self.parent.control_check.manipulation_checks(ctx):
             return
         if not await self.parent.control_check.song_playing_check(ctx):
@@ -171,6 +207,11 @@ class PlayerControls(Cog):
 
     @commands.command(aliases=["q"])
     async def queue(self, ctx):
+        """
+        Shows the queue.
+        :param ctx:
+        :return:
+        """
         numbers = [
             "`(1)`",
             "`(2)`",

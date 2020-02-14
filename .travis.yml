@@ -11,9 +11,9 @@ script:
 
 deploy:
     provider: releases
-    token: $GITHUB_KEY
+    api_key: $GITHUB_KEY
     file:
-        - youtube/node/node
+        - node/node
     draft: true
     on:
         branch: master

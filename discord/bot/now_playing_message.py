@@ -215,8 +215,11 @@ class NowPlayingMessage:
             await self.message.delete()
             return
         if not self.no_embed_mode:
-            await self.message.delete()
-            self.remove_subroutine.cancel()
-            self.add_subroutine.cancel()
+            try:
+                await self.message.delete()
+                self.remove_subroutine.cancel()
+                self.add_subroutine.cancel()
+            except (AttributeError, discord.NotFound):
+                pass
         else:
             await self.message.delete()

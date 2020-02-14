@@ -18,3 +18,7 @@ podman-compose stop discord node web
 cd node/ || exit
 cython node.py --embed -3
 gcc -Os -I /usr/include/python3.7m -o node node.c -lpython3.7m -lpthread -lm -lutil -ldl
+
+# cleanup
+cd .. || exit
+find . | grep -E "(__pycache__|\.pyc|\.pyo$)" | sudo xargs rm -rf

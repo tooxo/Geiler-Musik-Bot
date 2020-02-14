@@ -8,6 +8,8 @@ import threading
 import time
 from os import environ
 
+from bot.type.errors import Errors
+
 
 class Controller:
     def __init__(self, parent):
@@ -162,15 +164,29 @@ class Controller:
                     response["guild_id"]
                 ].now_playing_message.bytes_read = response["bytes_read"]
 
-    def get_best_node(self, guild_id: int = None):
+    def get_best_node(self, guild_id: int = None, black_list=None):
+        if black_list is None:
+            black_list = list()
         if guild_id is not None:
             if guild_id in self.node_cache.keys():
                 node = self.nodes.get(self.node_cache[guild_id], None)
                 if node:
-                    return node
-        node: Node = self.nodes[random.choice(list(self.nodes.keys()))]
-        self.node_cache[guild_id] = node
-        return node
+                    if node.is_ready():
+                        return node
+        if len(black_list) < len(self.nodes):
+            node: Node = self.nodes[random.choice(list(self.nodes.keys()))]
+            while node in black_list:
+                node: Node = self.nodes[random.choice(list(self.nodes.keys()))]
+            if not node.is_ready():
+                black_list.append(node)
+                return self.get_best_node(black_list=black_list)
+            self.node_cache[guild_id] = node
+            return node
+        raise NoNodeReadyException(Errors.backend_down)
+
+
+class NoNodeReadyException(Exception):
+    pass
 
 
 class Node:
@@ -180,6 +196,11 @@ class Node:
         self.name = ""
         self.reader: asyncio.StreamReader
         self.writer: asyncio.StreamWriter
+
+    def is_ready(self):
+        if hasattr(self, "reader") and hasattr(self, "writer"):
+            return True
+        return False
 
     def from_dict(self, d: dict):
         self.ip = d.get("ip", None)

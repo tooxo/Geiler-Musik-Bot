@@ -3,38 +3,38 @@ import logging_manager
 from discord.ext import commands
 
 
-class TextResponse(commands.Cog):
+class TextResponse(commands.Cog, name="Support"):
     def __init__(self, bot):
         self.log = logging_manager.LoggingManager()
         self.log.debug("[Startup]: Initializing Text Module . . .")
         self.bot = bot
 
-    @commands.command(aliases=["clemi", "god", "gott"])
+    @commands.command(aliases=["clemi", "god", "gott"], hidden=True)
     async def cool(self, ctx):
         await ctx.send(
             "https://cdn.discordapp.com/attachments/357956193093812234/563063266457288714/Unbenanntw2.jpg"
         )
 
-    @commands.command()
+    @commands.command(hidden=True)
     async def dani(self, ctx):
         await ctx.send(
             "https://media.discordapp.net/attachments/357956193093812234/566737035541610526/"
             "i_actually_wann_die2.png?width=510&height=676"
         )
 
-    @commands.command()
+    @commands.command(hidden=True)
     async def anstalt(self, ctx):
         await ctx.send(
             "https://media.discordapp.net/attachments/357956193093812234/566329884386000896/HTL.png"
         )
 
-    @commands.command()
+    @commands.command(hidden=True)
     async def niki(self, ctx):
         await ctx.send(
             "https://cdn.discordapp.com/attachments/561858486430859266/563436218914701322/Niki_Nasa.png"
         )
 
-    @commands.command()
+    # @commands.command()
     async def help(self, ctx):
         embed = (
             discord.Embed(
@@ -81,6 +81,11 @@ class TextResponse(commands.Cog):
 
     @commands.command()
     async def support(self, ctx):
+        """
+        Shows all supported services.
+        :param ctx:
+        :return:
+        """
         embed = (
             discord.Embed(
                 title="Supported Services",
@@ -100,6 +105,11 @@ class TextResponse(commands.Cog):
 
     @commands.command(aliases=["error"])
     async def issue(self, ctx):
+        """
+        BugTracker
+        :param ctx:
+        :return:
+        """
         embed = (
             discord.Embed(
                 title="Found a bug?",
