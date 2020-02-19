@@ -137,7 +137,6 @@ class Controller:
                 self.login_logger.info(f"Connection lost to {_ip}. Reason: BPE")
                 break
             if not response:
-                print("response none")
                 break
             self._handle_response(response=response.decode())
             await asyncio.sleep(0.1)
@@ -160,9 +159,10 @@ class Controller:
         elif response.startswith("S"):
             if response.startswith("S_BR_"):
                 response = json.loads(response[5:])
-                self.parent.guilds[
-                    response["guild_id"]
-                ].now_playing_message.bytes_read = response["bytes_read"]
+                if self.parent.guilds[response["guild_id"]].now_playing_message:
+                    self.parent.guilds[
+                        response["guild_id"]
+                    ].now_playing_message.bytes_read = response["bytes_read"]
 
     def get_best_node(self, guild_id: int = None, black_list=None):
         if black_list is None:

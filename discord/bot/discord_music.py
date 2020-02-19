@@ -3,7 +3,6 @@ import datetime
 import random
 import string
 import sys
-import threading
 from os import environ
 from typing import Dict, Optional
 
@@ -20,8 +19,9 @@ from bot.voice.checks import Checks
 from bot.voice.events import Events
 from bot.voice.player import Player
 from bot.voice.player_controls import PlayerControls
+from bot.voice.tts import TTS
 from discord.ext import commands
-from extractors import genius, mongo, soundcloud, spotify, youtube
+from extractors import genius, mongo, soundcloud, spotify, watch2gether, youtube
 
 
 class DiscordBot(commands.Cog, name="Miscellaneous"):
@@ -32,11 +32,13 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         self.guilds: Dict[Guild] = {}
 
         self.bot = bot
-        # self.bot.remove_command("help")
 
-        self.bot.add_cog(Player(self.bot, self))
+        self.player = Player(self.bot, self)
+
+        self.bot.add_cog(self.player)
         self.bot.add_cog(Events(self.bot, self))
         self.bot.add_cog(PlayerControls(self.bot, self))
+        self.bot.add_cog(TTS(self.bot, self))
 
         self.node_controller = Controller(self)
         asyncio.ensure_future(self.node_controller.start_server())
@@ -48,6 +50,8 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             node_controller=self.node_controller
         )
         self.youtube = youtube.Youtube(node_controller=self.node_controller)
+
+        self.watch2gether = watch2gether.Watch2Gether()
 
         restart_key = self.generate_key(64)
         asyncio.create_task(self.mongo.set_restart_key(restart_key))
@@ -96,6 +100,9 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
     def disconnect(self):
         for _guild in self.bot.guilds:
             self.guilds[_guild.id] = Guild()
+            asyncio.ensure_future(
+                self.guilds[_guild.id].inflate_from_mongo(self.mongo, _guild.id)
+            )
             if _guild.me.voice is not None:
                 if hasattr(_guild.me.voice, "channel"):
 
@@ -108,9 +115,6 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                         self.log.debug(
                             "[Disconnect] Disconnecting " + str(_guild)
                         )
-                        self.guilds[
-                            _guild.id
-                        ].voice_channel = _guild.me.voice.channel
                         t = await _guild.me.voice.channel.connect(
                             timeout=5, reconnect=False
                         )
@@ -125,22 +129,25 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             dbl_client = dbl.DBLClient(self.bot, self.dbl_key)
 
             async def update_stats(client):
+                last_count = 0
                 while not client.bot.is_closed():
                     try:
-                        await client.post_guild_count()
-                        self.log.debug(
-                            "[SERVER COUNT] Posted server count ({})".format(
-                                client.guild_count()
-                            )
-                        )
-                        await self.bot.change_presence(
-                            activity=discord.Activity(
-                                type=discord.ActivityType.listening,
-                                name=".help on {} servers".format(
+                        if client.guild_count() == last_count:
+                            await client.post_guild_count()
+                            self.log.debug(
+                                "[SERVER COUNT] Posted server count ({})".format(
                                     client.guild_count()
-                                ),
+                                )
                             )
-                        )
+                            await self.bot.change_presence(
+                                activity=discord.Activity(
+                                    type=discord.ActivityType.listening,
+                                    name=".help on {} servers".format(
+                                        client.guild_count()
+                                    ),
+                                )
+                            )
+                            last_count = client.guild_count()
                     except Exception as e:
                         self.log.warning(logging_manager.debug_info(e))
                     await asyncio.sleep(1800)
@@ -327,7 +334,11 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         :return:
         """
         if first is None:
-            full, empty = await self.mongo.get_chars(ctx.guild.id)
+            # full, empty = await self.mongo.get_chars(ctx.guild.id)
+            full, empty = (
+                self.guilds[ctx.guild.id].full,
+                self.guilds[ctx.guild.id].empty,
+            )
             if environ.get("USE_EMBEDS", "True") == "True":
                 embed = discord.Embed(
                     title="You are currently using **"
@@ -360,6 +371,10 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
 
         elif first == "reset" and last is None:
             await self.mongo.set_chars(ctx.guild.id, "█", "░")
+            self.guilds[ctx.guild.id].full, self.guilds[ctx.guild.id].empty = (
+                "█",
+                "░",
+            )
             await self.send_embed_message(
                 ctx=ctx,
                 message="Characters reset to: Full: **█** and Empty: **░**",
@@ -380,6 +395,10 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             await ctx.send(embed=embed)
             return
         await self.mongo.set_chars(ctx.guild.id, first, last)
+        self.guilds[ctx.guild.id].full, self.guilds[ctx.guild.id].empty = (
+            first,
+            last,
+        )
         await self.send_embed_message(
             ctx=ctx,
             message="The characters got updated! Full: **"
@@ -419,6 +438,30 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             s = str(eval(code))
         except Exception as e:
             s = str(e)
+        if len(s) < 256:
+            embed = discord.Embed(title=s)
+            await ctx.send(embed=embed)
+        elif len(s) < 1994:
+            sa = "```" + s + "```"
+            await ctx.send(sa)
+        else:
+            sa = "```" + s[:1994] + "```"
+            await ctx.send(sa)
+
+    @commands.command(hidden=True)
+    async def exec(self, ctx, *, code: str = None):
+        if ctx.author.id != 322807058254528522:
+            embed = discord.Embed(title="No permission.", color=0x00FF0000)
+            await ctx.send(embed=embed)
+            return
+        try:
+            s = exec(code)
+        except (Exception, RuntimeWarning) as e:
+            s = str(e)
+        if not s:
+            embed = discord.Embed(title="None")
+            await ctx.send(embed=embed)
+            return
         if len(s) < 256:
             embed = discord.Embed(title=s)
             await ctx.send(embed=embed)
@@ -486,17 +529,22 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         return await ctx.send(self.guilds[ctx.guild.id].now_playing.image)
 
     @commands.command(aliases=["lyric", "songtext", "text"])
-    async def lyrics(self, ctx):
+    async def lyrics(self, ctx, *, song_name: str = None):
         """
         Displays the lyrics.
         :param ctx:
+        :param song_name: The name of the Song, Optional
         :return:
         """
-        if hasattr(self.guilds.get(ctx.guild.id, None), "now_playing"):
+        url = None
+        if song_name:
+            url = await genius.Genius.search_genius(song_name, "")
+            if isinstance(url, Error):
+                return await self.send_error_message(ctx, url.reason)
+        elif hasattr(self.guilds.get(ctx.guild.id, None), "now_playing"):
             if isinstance(self.guilds[ctx.guild.id].now_playing, Song):
                 song: Song = self.guilds[ctx.guild.id].now_playing
                 if hasattr(song, "song_name") and hasattr(song, "artist"):
-                    # needs song_name and artist, because it needs to be separated for genius
                     if song.song_name is not None and song.artist is not None:
                         url = await genius.Genius.search_genius(
                             song.song_name.replace("(", "").replace(")", ""),
@@ -506,24 +554,101 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                         url = await genius.Genius.search_genius(song.title, "")
                     if isinstance(url, Error):
                         return await self.send_error_message(ctx, url.reason)
-                    lyrics, header = await genius.Genius.extract_from_genius(
-                        url
-                    )
-                    if isinstance(lyrics, Error):
-                        return await self.send_error_message(ctx, lyrics.reason)
-                    lines = lyrics.split("\n")
-                    await ctx.send(content=f"> **{header}**")
+        if url:
+            lyrics, header = await genius.Genius.extract_from_genius(url)
+            if isinstance(lyrics, Error):
+                return await self.send_error_message(ctx, lyrics.reason)
+            lines = lyrics.split("\n")
+            await ctx.send(content=f"> **{header}**")
+            t = ""
+            for line in lines:
+                if line in ("", " "):
+                    line = (
+                        "\N{MONGOLIAN VOWEL SEPARATOR}"
+                    )  # the good ol' mongolian vowel separator
+                if (len(t) + len(line)) > 1900:
+                    await ctx.send(content=t)
                     t = ""
-                    for line in lines:
-                        if line in ("", " "):
-                            line = (
-                                "\N{MONGOLIAN VOWEL SEPARATOR}"
-                            )  # the good ol' mongolian vowel separator
-                        if (len(t) + len(line)) > 1900:
-                            await ctx.send(content=t)
-                            t = ""
-                        t += "> " + line + "\n"
-                    return await ctx.send(content=t)
+                t += "> " + line + "\n"
+            return await ctx.send(content=t)
         return await self.send_error_message(
             ctx, "Currently not supported for this song."
+        )
+
+    @commands.command(aliases=["search"])
+    async def service(self, ctx):
+        """
+        Select the provider used for search.
+        :param ctx:
+        :return:
+        """
+        embed = discord.Embed(title="Select Search Provider")
+        if self.guilds[ctx.guild.id].service == "music":
+            embed.add_field(
+                name="Available Services",
+                value="_`1) YouTube Search`_\n" "**`2) YouTube Music Search`**",
+            )
+        else:
+            embed.add_field(
+                name="Available Services",
+                value="**`1) YouTube Search`**\n" "_`2) YouTube Music Search`_",
+            )
+        message: discord.Message = await ctx.send(embed=embed)
+        await message.add_reaction(
+            "\N{Digit One}\N{Combining Enclosing Keycap}"
+        )
+        await message.add_reaction(
+            "\N{Digit Two}\N{Combining Enclosing Keycap}"
+        )
+
+        def check(reaction: discord.Reaction, user: discord.Member):
+            async def set_service(_type, name):
+                await self.mongo.set_service(ctx.guild.id, _type)
+                await self.send_embed_message(
+                    ctx, f'Set search provider to "{name}"'
+                )
+                await message.delete()
+
+            if reaction.message.id == message.id:
+                if user.id != self.bot.user.id:
+                    if (
+                        reaction.emoji
+                        == "\N{Digit One}\N{Combining Enclosing Keycap}"
+                    ):
+                        self.guilds[ctx.guild.id].search_service = "basic"
+                        asyncio.ensure_future(
+                            set_service("basic", "YouTube Search")
+                        )
+                        return True
+                    elif (
+                        reaction.emoji
+                        == "\N{Digit Two}\N{Combining Enclosing Keycap}"
+                    ):
+                        self.guilds[ctx.guild.id].search_service = "music"
+                        asyncio.ensure_future(
+                            set_service("music", "YouTube Music")
+                        )
+                        return True
+            return False
+
+        async def reaction_manager():
+            try:
+                await self.bot.wait_for("reaction_add", timeout=60, check=check)
+            except asyncio.TimeoutError:
+                return
+
+        asyncio.ensure_future(reaction_manager())
+
+    @commands.command(aliases=["w2g", "watchtogether"])
+    async def watch2gether(self, ctx):
+        """
+        Creates a Watch2Gether Room
+        :param ctx:
+        :return:
+        """
+        url = await self.watch2gether.create_new_room()
+        if isinstance(url, Error):
+            return await self.send_error_message(ctx, url.reason)
+        return await self.send_embed_message(
+            ctx, url, url=url, delete_after=None
         )

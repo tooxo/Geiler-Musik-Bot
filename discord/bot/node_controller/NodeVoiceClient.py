@@ -70,6 +70,23 @@ class NodeVoiceClient:
         self.node.writer.write(f"C_UNPA_{json.dumps(document)}".encode())
         asyncio.ensure_future(self.node.writer.drain())
 
+    def seek(self, song: Song, volume: int = 0.5, seconds_to_seek: int = 0):
+        if seconds_to_seek < 0:
+            direction = "back"
+        else:
+            direction = "forward"
+        document = {
+            "guild_id": self.guild_id,
+            "stream": song.stream,
+            "volume": volume,
+            "youtube_stream": song.youtube_stream,
+            "cipher": song.cipher,
+            "direction": direction,
+            "seconds": abs(seconds_to_seek),
+        }
+        self.node.writer.write(f"C_SEEK_{json.dumps(document)}".encode())
+        asyncio.ensure_future(self.node.writer.drain())
+
     def set_volume(self, volume):
         document = {"guild_id": self.guild_id, "volume": volume}
         self.node.writer.write(f"C_VOLU_{json.dumps(document)}".encode())
