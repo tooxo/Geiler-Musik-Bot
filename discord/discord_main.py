@@ -12,6 +12,12 @@ from bot.discord_text import TextResponse
 from bot.HelpCommand import Help
 from discord.ext import commands
 from discord.ext.commands.bot import BotBase
+from bot.type.exceptions import (
+    NotSameChannel,
+    UserNotConnected,
+    NothingPlaying,
+    BotNotConnected,
+)
 
 if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
 
@@ -71,15 +77,32 @@ async def on_ready():
 @client.event
 async def on_command_error(ctx, error):
     if "not found" in str(error):
-        # await DiscordBot.send_error_message(ctx=ctx, message=str(error))
         print(error)
     elif "Invalid Data" in str(error):
         await DiscordBot.send_error_message(
             ctx=ctx, message="Error while playback. Try again."
         )
+    elif isinstance(error, NotSameChannel):
+        await DiscordBot.send_error_message(
+            ctx=ctx, message="You need to be in the same channel as the bot."
+        )
+    elif isinstance(error, UserNotConnected):
+        await DiscordBot.send_error_message(
+            ctx=ctx, message="You need to be in a channel."
+        )
+    elif isinstance(error, NothingPlaying):
+        await DiscordBot.send_error_message(
+            ctx=ctx, message="Nothing is playing."
+        )
+    elif isinstance(error, BotNotConnected):
+        await DiscordBot.send_error_message(
+            ctx=ctx, message="The bot isn't connected."
+        )
+    elif isinstance(error, discord.ext.commands.MissingRequiredArgument):
+        pass
     else:
         log.error(logging_manager.debug_info(str(error)))
-        traceback.print_exc()
+        traceback.print_tb(error.original.__traceback__)
 
 
 @client.event

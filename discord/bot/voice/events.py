@@ -22,6 +22,9 @@ class Events(Cog):
             """
             self.parent.log.debug("Joined a new Guild! Hello, " + guild.name)
             self.parent.guilds[guild.id] = Guild()
+            await self.parent.guilds[guild.id].inflate_from_mongo(
+                self.parent.mongo, guild.id
+            )
 
         @self.bot.event
         async def on_voice_state_update(member, before, after):
@@ -84,5 +87,5 @@ class Events(Cog):
         except asyncio.TimeoutError:
             if self.parent.guilds[guild_id].voice_client is not None:
                 # await self.guilds[guild_id].voice_client.disconnect()
-                self.parent.guilds[guild_id].song_queue = Queue()
+                self.parent.guilds[guild_id].song_queue.clear()
                 self.parent.guilds[guild_id].voice_client.stop()
