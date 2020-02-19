@@ -52,13 +52,29 @@ class Mongo:
             obj = {"name": song_name, "val": 1}
             await self.most_played_collection.insert_one(obj)
 
+    @staticmethod
+    async def insert_empty(
+        collection, guild_id, volume="0.5", full="█", empty="░", service="basic"
+    ):
+        await collection.insert_one(
+            {
+                "id": guild_id,
+                "volume": volume,
+                "full": full,
+                "empty": empty,
+                "service": service,
+            }
+        )
+
     async def set_volume(self, guild_id, volume):
         if self.mongo_enabled is False:
             return
-        collection = self.db.volume
+        collection = self.db.guilds
         doc = await collection.find_one({"id": guild_id})
         if doc is None:
-            await collection.insert_one({"id": guild_id, "volume": volume})
+            await self.insert_empty(
+                collection=collection, guild_id=guild_id, volume=volume
+            )
         else:
             await collection.update_one(
                 {"id": guild_id}, {"$set": {"volume": volume}}
@@ -67,7 +83,7 @@ class Mongo:
     async def get_volume(self, guild_id):
         if self.mongo_enabled is False:
             return 0.5
-        collection = self.db.volume
+        collection = self.db.guilds
         doc = await collection.find_one({"id": guild_id})
         if doc is None:
             return 0.5
@@ -76,11 +92,11 @@ class Mongo:
     async def set_chars(self, guild_id, full, empty):
         if self.mongo_enabled is False:
             return
-        collection = self.db.chars
+        collection = self.db.guilds
         doc = await collection.find_one({"id": guild_id})
         if doc is None:
-            await collection.insert_one(
-                {"id": guild_id, "full": full, "empty": empty}
+            await self.insert_empty(
+                collection, guild_id, full=full, empty=empty
             )
         else:
             await collection.update_one(
@@ -90,11 +106,32 @@ class Mongo:
     async def get_chars(self, guild_id):
         if self.mongo_enabled is False:
             return "█", "░"
-        collection = self.db.chars
+        collection = self.db.guilds
         doc = await collection.find_one({"id": guild_id})
         if doc is None:
             return "█", "░"
         return doc["full"], doc["empty"]
+
+    async def set_service(self, guild_id, service):
+        if self.mongo_enabled is False:
+            return
+        collection = self.db.guilds
+        doc = await collection.find_one({"id": guild_id})
+        if doc is None:
+            await self.insert_empty(collection, guild_id, service=service)
+        else:
+            await collection.update_one(
+                {"id": guild_id}, {"$set": {"service": service}}
+            )
+
+    async def get_service(self, guild_id):
+        if self.mongo_enabled is False:
+            return "basic"
+        collection = self.db.guilds
+        doc = await collection.find_one({"id": guild_id})
+        if doc is None:
+            return "basic"
+        return doc["service"]
 
     async def set_restart_key(self, restart_key):
         if self.mongo_enabled is False:
