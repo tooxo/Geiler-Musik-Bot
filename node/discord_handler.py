@@ -3,6 +3,7 @@ import json
 import re
 import traceback
 from typing import Dict
+from urllib.parse import parse_qs
 
 import discord
 import FFmpegPCMAudio
@@ -42,9 +43,9 @@ class DiscordHandler:
         self.node = node
 
         @self.bot.event
-        async def on_message(ignored):
+        async def on_message(message):
             # no commands should be accepted
-            pass
+            return message
 
         @self.bot.event
         async def on_error(event, *args, **kwargs):
@@ -103,11 +104,11 @@ class DiscordHandler:
             c = c[2:]
             data = c[5:]
             if c.startswith("PLAY"):
-                self.play(data)
+                await self.play(data)
             elif c.startswith("STOP"):
                 self.skip(data)
             elif c.startswith("CONN"):
-                await self.connect(data=data)
+                await self.connect(data)
             elif c.startswith("DCON"):
                 await self.disconnect(data)
             elif c.startswith("VOLU"):
@@ -116,15 +117,18 @@ class DiscordHandler:
                 self.pause(data)
             elif c.startswith("UNPA"):
                 self.resume(data)
+            elif c.startswith("SEEK"):
+                self.seek(data)
 
     async def stop(self):
         return await self.bot.close()
 
     async def start(self):
         print("Starting the bot.")
-        await self.bot.start(self.__api_key)
-        # self.bot.run(self.__api_key, loop=asyncio.new_event_loop())
-        print("Starting the bot is done")
+        try:
+            await self.bot.start(self.__api_key)
+        except SystemExit:
+            await self.bot.logout()
 
     def after(self, error, guild_id: int):
         if error:
@@ -149,7 +153,7 @@ class DiscordHandler:
         data = json.loads(data)
         await self.guilds[data["guild_id"]].voice_client.disconnect()
 
-    def play(self, data):
+    async def play(self, data):
         # guild_id, stream, volume, youtube_stream, cipher
         data = json.loads(data)
         new_stream, before_args = self.decide_on_stream(data)
@@ -158,6 +162,64 @@ class DiscordHandler:
                 new_stream, volume=data["volume"], before_options=before_args
             ),
             after=lambda err: self.after(err, data["guild_id"]),
+        )
+        # self.guilds[data["guild_id"]].voice_client.play(
+        #     source=FFmpegPCMAudio.FFmpegOpusAudioB(
+        #         new_stream, before_options=before_args, vol
+        #     ),
+        #     after=lambda err: self.after(err, data["guild_id"])
+        # )
+        self.guilds[data["guild_id"]].updater = asyncio.ensure_future(
+            self.update_state(data["guild_id"])
+        )
+
+    def seek(self, data):
+        # guild_id, stream, volume, youtube_stream, cipher, seconds, direction
+        data = json.loads(data)
+        new_stream, before_args = self.decide_on_stream(data)
+        if data["seconds"] == 0:
+            return
+        current_state = (
+            self.guilds[data["guild_id"]].voice_client.source.bytes_read
+            * 0.02
+            / discord.opus.Encoder.FRAME_SIZE
+        )
+        if data["direction"] == "back":
+            new_state = current_state - data["seconds"]
+            if new_state <= 0:
+                new_state = 0
+        else:
+            new_state = current_state + int(data["seconds"])
+            if data["youtube_stream"] != "":
+                try:
+                    if (
+                        int(float(parse_qs(data["youtube_stream"])["dur"][0]))
+                        < new_state
+                    ):
+                        self.guilds[data["guild_id"]].voice_client.stop()
+                        return
+                except KeyError:
+                    pass
+
+        # noinspection PyProtectedMember
+        self.guilds[data["guild_id"]].voice_client._player.after = None
+
+        need_to_pause: bool = self.guilds[
+            data["guild_id"]
+        ].voice_client.is_paused()
+
+        self.guilds[data["guild_id"]].voice_client.stop()
+        self.guilds[data["guild_id"]].updater.cancel()
+        self.guilds[data["guild_id"]].voice_client.play(
+            source=FFmpegPCMAudio.FFmpegOpusAudioB(
+                new_stream,
+                volume=data["volume"],
+                before_options=f"{before_args} -ss {new_state}",
+            ),
+            after=lambda err: self.after(err, data["guild_id"]),
+        )
+        self.guilds[data["guild_id"]].voice_client.source.bytes_read = int(
+            new_state * 50 * discord.opus.Encoder.FRAME_SIZE
         )
         self.guilds[data["guild_id"]].updater = asyncio.ensure_future(
             self.update_state(data["guild_id"])

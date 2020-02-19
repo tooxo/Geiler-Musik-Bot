@@ -25,6 +25,7 @@ class FFmpegOpusAudioB(FFmpegOpusAudio):
         self, source: str, volume=0.5, guild_id: int = 0, *args, **kwargs
     ):
         self.volume = volume
+        self.source = source
         super().__init__(source, *args, **kwargs)
         self.guild_id = guild_id
         self.bytes_read = 0
@@ -33,7 +34,7 @@ class FFmpegOpusAudioB(FFmpegOpusAudio):
             OpusEncoder.SAMPLING_RATE, OpusEncoder.CHANNELS
         )
         self.encoder = opuslib.Encoder(
-            OpusEncoder.SAMPLING_RATE, OpusEncoder.CHANNELS, "voip"
+            OpusEncoder.SAMPLING_RATE, OpusEncoder.CHANNELS, "audio"
         )
 
     def read(self):
@@ -49,7 +50,6 @@ class FFmpegOpusAudioB(FFmpegOpusAudio):
         try:
             if self.volume != 1.0:
                 # shitty solution, but there is no better way.
-                # TBA: external volume support (on node)
                 decoded = self.decoder.decode(
                     chunk, OpusEncoder.SAMPLES_PER_FRAME, False
                 )

@@ -7,13 +7,16 @@ import discord
 from bot.type.queue import Queue
 from discord.ext import commands
 from discord.ext.commands import Cog
+from bot.voice.checks import Checks
 
 
 class PlayerControls(Cog, name="Player Controls"):
     def __init__(self, bot, parent):
         self.bot = bot
         self.parent = parent
+        self.guilds = self.parent.guilds
 
+    @commands.check(Checks.manipulation_checks)
     @commands.command(aliases=["exit"])
     async def quit(self, ctx):
         """
@@ -21,8 +24,6 @@ class PlayerControls(Cog, name="Player Controls"):
         :param ctx:
         :return:
         """
-        if not await self.parent.control_check.manipulation_checks(ctx):
-            return
         self.parent.guilds[ctx.guild.id].now_playing = None
         self.parent.guilds[ctx.guild.id].song_queue = Queue()
         await self.parent.clear_presence(ctx)
@@ -30,6 +31,7 @@ class PlayerControls(Cog, name="Player Controls"):
         self.parent.guilds[ctx.guild.id].voice_client = None
         await self.parent.send_embed_message(ctx, "Goodbye! :wave:")
 
+    @commands.check(Checks.manipulation_checks)
     @commands.command(aliases=["empty"])
     async def clear(self, ctx):
         """
@@ -37,18 +39,17 @@ class PlayerControls(Cog, name="Player Controls"):
         :param ctx:
         :return:
         """
-        if not await self.parent.control_check.manipulation_checks(ctx):
-            return
         if self.parent.guilds[ctx.guild.id].song_queue.qsize() != 0:
-            self.parent.guilds[ctx.guild.id].song_queue = Queue()
+            self.parent.guilds[ctx.guild.id].song_queue.clear()
             await self.parent.send_embed_message(
                 ctx, "Cleared the Queue. :cloud:"
             )
         else:
             await self.parent.send_error_message(
-                ctx, "The Playlist was already empty! :cloud:"
+                ctx, "The Queue was already empty! :cloud:"
             )
 
+    @commands.check(Checks.manipulation_checks)
     @commands.command(aliases=["mixer"])
     async def shuffle(self, ctx):
         """
@@ -56,8 +57,6 @@ class PlayerControls(Cog, name="Player Controls"):
         :param ctx:
         :return:
         """
-        if not await self.parent.control_check.manipulation_checks(ctx):
-            return
         if self.parent.guilds[ctx.guild.id].song_queue.qsize() > 0:
             random.shuffle(self.parent.guilds[ctx.guild.id].song_queue.queue)
             await self.parent.send_embed_message(
@@ -68,6 +67,8 @@ class PlayerControls(Cog, name="Player Controls"):
                 ctx, "The queue is empty. :cloud:"
             )
 
+    @commands.check(Checks.manipulation_checks)
+    @commands.check(Checks.voice_client_check)
     @commands.command(aliases=["yeehee"])
     async def stop(self, ctx):
         """
@@ -75,20 +76,15 @@ class PlayerControls(Cog, name="Player Controls"):
         :param ctx:
         :return:
         """
-        if not await self.parent.control_check.manipulation_checks(ctx):
-            return
-        if self.parent.guilds[ctx.guild.id].voice_client is not None:
-            self.parent.guilds[ctx.guild.id].song_queue = Queue()
-            self.parent.guilds[ctx.guild.id].now_playing = None
-            self.parent.guilds[ctx.guild.id].voice_client.stop()
-            await self.parent.send_embed_message(
-                ctx, "Music Stopped! :octagonal_sign:"
-            )
-        else:
-            await self.parent.send_error_message(
-                ctx, ":thinking: The Bot isn't connected. :thinking:"
-            )
+        self.parent.guilds[ctx.guild.id].song_queue.clear()
+        self.parent.guilds[ctx.guild.id].now_playing = None
+        self.parent.guilds[ctx.guild.id].voice_client.stop()
+        await self.parent.send_embed_message(
+            ctx, "Music Stopped! :octagonal_sign:"
+        )
 
+    @commands.check(Checks.manipulation_checks)
+    @commands.check(Checks.song_playing_check)
     @commands.command(aliases=["halteein"])
     async def pause(self, ctx):
         """
@@ -96,10 +92,6 @@ class PlayerControls(Cog, name="Player Controls"):
         :param ctx:
         :return:
         """
-        if not await self.parent.control_check.manipulation_checks(ctx):
-            return
-        if not await self.parent.control_check.song_playing_check(ctx):
-            return
         if self.parent.guilds[ctx.guild.id].voice_client.is_paused():
             await self.parent.send_error_message(ctx, "Already Paused.")
             return
@@ -112,6 +104,7 @@ class PlayerControls(Cog, name="Player Controls"):
             await message.delete()
             await ctx.message.delete()
 
+    @commands.check(Checks.manipulation_checks)
     @commands.command(aliases=["next", "müll", "s", "n", "nein"])
     async def skip(self, ctx, count="1"):
         """
@@ -120,8 +113,6 @@ class PlayerControls(Cog, name="Player Controls"):
         :param count:
         :return:
         """
-        if not await self.parent.control_check.manipulation_checks(ctx):
-            return
         try:
             count = int(count)
         except ValueError:
@@ -185,6 +176,26 @@ class PlayerControls(Cog, name="Player Controls"):
         await asyncio.sleep(10)
         await ctx.message.delete()
 
+    @commands.check(Checks.manipulation_checks)
+    @commands.check(Checks.voice_client_check)
+    @commands.check(Checks.song_playing_check)
+    @commands.command(aliases=["back"])
+    async def prev(self, ctx):
+        """
+        Jumps back a song.
+        :param ctx:
+        :return:
+        """
+        _song_queue: Queue = self.parent.guilds[ctx.guild.id].song_queue
+        _voice_client = self.parent.guilds[ctx.guild.id].voice_client
+        if not _song_queue.back_queue.empty():
+            last_song = _song_queue.get_last()
+            _song_queue.queue.appendleft(last_song)
+            _voice_client.stop()
+
+    @commands.check(Checks.manipulation_checks)
+    @commands.check(Checks.song_playing_check)
+    @commands.check(Checks.voice_client_check)
     @commands.command(aliases=["unpause"])
     async def resume(self, ctx):
         """
@@ -192,18 +203,46 @@ class PlayerControls(Cog, name="Player Controls"):
         :param ctx:
         :return:
         """
-        if not await self.parent.control_check.manipulation_checks(ctx):
-            return
-        if not await self.parent.control_check.song_playing_check(ctx):
-            return
-        if self.parent.guilds[ctx.guild.id].voice_client is not None:
-            if self.parent.guilds[ctx.guild.id].voice_client.is_paused():
-                self.parent.guilds[ctx.guild.id].voice_client.resume()
-                await self.parent.send_embed_message(
-                    ctx, "Unpaused! :play_pause:"
+        if self.parent.guilds[ctx.guild.id].voice_client.is_paused():
+            self.parent.guilds[ctx.guild.id].voice_client.resume()
+            await self.parent.send_embed_message(ctx, "Unpaused! :play_pause:")
+        else:
+            await self.parent.send_error_message(ctx, "Not Paused.")
+
+    @commands.check(Checks.manipulation_checks)
+    @commands.check(Checks.voice_client_check)
+    @commands.command(aliases=[])
+    async def seek(self, ctx, *, distance: str = ""):
+        """
+        Seeks in the song.
+        :param ctx:
+        :param distance:
+        :return:
+        """
+        try:
+            if distance == "":
+                raise ValueError()
+            parsed = int(distance)
+        except ValueError:
+            await self.parent.send_error_message(ctx, "Invalid value.")
+            return  # shit
+        if self.parent.guilds[ctx.guild.id].voice_client.is_playing():
+            if not self.parent.guilds[ctx.guild.id].voice_client.is_paused():
+                self.parent.guilds[ctx.guild.id].voice_client.seek(
+                    song=self.parent.guilds[ctx.guild.id].now_playing,
+                    volume=self.parent.guilds[ctx.guild.id].volume,
+                    seconds_to_seek=parsed,
+                )
+                return await self.parent.send_embed_message(
+                    ctx, f"**Seeked {parsed} seconds forward.**"
                 )
             else:
-                await self.parent.send_error_message(ctx, "Not Paused.")
+                return await self.parent.send_error_message(
+                    ctx, "Can't do this while paused."
+                )
+        return await self.parent.send_error_message(
+            ctx, "Can't do this while nothing is playing."
+        )
 
     @commands.command(aliases=["q"])
     async def queue(self, ctx):
@@ -212,17 +251,6 @@ class PlayerControls(Cog, name="Player Controls"):
         :param ctx:
         :return:
         """
-        numbers = [
-            "`(1)`",
-            "`(2)`",
-            "`(3)`",
-            "`(4)`",
-            "`(5)`",
-            "`(6)`",
-            "`(7)`",
-            "`(8)`",
-            "`(9)`",
-        ]
         use_embeds = environ.get("USE_EMBEDS", "True") == "True"
         no_embed_string = ""
         embed = discord.Embed(colour=0x00FFCC)
@@ -262,14 +290,7 @@ class PlayerControls(Cog, name="Player Controls"):
                         is not None
                     ):
 
-                        _t += (
-                            numbers[x]
-                            + " `"
-                            + self.parent.guilds[ctx.guild.id]
-                            .song_queue.queue[x]
-                            .title
-                            + "`\n"
-                        )
+                        _t += f"`({x+1})` `{self.parent.guilds[ctx.guild.id].song_queue.queue[x].title}`\n"
 
                     elif (
                         self.parent.guilds[ctx.guild.id]
@@ -278,14 +299,7 @@ class PlayerControls(Cog, name="Player Controls"):
                         is not None
                     ):
 
-                        _t += (
-                            numbers[x]
-                            + " `"
-                            + self.parent.guilds[ctx.guild.id]
-                            .song_queue.queue[x]
-                            .link
-                            + "`\n"
-                        )
+                        _t += f"`({x+1})` `{self.parent.guilds[ctx.guild.id].song_queue.queue[x].link}`\n"
                     else:
                         break
                 except (IndexError, KeyError, AttributeError, TypeError):

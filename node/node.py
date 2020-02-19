@@ -21,6 +21,8 @@ from youtube_dl.utils import DownloadError, ExtractorError
 
 from discord_handler import DiscordHandler
 
+logging.getLogger("discord").setLevel(logging.INFO)
+
 
 class Errors:
     no_results_found = "No Results found."
@@ -72,6 +74,7 @@ class YouTube:
     def __init__(self):
         self.research_cache = ExpiringDict(1000, 10000)
         self.search_cache = dict()
+        self.music_search_cache = dict()
         self.cipher = self.create_cipher()
 
     @staticmethod
@@ -177,7 +180,7 @@ class YouTube:
                 output.append(song)
         return output
 
-    def search_youtube(self, term):
+    def search_youtube_basic(self, term):
         if term in self.search_cache:
             return self.search_cache[term]
         query = quote(term)
@@ -200,6 +203,92 @@ class YouTube:
                     self.search_cache[term] = "https://www.youtube.com" + url
                     return "https://www.youtube.com" + url
         raise NotAvailableException("no videos found")
+
+    @staticmethod
+    def _create_music_payload(query: str):
+        payload: dict = json.loads(
+            '{"context":{"client":{"clientName":"WEB_REMIX","clientVersion":"0.1","hl":"de","gl":"DE",'
+            '"experimentIds":[],"experimentsToken":"","utcOffsetMinutes":60,'
+            '"locationInfo":{"locationPermissionAuthorizationStatus":'
+            '"LOCATION_PERMISSION_AUTHORIZATION_STATUS_UNSUPPORTED"},'
+            '"musicAppInfo":{"musicActivityMasterSwitch":"MUSIC_ACTIVITY_MASTER_SWITCH_INDETERMINATE",'
+            '"musicLocationMasterSwitch":"MUSIC_LOCATION_MASTER_SWITCH_INDETERMINATE",'
+            '"pwaInstallabilityStatus":"PWA_INSTALLABILITY_STATUS_UNKNOWN"}},"capabilities":{},'
+            '"request":{"internalExperimentFlags":[{"key":"force_music_enable_outertube_search_suggestions",'
+            '"value":"true"},{"key":"force_music_enable_outertube_playlist_detail_browse","value":"true"},'
+            '{"key":"force_music_enable_outertube_tastebuilder_browse","value":"true"}],"sessionIndex":{}},'
+            '"clickTracking":{"clickTrackingParams":"IhMIk5OBqvnT5wIVgfFVCh2s8AzdMghleHRlcm5hbA=="},'
+            '"activePlayers":{},"user":{"enableSafetyMode":false}},"query":""}'
+        )
+        payload["query"] = query
+        return json.dumps(payload)
+
+    @staticmethod
+    def _get_stream_from_youtube_music_response(input_json: dict):
+        try:
+            video_ids = []
+            for renderer in input_json["contents"]["sectionListRenderer"][
+                "contents"
+            ]:
+                try:
+                    for chapter in renderer["musicShelfRenderer"]["contents"]:
+                        try:
+                            video_id = chapter[
+                                "musicResponsiveListItemRenderer"
+                            ]["overlay"]["musicItemThumbnailOverlayRenderer"][
+                                "content"
+                            ][
+                                "musicPlayButtonRenderer"
+                            ][
+                                "playNavigationEndpoint"
+                            ][
+                                "watchEndpoint"
+                            ][
+                                "videoId"
+                            ]
+                            video_ids.append(video_id)
+                        except (TypeError, KeyError):
+                            continue
+                except (TypeError, KeyError):
+                    continue
+            if len(video_ids) > 0:
+                return video_ids[0]
+            raise NotAvailableException("no videos found")
+        except (TypeError, KeyError, AttributeError):
+            raise NotAvailableException("no videos found")
+
+    def search_youtube_music(self, term):
+        if term in self.music_search_cache:
+            return self.music_search_cache[term]
+        url = "https://music.youtube.com/youtubei/v1/search?alt=json&key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30"
+        for x in range(1, 2, 1):
+            with requests.post(
+                url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                    "(KHTML, like Gecko) Chrome/80.0.3987.87 Safari/537.36",
+                    "Referer": f"https://music.youtube.com/search?q={quote(term)}",
+                    "Content-Type": "application/json",
+                },
+                data=self._create_music_payload(query=term),
+            ) as res:
+                if res.status_code != 200:
+                    continue
+                response: dict = res.json()
+                video_id = self._get_stream_from_youtube_music_response(
+                    response
+                )
+                self.search_cache[term] = (
+                    "https://www.youtube.com"
+                    + f"https://youtube.com/watch?v={video_id}"
+                )
+                return f"https://youtube.com/watch?v={video_id}"
+
+    def search_youtube(self, input_json):
+        input_json = json.loads(input_json)
+        if input_json.get("service", "basic") == "music":
+            return self.search_youtube_music(input_json["term"])
+        return self.search_youtube_basic(input_json["term"])
 
 
 class SoundCloud:

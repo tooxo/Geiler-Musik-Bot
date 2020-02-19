@@ -11,6 +11,7 @@ from bot.now_playing_message import NowPlayingMessage
 from bot.type.error import Error
 from bot.type.errors import Errors
 from bot.type.queue import Queue
+from bot.voice.checks import Checks
 from bot.type.song import Song
 from bot.type.soundcloud_type import SoundCloudType
 from bot.type.spotify_song import SpotifySong
@@ -26,6 +27,7 @@ class Player(Cog):
     def __init__(self, bot, parent):
         self.bot = bot
         self.parent = parent
+        self.guilds = self.parent.guilds
 
     async def pre_player(self, ctx, bypass=None):
         if (
@@ -74,7 +76,9 @@ class Player(Cog):
                         self.parent.log.warning(small_dict)
                     # term
                     youtube_dict = Song.copy_song(
-                        await self.parent.youtube.youtube_term(small_dict),
+                        await self.parent.youtube.youtube_term(
+                            small_dict, self.parent.guilds[ctx.guild.id].service
+                        ),
                         small_dict,
                     )
                 if isinstance(youtube_dict, Error):
@@ -234,7 +238,7 @@ class Player(Cog):
         self, url, ctx, first_index_push=False, playskip=False, shuffle=False
     ):
         if playskip:
-            self.parent.guilds[ctx.guild.id].song_queue = Queue()
+            self.parent.guilds[ctx.guild.id].song_queue.clear()
 
         songs: list = await self.extract_infos(url=url, ctx=ctx)
         for __song in songs:
@@ -291,12 +295,7 @@ class Player(Cog):
             self.parent.log.error(traceback.format_exc())
             self.parent.log.error(logging_manager.debug_info(str(e)))
 
-    async def join_check(self, ctx, url):
-        if url is None:
-            await self.parent.send_error_message(
-                ctx, "You need to enter something to play."
-            )
-            return False
+    async def join_check(self, ctx):
         if self.parent.guilds[ctx.guild.id].voice_channel is None:
             if ctx.author.voice is not None:
                 self.parent.guilds[
@@ -307,8 +306,6 @@ class Player(Cog):
                     ctx, "You need to be in a channel."
                 )
                 return False
-        if not await self.parent.control_check.same_channel_check(ctx):
-            return False
         return True
 
     async def join_channel(self, ctx):
@@ -351,8 +348,9 @@ class Player(Cog):
         return True
 
     # @commands.cooldown(1, 0.5, commands.BucketType.guild)
+    @commands.check(Checks.same_channel_check)
     @commands.command(aliases=["p"])
-    async def play(self, ctx, *, url: str = None):
+    async def play(self, ctx, *, url):
         """
         Plays a song.
         :param ctx:
@@ -363,8 +361,9 @@ class Player(Cog):
             return
         await self.add_to_queue(url, ctx)
 
+    @commands.check(Checks.same_channel_check)
     @commands.command(aliases=["pn"])
-    async def playnext(self, ctx, *, url: str = None):
+    async def playnext(self, ctx, *, url: str):
         """
         Adds a song to the first position in the queue.
         """
@@ -372,8 +371,9 @@ class Player(Cog):
             return
         await self.add_to_queue(url, ctx, first_index_push=True)
 
+    @commands.check(Checks.same_channel_check)
     @commands.command(aliases=["ps"])
-    async def playskip(self, ctx, *, url: str = None):
+    async def playskip(self, ctx, *, url: str):
         """
         Queues a song and instantly skips to it.
         :param ctx:
@@ -384,8 +384,9 @@ class Player(Cog):
             return
         await self.add_to_queue(url, ctx, playskip=True)
 
+    @commands.check(Checks.same_channel_check)
     @commands.command(aliases=["sp"])
-    async def shuffleplay(self, ctx, *, url: str = None):
+    async def shuffleplay(self, ctx, *, url: str):
         """
         Queues multiple songs in random order.
         :param ctx:
@@ -396,8 +397,38 @@ class Player(Cog):
             return
         await self.add_to_queue(url, ctx, shuffle=True)
 
+    @play.error
+    @playnext.error
+    @playskip.error
+    @shuffleplay.error
+    async def _play_error(self, ctx, error):
+        if isinstance(error, discord.ext.commands.MissingRequiredArgument):
+            return await self.parent.send_error_message(
+                ctx, "You need to enter something to play."
+            )
+
+    @commands.command(aliases=["join"])
+    async def connect(self, ctx):
+        """
+        Connects the bot to your channel.
+        :param ctx:
+        :return:
+        """
+        was_connected = (
+            self.parent.guilds[ctx.guild.id].voice_client is not None
+        )
+        if not await self.join_check(ctx):
+            return
+        if not await self.join_channel(ctx=ctx):
+            return
+        if was_connected:
+            return await self.parent.send_error_message(
+                ctx, "Already Connected."
+            )
+        return await self.parent.send_embed_message(ctx, "Connected.")
+
     async def play_check(self, ctx, url):
-        if not await self.join_check(ctx, url):
+        if not await self.join_check(ctx):
             return False
         if not await self.join_channel(ctx=ctx):
             return False
@@ -554,7 +585,10 @@ class Player(Cog):
                         self.parent.guilds[ctx.guild.id].voice_client.set_after(
                             self.song_conclusion, ctx, error=None
                         )
-            full, empty = await self.parent.mongo.get_chars(ctx.guild.id)
+            full, empty = (
+                self.parent.guilds[ctx.guild.id].full,
+                self.parent.guilds[ctx.guild.id].empty,
+            )
             self.parent.guilds[
                 ctx.guild.id
             ].now_playing_message = NowPlayingMessage(
@@ -596,11 +630,13 @@ class Player(Cog):
                         else:
                             if item.title is not None:
                                 youtube_dict = await self.parent.youtube.youtube_term(
-                                    item
+                                    item,
+                                    self.parent.guilds[ctx.guild.id].service,
                                 )
                             else:
                                 youtube_dict = await self.parent.youtube.youtube_term(
-                                    item
+                                    item,
+                                    self.parent.guilds[ctx.guild.id].service,
                                 )
                             youtube_dict.user = item.user
                         j: int = 0
@@ -643,7 +679,7 @@ class Player(Cog):
                     619567786590470147,
                     561858486430859264,
                 ):
-                    self.parent.guilds[ctx.guild.id].song_queue = Queue()
+                    self.parent.guilds[ctx.guild.id].song_queue.clear()
                     await self.parent.guilds[
                         ctx.guild.id
                     ].voice_client.disconnect()

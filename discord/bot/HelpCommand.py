@@ -65,9 +65,16 @@ class Help(commands.Cog):
         else:
             a = f"{self.prefix}{command.name}"
         for param in list(command.params.keys())[2:]:
-            a += f" <{param}>"
+            if (
+                command.params[param].kind == "POSITIONAL_OR_KEYWORD"
+                or "KEYWORD_ONLY"
+            ):
+                a += f" <{param}>"
+            else:
+                a += f" ({param})"
         embed.add_field(name="**Info**", value=command.short_doc, inline=False)
         embed.add_field(name="**Syntax**", value=f"`{a}`", inline=False)
+        embed.set_footer(text="Syntax: [alias] <required> (optional)")
         return await ctx.send(embed=embed)
 
     @commands.command(aliases=["?", "h"], hidden=True)
