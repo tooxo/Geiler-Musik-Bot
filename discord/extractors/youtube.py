@@ -62,7 +62,8 @@ class Youtube:
         except asyncio.TimeoutError:
             return Error(True, Errors.default)
 
-    async def youtube_term(self, song: (Song, str)):
+    async def youtube_term(self, song: (Song, str), service: str):
+        log.info(f'Using Search Service "{service}"')
         if isinstance(song, Song):
             if song.term:
                 term = song.term
@@ -74,8 +75,10 @@ class Youtube:
             term = song
 
         node = self.node_controller.get_best_node(guild_id=song.guild_id)
+
         url = await self.http_post(
-            self.term_url.format(node.ip, node.port), term
+            self.term_url.format(node.ip, node.port),
+            json.dumps({"service": service, "term": term}),
         )
 
         if isinstance(url, Error):

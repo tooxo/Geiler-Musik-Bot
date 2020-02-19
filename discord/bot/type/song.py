@@ -85,6 +85,8 @@ class Song:
 
     @staticmethod
     def copy_song(_from, _to):
+        if isinstance(_from, Error):
+            return _from
         _from: Song
         _to: Song
         for attribute in _from.__dict__.keys():

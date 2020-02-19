@@ -146,6 +146,7 @@ class NowPlayingMessage:
             TypeError,
             AttributeError,
             aiohttp.ServerDisconnectedError,
+            RecursionError,
         ) as e:
             return
         await asyncio.sleep(5)
@@ -161,42 +162,45 @@ class NowPlayingMessage:
             return False
 
         def check_add(reaction: discord.Reaction, user: discord.Member):
-            if self.discord_music.bot.user.id != user.id:
-                if same_channel_check(user=user):
-                    if (
-                        reaction.emoji
-                        == "\N{BLACK RIGHT-POINTING DOUBLE TRIANGLE}"
-                    ):
-                        self.voice_client.stop()
-                        return True
-                    if (
-                        reaction.emoji
-                        == "\N{BLACK RIGHT-POINTING TRIANGLE WITH DOUBLE VERTICAL BAR}"
-                    ):
-                        try:
-                            if self.voice_client.is_paused():
-                                self.voice_client.resume()
-                            else:
-                                self.voice_client.pause()
-                        except AttributeError as ae:
-                            self.log.warning(logging_manager.debug_info(ae))
-            return False
+            if reaction.message.id == self.message.id:
+                if self.discord_music.bot.user.id != user.id:
+                    if same_channel_check(user=user):
+                        if (
+                            reaction.emoji
+                            == "\N{BLACK RIGHT-POINTING DOUBLE TRIANGLE}"
+                        ):
+                            self.voice_client.stop()
+                            self._stop = True
+                            return True
+                        if (
+                            reaction.emoji
+                            == "\N{BLACK RIGHT-POINTING TRIANGLE WITH DOUBLE VERTICAL BAR}"
+                        ):
+                            try:
+                                if self.voice_client.is_paused():
+                                    self.voice_client.resume()
+                                else:
+                                    self.voice_client.pause()
+                            except AttributeError as ae:
+                                self.log.warning(logging_manager.debug_info(ae))
+                return False
 
         def check_remove(reaction: discord.Reaction, user: discord.Member):
-            if self.discord_music.bot.user.id != user.id:
-                if same_channel_check(user=user):
-                    if (
-                        reaction.emoji
-                        == "\N{BLACK RIGHT-POINTING TRIANGLE WITH DOUBLE VERTICAL BAR}"
-                    ):
-                        try:
-                            if self.voice_client.is_paused():
-                                self.voice_client.resume()
-                            else:
-                                self.voice_client.pause()
-                        except AttributeError as ae:
-                            self.log.warning(logging_manager.debug_info(ae))
-            return False
+            if reaction.message.id == self.message.id:
+                if self.discord_music.bot.user.id != user.id:
+                    if same_channel_check(user=user):
+                        if (
+                            reaction.emoji
+                            == "\N{BLACK RIGHT-POINTING TRIANGLE WITH DOUBLE VERTICAL BAR}"
+                        ):
+                            try:
+                                if self.voice_client.is_paused():
+                                    self.voice_client.resume()
+                                else:
+                                    self.voice_client.pause()
+                            except AttributeError as ae:
+                                self.log.warning(logging_manager.debug_info(ae))
+                return False
 
         self.add_subroutine = asyncio.ensure_future(
             self.discord_music.bot.wait_for(
