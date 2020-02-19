@@ -236,10 +236,9 @@ class PlayerControls(Cog, name="Player Controls"):
                 return await self.parent.send_embed_message(
                     ctx, f"**Seeked {parsed} seconds forward.**"
                 )
-            else:
-                return await self.parent.send_error_message(
-                    ctx, "Can't do this while paused."
-                )
+            return await self.parent.send_error_message(
+                ctx, "Can't do this while paused."
+            )
         return await self.parent.send_error_message(
             ctx, "Can't do this while nothing is playing."
         )

@@ -10,7 +10,6 @@ from bot.node_controller.controller import NoNodeReadyException
 from bot.now_playing_message import NowPlayingMessage
 from bot.type.error import Error
 from bot.type.errors import Errors
-from bot.type.queue import Queue
 from bot.voice.checks import Checks
 from bot.type.song import Song
 from bot.type.soundcloud_type import SoundCloudType

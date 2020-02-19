@@ -620,7 +620,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                             set_service("basic", "YouTube Search")
                         )
                         return True
-                    elif (
+                    if (
                         reaction.emoji
                         == "\N{Digit Two}\N{Combining Enclosing Keycap}"
                     ):
