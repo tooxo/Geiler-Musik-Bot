@@ -1,17 +1,18 @@
 import asyncio
 import time
+from typing import Dict
 
 import async_timeout
 from discord.ext.commands import Cog
 
 from bot.type.guild import Guild
-from bot.type.queue import Queue
 
 
 class Events(Cog):
     def __init__(self, bot, parent):
         self.bot = bot
         self.parent = parent
+        self.guilds: Dict[int, Guild] = parent.guilds
 
         @self.bot.event
         async def on_guild_join(guild):
@@ -21,8 +22,8 @@ class Events(Cog):
             :return:
             """
             self.parent.log.debug("Joined a new Guild! Hello, " + guild.name)
-            self.parent.guilds[guild.id] = Guild()
-            await self.parent.guilds[guild.id].inflate_from_mongo(
+            self.guilds[guild.id] = Guild()
+            await self.guilds[guild.id].inflate_from_mongo(
                 self.parent.mongo, guild.id
             )
 
@@ -41,18 +42,17 @@ class Events(Cog):
                 else:
                     guild_id = after.channel.guild.id
 
-                if self.parent.guilds[guild_id].voice_channel is None:
+                if self.guilds[guild_id].voice_channel is None:
                     return
                 if member is self.bot.user:
                     if self.bot.get_guild(guild_id).voice_client is not None:
-                        self.parent.guilds[guild_id].voice_channel = None
-                        self.parent.guilds[guild_id].voice_client = None
+                        self.guilds[guild_id].voice_channel = None
+                        self.guilds[guild_id].voice_client = None
                         return
 
                 if (
-                    self.parent.guilds[guild_id].voice_channel is before.channel
-                    and self.parent.guilds[guild_id].voice_channel
-                    is not after.channel
+                    self.guilds[guild_id].voice_channel is before.channel
+                    and self.guilds[guild_id].voice_channel is not after.channel
                 ):
                     if len(before.channel.members) == 1:
                         asyncio.ensure_future(
@@ -72,20 +72,14 @@ class Events(Cog):
             with async_timeout.timeout(300):
                 while 1:
                     await asyncio.sleep(2)
-                    if (
-                        self.parent.guilds[guild_id].voice_channel
-                        is not channel
-                    ):
+                    if self.guilds[guild_id].voice_channel is not channel:
                         return
-                    if (
-                        len(self.parent.guilds[guild_id].voice_channel.members)
-                        > 1
-                    ):
+                    if len(self.guilds[guild_id].voice_channel.members) > 1:
                         return
                     if time.time() == 0:
                         break
         except asyncio.TimeoutError:
-            if self.parent.guilds[guild_id].voice_client is not None:
+            if self.guilds[guild_id].voice_client is not None:
                 # await self.guilds[guild_id].voice_client.disconnect()
-                self.parent.guilds[guild_id].song_queue.clear()
-                self.parent.guilds[guild_id].voice_client.stop()
+                self.guilds[guild_id].song_queue.clear()
+                self.guilds[guild_id].voice_client.stop()

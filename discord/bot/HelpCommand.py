@@ -1,4 +1,4 @@
-from discord import Embed
+from discord import Embed, Message
 from discord.ext import commands
 
 
@@ -11,7 +11,7 @@ class Help(commands.Cog):
 
         self.bot.remove_command("help")
 
-    def _get_longest_commands_length(self):
+    def _get_longest_commands_length(self) -> int:
         length = 0
         for cn in self.bot.cogs:
             for cmd in self.bot.cogs[cn].get_commands():
@@ -23,17 +23,17 @@ class Help(commands.Cog):
         return length
 
     @staticmethod
-    def _lengthen_string(input_string, length: int):
+    def _lengthen_string(input_string, length: int) -> str:
         _length = length - len(input_string) + 3
         return f"{input_string}{f' ' * _length}"
 
     @staticmethod
-    def _split_list(_list: list, _length: int):
+    def _split_list(_list: list, _length: int) -> list:
         big_list = []
         counter = 0
         _l = []
         for item in _list:
-            if (counter / 10).is_integer() and not (counter / 10) == 0.0:
+            if (counter / 10).is_integer() and (counter / 10) != 0.0:
                 big_list.append(_l)
                 _l = []
             _l.append(item)
@@ -52,13 +52,14 @@ class Help(commands.Cog):
             d[item.cog_name].append(item)
         return d
 
-    def _fuse(self, list_with_sub_lists: list):
+    @staticmethod
+    def _fuse(list_with_sub_lists: list) -> list:
         _l = []
         for x in list_with_sub_lists:
             _l.extend(x)
         return _l
 
-    async def help_main(self, ctx, page=0):
+    async def help_main(self, ctx: commands.Context, page: int = 0) -> Message:
         cogs = {}
         all_commands = []
         for c in self.bot.cogs:
@@ -87,9 +88,11 @@ class Help(commands.Cog):
         for s in cogs:
             if cogs[s]:
                 embed.add_field(name=f"**{s}**", value=cogs[s], inline=False)
-        await ctx.send(embed=embed)
+        return await ctx.send(embed=embed)
 
-    async def help_command(self, ctx, command):
+    async def help_command(
+        self, ctx: commands.Context, command: str
+    ) -> Message:
         embed = Embed(title="Help")
         if command not in self.bot.all_commands:
             embed.description = f'"{command}" was not found.'
@@ -116,7 +119,7 @@ class Help(commands.Cog):
         return await ctx.send(embed=embed)
 
     @commands.command(aliases=["?", "h"], hidden=True)
-    async def help(self, ctx, command=None):
+    async def help(self, ctx: commands.Context, command: str = None):
         """
         Displays help for the bots commands.
         :param ctx:

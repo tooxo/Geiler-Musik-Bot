@@ -1,6 +1,5 @@
 import asyncio
 import time
-import traceback
 from os import environ
 from typing import Optional
 
@@ -148,6 +147,7 @@ class NowPlayingMessage:
             aiohttp.ServerDisconnectedError,
             RecursionError,
         ) as e:
+            self.log.warning(logging_manager.debug_info(e))
             return
         await asyncio.sleep(5)
         if self._stop is False:

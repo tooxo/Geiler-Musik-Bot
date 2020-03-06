@@ -2,7 +2,6 @@ import asyncio
 import datetime
 import random
 import string
-import sys
 from os import environ
 from typing import Dict, Optional
 
@@ -28,7 +27,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         self.log = logging_manager.LoggingManager()
         self.log.debug("[Startup]: Initializing Music Module . . .")
 
-        self.guilds: Dict[Guild] = {}
+        self.guilds: Dict[int, Guild] = {}
 
         self.bot: commands.Bot = bot
         self.player = Player(self.bot, self)

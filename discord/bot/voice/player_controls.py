@@ -26,11 +26,11 @@ class PlayerControls(Cog, name="Player Controls"):
         :param ctx:
         :return:
         """
-        self.parent.guilds[ctx.guild.id].now_playing = None
-        self.parent.guilds[ctx.guild.id].song_queue = Queue()
+        self.guilds[ctx.guild.id].now_playing = None
+        self.guilds[ctx.guild.id].song_queue = Queue()
         await self.parent.clear_presence(ctx)
-        await self.parent.guilds[ctx.guild.id].voice_client.disconnect()
-        self.parent.guilds[ctx.guild.id].voice_client = None
+        await self.guilds[ctx.guild.id].voice_client.disconnect()
+        self.guilds[ctx.guild.id].voice_client = None
         await self.parent.send_embed_message(ctx, "Goodbye! :wave:")
 
     @commands.check(Checks.manipulation_checks)
@@ -41,8 +41,8 @@ class PlayerControls(Cog, name="Player Controls"):
         :param ctx:
         :return:
         """
-        if self.parent.guilds[ctx.guild.id].song_queue.qsize() != 0:
-            self.parent.guilds[ctx.guild.id].song_queue.clear()
+        if self.guilds[ctx.guild.id].song_queue.qsize() != 0:
+            self.guilds[ctx.guild.id].song_queue.clear()
             await self.parent.send_embed_message(
                 ctx, "Cleared the Queue. :cloud:"
             )
@@ -59,8 +59,8 @@ class PlayerControls(Cog, name="Player Controls"):
         :param ctx:
         :return:
         """
-        if self.parent.guilds[ctx.guild.id].song_queue.qsize() > 0:
-            random.shuffle(self.parent.guilds[ctx.guild.id].song_queue.queue)
+        if self.guilds[ctx.guild.id].song_queue.qsize() > 0:
+            random.shuffle(self.guilds[ctx.guild.id].song_queue.queue)
             await self.parent.send_embed_message(
                 ctx, "Shuffled! :twisted_rightwards_arrows:"
             )
@@ -78,9 +78,9 @@ class PlayerControls(Cog, name="Player Controls"):
         :param ctx:
         :return:
         """
-        self.parent.guilds[ctx.guild.id].song_queue.clear()
-        self.parent.guilds[ctx.guild.id].now_playing = None
-        self.parent.guilds[ctx.guild.id].voice_client.stop()
+        self.guilds[ctx.guild.id].song_queue.clear()
+        self.guilds[ctx.guild.id].now_playing = None
+        self.guilds[ctx.guild.id].voice_client.stop()
         await self.parent.send_embed_message(
             ctx, "Music Stopped! :octagonal_sign:"
         )
@@ -94,11 +94,11 @@ class PlayerControls(Cog, name="Player Controls"):
         :param ctx:
         :return:
         """
-        if self.parent.guilds[ctx.guild.id].voice_client.is_paused():
+        if self.guilds[ctx.guild.id].voice_client.is_paused():
             await self.parent.send_error_message(ctx, "Already Paused.")
             return
-        if self.parent.guilds[ctx.guild.id].voice_client is not None:
-            self.parent.guilds[ctx.guild.id].voice_client.pause()
+        if self.guilds[ctx.guild.id].voice_client is not None:
+            self.guilds[ctx.guild.id].voice_client.pause()
             message = await self.parent.send_embed_message(
                 ctx, "Paused! :pause_button:"
             )
@@ -122,46 +122,37 @@ class PlayerControls(Cog, name="Player Controls"):
                 ctx, "Please provide a valid number."
             )
             return
-        if self.parent.guilds[ctx.guild.id].voice_client is not None:
-            if self.parent.guilds[ctx.guild.id].now_playing is not None:
+        if self.guilds[ctx.guild.id].voice_client is not None:
+            if self.guilds[ctx.guild.id].now_playing is not None:
                 if count == 1:
                     await self.parent.send_embed_message(
                         ctx, "Skipped! :track_next:", delete_after=10
                     )
-                    self.parent.guilds[ctx.guild.id].voice_client.stop()
+                    self.guilds[ctx.guild.id].voice_client.stop()
                 elif count < 1:
                     await self.parent.send_error_message(
                         ctx, "Please provide a valid number."
                     )
                     return
                 else:
-                    if (
-                        count
-                        > self.parent.guilds[ctx.guild.id].song_queue.qsize()
-                    ):
+                    if count > self.guilds[ctx.guild.id].song_queue.qsize():
                         await self.parent.send_embed_message(
                             ctx,
                             "Skipped "
-                            + str(
-                                self.parent.guilds[
-                                    ctx.guild.id
-                                ].song_queue.qsize()
-                            )
+                            + str(self.guilds[ctx.guild.id].song_queue.qsize())
                             + " Tracks! :track_next:",
                         )
-                        self.parent.guilds[ctx.guild.id].voice_client.stop()
+                        self.guilds[ctx.guild.id].voice_client.stop()
                     else:
 
-                        queue = self.parent.guilds[
-                            ctx.guild.id
-                        ].song_queue.queue
+                        queue = self.guilds[ctx.guild.id].song_queue.queue
 
-                        self.parent.guilds[
+                        self.guilds[
                             ctx.guild.id
                         ].song_queue.queue = collections.deque(
                             list(queue)[(count - 1) :]
                         )
-                    self.parent.guilds[ctx.guild.id].voice_client.stop()
+                    self.guilds[ctx.guild.id].voice_client.stop()
                     await self.parent.send_embed_message(
                         ctx, "Skipped " + str(count) + " Tracks! :track_next:"
                     )
@@ -189,8 +180,8 @@ class PlayerControls(Cog, name="Player Controls"):
         :return:
         """
 
-        _song_queue: Queue = self.parent.guilds[ctx.guild.id].song_queue
-        _voice_client = self.parent.guilds[ctx.guild.id].voice_client
+        _song_queue: Queue = self.guilds[ctx.guild.id].song_queue
+        _voice_client = self.guilds[ctx.guild.id].voice_client
         if not _song_queue.back_queue.__len__() == 0:
             last_song = _song_queue.get_last()
             _song_queue.queue.appendleft(last_song)
@@ -206,8 +197,8 @@ class PlayerControls(Cog, name="Player Controls"):
         :param ctx:
         :return:
         """
-        if self.parent.guilds[ctx.guild.id].voice_client.is_paused():
-            self.parent.guilds[ctx.guild.id].voice_client.resume()
+        if self.guilds[ctx.guild.id].voice_client.is_paused():
+            self.guilds[ctx.guild.id].voice_client.resume()
             await self.parent.send_embed_message(ctx, "Unpaused! :play_pause:")
         else:
             await self.parent.send_error_message(ctx, "Not Paused.")
@@ -229,11 +220,11 @@ class PlayerControls(Cog, name="Player Controls"):
         except ValueError:
             await self.parent.send_error_message(ctx, "Invalid value.")
             return  # shit
-        if self.parent.guilds[ctx.guild.id].voice_client.is_playing():
-            if not self.parent.guilds[ctx.guild.id].voice_client.is_paused():
-                self.parent.guilds[ctx.guild.id].voice_client.seek(
-                    song=self.parent.guilds[ctx.guild.id].now_playing,
-                    volume=self.parent.guilds[ctx.guild.id].volume,
+        if self.guilds[ctx.guild.id].voice_client.is_playing():
+            if not self.guilds[ctx.guild.id].voice_client.is_paused():
+                self.guilds[ctx.guild.id].voice_client.seek(
+                    song=self.guilds[ctx.guild.id].now_playing,
+                    volume=self.guilds[ctx.guild.id].volume,
                     seconds_to_seek=parsed,
                 )
                 return await self.parent.send_embed_message(
@@ -257,11 +248,11 @@ class PlayerControls(Cog, name="Player Controls"):
         no_embed_string = ""
         embed = discord.Embed(colour=0x00FFCC)
         if use_embeds:
-            if self.parent.guilds[ctx.guild.id].now_playing is not None:
+            if self.guilds[ctx.guild.id].now_playing is not None:
                 embed.add_field(
                     name="**Currently Playing ...**",
                     value="`"
-                    + self.parent.guilds[ctx.guild.id].now_playing.title
+                    + self.guilds[ctx.guild.id].now_playing.title
                     + "`\n",
                     inline=False,
                 )
@@ -275,45 +266,38 @@ class PlayerControls(Cog, name="Player Controls"):
             no_embed_string += "**Currently Playing ...**" + "\n"
             try:
                 no_embed_string += (
-                    "`"
-                    + self.parent.guilds[ctx.guild.id].now_playing.title
-                    + "`\n"
+                    "`" + self.guilds[ctx.guild.id].now_playing.title + "`\n"
                 )
             except AttributeError:
                 no_embed_string += "Nothing.\n"
 
-        if len(self.parent.guilds[ctx.guild.id].song_queue.queue) > 0:
+        if len(self.guilds[ctx.guild.id].song_queue.queue) > 0:
             _t = ""
             for x in range(0, 9, 1):
                 try:
 
                     if (
-                        self.parent.guilds[ctx.guild.id].song_queue.queue[x]
+                        self.guilds[ctx.guild.id].song_queue.queue[x]
                         is not None
                     ):
 
-                        _t += f"`({x+1})` `{self.parent.guilds[ctx.guild.id].song_queue.queue[x].title}`\n"
+                        _t += f"`({x+1})` `{self.guilds[ctx.guild.id].song_queue.queue[x].title}`\n"
 
                     elif (
-                        self.parent.guilds[ctx.guild.id]
-                        .song_queue.queue[x]
-                        .link
+                        self.guilds[ctx.guild.id].song_queue.queue[x].link
                         is not None
                     ):
 
-                        _t += f"`({x+1})` `{self.parent.guilds[ctx.guild.id].song_queue.queue[x].link}`\n"
+                        _t += f"`({x+1})` `{self.guilds[ctx.guild.id].song_queue.queue[x].link}`\n"
                     else:
                         break
                 except (IndexError, KeyError, AttributeError, TypeError):
                     break
 
-            if (len(self.parent.guilds[ctx.guild.id].song_queue.queue) - 9) > 0:
+            if (len(self.guilds[ctx.guild.id].song_queue.queue) - 9) > 0:
                 _t += (
                     "`(+)` `"
-                    + str(
-                        len(self.parent.guilds[ctx.guild.id].song_queue.queue)
-                        - 9
-                    )
+                    + str(len(self.guilds[ctx.guild.id].song_queue.queue) - 9)
                     + " Tracks...`"
                 )
             if use_embeds:

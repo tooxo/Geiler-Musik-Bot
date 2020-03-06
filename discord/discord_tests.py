@@ -316,7 +316,7 @@ class TestClient:
         self.extractor_tests()
         self.queue_tests()
         self.shuffle_test()
-        bot = run_dtest_bot(sys.argv, self.test_collector)
+        return run_dtest_bot(sys.argv, self.test_collector)
 
 
 TestClient().start()

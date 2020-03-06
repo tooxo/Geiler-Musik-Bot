@@ -20,7 +20,7 @@ class TTS(commands.Cog):
         self.tts_base_url = "https://translate.google.com/translate_tts?ie=UTF-8&tl=de-DE&client=tw-ob&q="
         self.bot = bot
         self.parent = parent
-        self.guilds: Dict[Guild] = self.parent.guilds
+        self.guilds: Dict[int, Guild] = self.parent.guilds
         self.send_embed_message = self.parent.send_embed_message
         self.tts_queue = Queue()
 

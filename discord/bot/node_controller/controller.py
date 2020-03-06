@@ -4,11 +4,11 @@ import logging
 import random
 import socket
 import string
-import threading
-import time
 from os import environ
+from typing import Dict, Optional
 
 from bot.type.errors import Errors
+from bot.type.guild import Guild
 
 
 class Controller:
@@ -18,6 +18,7 @@ class Controller:
         self.key = environ.get("API_KEY", "API_KEY")
 
         self.parent = parent
+        self.guilds: Dict[int, Guild] = parent.guilds
 
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -138,7 +139,7 @@ class Controller:
                 break
             if not response:
                 break
-            self._handle_response(response=response.decode())
+            self._handle_response(_response=response.decode())
             await asyncio.sleep(0.1)
         self.login_logger.info(f"Connection lost to {_ip}. Reason: Basic")
         writer.close()
@@ -149,22 +150,22 @@ class Controller:
         )
         asyncio.ensure_future(self.server.serve_forever())
 
-    def _handle_response(self, response: str):
-        if response.count("#S_") > 1:
-            response = response.split("#S_")[1:]
+    def _handle_response(self, _response: str):
+        if _response.count("#S_") > 1:
+            responses = _response.split("#S_")[1:]
         else:
-            response = [response]
-        for response in response:
+            responses = [_response]
+        for response in responses:
             if response.startswith("#S_AFT_"):
                 data: dict = json.loads(response[7:])
                 guild_id = data.get("guild_id", None)
                 if guild_id:
-                    if self.parent.guilds[guild_id].voice_client:
-                        self.parent.guilds[guild_id].voice_client.after()
+                    if self.guilds[guild_id].voice_client:
+                        self.guilds[guild_id].voice_client.after()
             elif response.startswith("#S_BR_"):
                 response = json.loads(response[6:])
-                if self.parent.guilds[response["guild_id"]].now_playing_message:
-                    self.parent.guilds[
+                if self.guilds[response["guild_id"]].now_playing_message:
+                    self.guilds[
                         response["guild_id"]
                     ].now_playing_message.bytes_read = response["bytes_read"]
 
@@ -198,8 +199,8 @@ class Node:
         self.ip = ""
         self.port = 0
         self.name = ""
-        self.reader: asyncio.StreamReader
-        self.writer: asyncio.StreamWriter
+        self.reader: Optional[asyncio.StreamReader] = None
+        self.writer: Optional[asyncio.StreamWriter] = None
 
     def is_ready(self):
         if hasattr(self, "reader") and hasattr(self, "writer"):
