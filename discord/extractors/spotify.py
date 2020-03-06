@@ -43,14 +43,14 @@ class Spotify:
                 enc = base64.b64encode(string.encode())
                 url = "https://accounts.spotify.com/api/token"
                 header = {
-                    "Authorization": "Basic " + enc.decode(),
+                    "Authorization": f"Basic {enc.decode()}",
                     "Content-Type": "application/x-www-form-urlencoded",
                 }
-                payload = "grant_type=client_credentials&undefined="
+                payload = "grant_type=client_credentials"
                 test = await self.request_post(url, header, payload)
                 asyncio.get_event_loop().call_later(3000, self.invalidate_token)
                 self.token = json.loads(test)["access_token"]
-                self.log.logger.info("Got new Spotify Token: " + self.token)
+                self.log.logger.info(f"Got new Spotify Token: {self.token}")
             except asyncio.TimeoutError:
                 return await self.request_token()
         return self.token

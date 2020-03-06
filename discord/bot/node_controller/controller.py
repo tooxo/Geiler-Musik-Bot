@@ -150,15 +150,19 @@ class Controller:
         asyncio.ensure_future(self.server.serve_forever())
 
     def _handle_response(self, response: str):
-        if response.startswith("Z"):
-            data: dict = json.loads(response[2:])
-            guild_id = data.get("guild_id", None)
-            if guild_id:
-                if self.parent.guilds[guild_id].voice_client:
-                    self.parent.guilds[guild_id].voice_client.after()
-        elif response.startswith("S"):
-            if response.startswith("S_BR_"):
-                response = json.loads(response[5:])
+        if response.count("#S_") > 1:
+            response = response.split("#S_")[1:]
+        else:
+            response = [response]
+        for response in response:
+            if response.startswith("#S_AFT_"):
+                data: dict = json.loads(response[7:])
+                guild_id = data.get("guild_id", None)
+                if guild_id:
+                    if self.parent.guilds[guild_id].voice_client:
+                        self.parent.guilds[guild_id].voice_client.after()
+            elif response.startswith("#S_BR_"):
+                response = json.loads(response[6:])
                 if self.parent.guilds[response["guild_id"]].now_playing_message:
                     self.parent.guilds[
                         response["guild_id"]

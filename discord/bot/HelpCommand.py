@@ -27,14 +27,52 @@ class Help(commands.Cog):
         _length = length - len(input_string) + 3
         return f"{input_string}{f' ' * _length}"
 
-    async def help_main(self, ctx):
+    @staticmethod
+    def _split_list(_list: list, _length: int):
+        big_list = []
+        counter = 0
+        _l = []
+        for item in _list:
+            if (counter / 10).is_integer() and not (counter / 10) == 0.0:
+                big_list.append(_l)
+                _l = []
+            _l.append(item)
+            counter += 1
+        if len(_l) > 0:
+            big_list.append(_l)
+        return big_list
+
+    @staticmethod
+    def categorize(_list: list) -> dict:
+        d = {}
+        for item in _list:
+            item: commands.Command
+            if item.cog_name not in d.keys():
+                d[item.cog_name] = []
+            d[item.cog_name].append(item)
+        return d
+
+    def _fuse(self, list_with_sub_lists: list):
+        _l = []
+        for x in list_with_sub_lists:
+            _l.extend(x)
+        return _l
+
+    async def help_main(self, ctx, page=0):
         cogs = {}
-        for cog_name in self.cogs:
-            cog = self.cogs[cog_name]
-            cog: commands.Cog
+        all_commands = []
+        for c in self.bot.cogs:
+            for co in self.bot.cogs[c].get_commands():
+                if not co.hidden:
+                    all_commands.append(co)
+        split_lists = self._split_list(all_commands, 10)
+        paged = split_lists[page]
+        cats: dict = self.categorize(paged)
+        for cog_name in cats.keys():
+            cog: commands.Cog = self.cogs[cog_name]
             string = ""
             _length = self._get_longest_commands_length()
-            for command in cog.get_commands():
+            for command in cats[cog_name]:
                 command: commands.core.Command
                 if command.hidden:
                     continue
@@ -45,7 +83,7 @@ class Help(commands.Cog):
                 string += _string
             if len(string) > 0:
                 cogs[cog.qualified_name] = f"```{string}```"
-        embed = Embed(title="Help")
+        embed = Embed(title=f"Help - Page {page + 1}")
         for s in cogs:
             if cogs[s]:
                 embed.add_field(name=f"**{s}**", value=cogs[s], inline=False)
@@ -86,5 +124,21 @@ class Help(commands.Cog):
         :return:
         """
         if command:
+            try:
+                page = int(command)
+                if page == 0:
+                    page = 1
+                try:
+                    return await self.help_main(ctx, page - 1)
+                except IndexError:
+                    return await ctx.send(
+                        embed=Embed(
+                            title=f"Error",
+                            description=f"Help page {page} not found.",
+                            color=0xFF0000,
+                        )
+                    )  # invalid page num
+            except (TypeError, ValueError):
+                pass  # invalid page num, prop command name
             return await self.help_command(ctx, command)
         return await self.help_main(ctx)

@@ -4,7 +4,8 @@ import aiohttp
 import async_timeout
 
 import logging_manager
-from bot.type.error import Error
+from bot.type.errors import Errors
+from bot.type.exceptions import BasicError, NoResultsFound
 from bot.type.song import Song
 
 
@@ -24,7 +25,7 @@ class SoundCloud:
                     data=url,
                 ) as r:
                     if r.status != 200:
-                        return Error(True)
+                        raise BasicError(Errors.default)
                     response: dict = json.loads(await r.text())
                     song: Song = Song(
                         title=response.get("title", None),
@@ -52,7 +53,7 @@ class SoundCloud:
                     return song
         except (TimeoutError, AttributeError) as e:
             self.log.error(e)
-            return Error(True)
+            raise BasicError(Errors.default)
 
     async def soundcloud_playlist(self, url: str):
         try:
@@ -64,7 +65,7 @@ class SoundCloud:
                 ) as r:
                     response = await r.text()
                     if r.status != 200:
-                        return Error(True, response)
+                        raise BasicError(response)
                     parsed_response = json.loads(response)
                     songs = []
                     for s in parsed_response:
@@ -75,4 +76,4 @@ class SoundCloud:
                     return songs
         except (TimeoutError, AttributeError) as e:
             self.log.error(e)
-            return Error(True)
+            raise BasicError(Errors.default)

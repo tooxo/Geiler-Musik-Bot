@@ -6,8 +6,9 @@ from typing import Dict
 from urllib.parse import parse_qs
 
 import discord
-import FFmpegPCMAudio
 from discord.ext import commands
+
+import FFmpegPCMAudio
 
 
 class Guild:
@@ -65,8 +66,8 @@ class DiscordHandler:
 
     @staticmethod
     def split_response(command: str) -> list:
-        if command.count("C_") > 1:
-            return command.split("C_")[1:]
+        if command.count("#C_") > 1:
+            return command.split("#C_")[1:]
         return [command]
 
     def decide_on_stream(self, data: dict):
@@ -95,13 +96,13 @@ class DiscordHandler:
                     "guild_id": guild_id,
                     "bytes_read": source.bytes_read,
                 }
-                self.writer.write(f"S_BR_{json.dumps(document)}".encode())
+                self.writer.write(f"#S_BR_{json.dumps(document)}".encode())
                 await self.writer.drain()
 
     async def handle_command(self, command: str):
         _commands = self.split_response(command)
         for c in _commands:
-            c = c[2:]
+            c = c[3:]
             data = c[5:]
             if c.startswith("PLAY"):
                 await self.play(data)
@@ -134,7 +135,7 @@ class DiscordHandler:
         if error:
             print(error)
         document = {"guild_id": guild_id}
-        self.writer.write(f"Z_{json.dumps(document)}".encode())
+        self.writer.write(f"#S_AFT_{json.dumps(document)}".encode())
         asyncio.new_event_loop().run_until_complete(self.writer.drain())
         if self.guilds[guild_id].updater:
             self.guilds[guild_id].updater.cancel()
@@ -161,14 +162,11 @@ class DiscordHandler:
             source=FFmpegPCMAudio.FFmpegOpusAudioB(
                 new_stream, volume=data["volume"], before_options=before_args
             ),
+            #            source=FFmpegPCMAudio.AvAudioSource(
+            #               new_stream, volume=data["volume"]
+            #          ),
             after=lambda err: self.after(err, data["guild_id"]),
         )
-        # self.guilds[data["guild_id"]].voice_client.play(
-        #     source=FFmpegPCMAudio.FFmpegOpusAudioB(
-        #         new_stream, before_options=before_args, vol
-        #     ),
-        #     after=lambda err: self.after(err, data["guild_id"])
-        # )
         self.guilds[data["guild_id"]].updater = asyncio.ensure_future(
             self.update_state(data["guild_id"])
         )

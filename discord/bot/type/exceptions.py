@@ -1,4 +1,5 @@
 from discord.ext.commands import CommandError
+from .errors import Errors
 
 
 class NotSameChannel(CommandError):
@@ -14,4 +15,16 @@ class UserNotConnected(CommandError):
 
 
 class NothingPlaying(CommandError):
+    pass
+
+
+class BasicError(CommandError):
+    pass
+
+
+class NoResultsFound(BasicError):
+    pass
+
+
+class BackendDownException(BasicError):
     pass

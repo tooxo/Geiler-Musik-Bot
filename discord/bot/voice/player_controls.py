@@ -4,9 +4,11 @@ import random
 from os import environ
 
 import discord
-from bot.type.queue import Queue
 from discord.ext import commands
 from discord.ext.commands import Cog
+
+from bot.type.guild import Guild
+from bot.type.queue import Queue
 from bot.voice.checks import Checks
 
 
@@ -186,9 +188,10 @@ class PlayerControls(Cog, name="Player Controls"):
         :param ctx:
         :return:
         """
+
         _song_queue: Queue = self.parent.guilds[ctx.guild.id].song_queue
         _voice_client = self.parent.guilds[ctx.guild.id].voice_client
-        if not _song_queue.back_queue.empty():
+        if not _song_queue.back_queue.__len__() == 0:
             last_song = _song_queue.get_last()
             _song_queue.queue.appendleft(last_song)
             _voice_client.stop()
@@ -335,3 +338,33 @@ class PlayerControls(Cog, name="Player Controls"):
             await ctx.send(embed=embed)
         else:
             await ctx.send(content=no_embed_string)
+
+    @commands.command()
+    async def announce(self, ctx, new_status: str = None):
+        """
+        Controls song announcements
+        :param ctx:
+        :param new_status:
+        :return:
+        """
+        guild: Guild = self.guilds[ctx.guild.id]
+        positives = ("on", "true", "ja")
+        negatives = ("off", "false", "nein")
+        if new_status:
+            if new_status.lower() not in (*positives, *negatives):
+                return await self.parent.send_error_message(
+                    ctx, "Invalid Argument."
+                )
+            if new_status.lower() in positives:
+                guild.announce = True
+            else:
+                guild.announce = False
+        else:
+            guild.toggle_announce()
+        asyncio.ensure_future(
+            self.parent.mongo.set_announce(ctx.guild.id, guild.announce)
+        )
+        message = (
+            f"{'Enabled' if guild.announce else 'Disabled'} song announcements."
+        )
+        return await self.parent.send_embed_message(ctx, message)

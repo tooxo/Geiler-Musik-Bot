@@ -7,8 +7,8 @@ import async_timeout
 from bs4 import BeautifulSoup
 
 import logging_manager
-from bot.type.error import Error
 from bot.type.errors import Errors
+from bot.type.exceptions import BasicError, NoResultsFound
 
 # pulled from my project artistwordranker: https://github.com/tooxo/ArtistWordRanker
 
@@ -28,7 +28,7 @@ class Genius:
         async with async_timeout.timeout(timeout=8):
             async with aiohttp.request("GET", url=url) as g:
                 if g.status not in (200, 301, 302):
-                    return Error(True, Errors.default)
+                    raise BasicError(Errors.default)
                 response = await g.json()
                 try:
                     for cat in response["response"]["sections"]:
@@ -39,8 +39,8 @@ class Genius:
                                 return item["result"]["url"]
                 except (IndexError, ValueError, TypeError) as e:
                     traceback.print_exc()
-                    return Error(True, Errors.no_results_found)
-                return Error(True, Errors.no_results_found)
+                    raise NoResultsFound(Errors.no_results_found)
+                raise NoResultsFound(Errors.no_results_found)
 
     @staticmethod
     async def extract_from_genius(url: str):
@@ -50,7 +50,7 @@ class Genius:
                     logging_manager.LoggingManager().info(
                         "Genius search failed with: " + url
                     )
-                    return Error(True, Errors.default), None
+                    raise BasicError(Errors.default)
                 soup = BeautifulSoup(await g.text(), "html.parser")
                 div = soup.find("div", {"class", "lyrics"})
                 artist = soup.find(

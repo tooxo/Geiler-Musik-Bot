@@ -3,20 +3,20 @@ import os
 import subprocess
 import traceback
 
-import youtube_dl
-
 import discord
+import youtube_dl
+from discord.ext import commands
+from discord.ext.commands.bot import BotBase
+
 import logging_manager
 from bot.discord_music import DiscordBot
 from bot.discord_text import TextResponse
 from bot.HelpCommand import Help
-from discord.ext import commands
-from discord.ext.commands.bot import BotBase
 from bot.type.exceptions import (
+    BotNotConnected,
+    NothingPlaying,
     NotSameChannel,
     UserNotConnected,
-    NothingPlaying,
-    BotNotConnected,
 )
 
 if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
@@ -36,7 +36,7 @@ log = logging_manager.LoggingManager()
 log.debug("PID " + str(os.getpid()))
 
 # Checking for dependency updates inside the container.
-# Currently only updating bot.py and youtube-dl as they are the most important for it to work
+# Currently only updating discord.py and youtube-dl as they are the most important for it to work
 
 log.debug(" ")
 log.debug("[Update]: Checking for library updates!")
@@ -61,11 +61,18 @@ log.debug("[Update]: No update found. Starting normally.")
 client = commands.Bot(command_prefix=prefix)
 
 
+def add_cog(cog_type):
+    try:
+        client.add_cog(cog=cog_type(bot=client))
+    except discord.ClientException:
+        log.warning(f"{cog_type} was already there, skipped it.")
+
+
 @client.event
 async def on_ready():
-    client.add_cog(DiscordBot(bot=client))
-    client.add_cog(TextResponse(bot=client))
-    client.add_cog(Help(bot=client))
+    add_cog(DiscordBot)
+    add_cog(TextResponse)
+    add_cog(Help)
     log.debug("[Startup]: Finished.")
     await client.change_presence(
         activity=discord.Activity(

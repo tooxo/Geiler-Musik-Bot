@@ -2,8 +2,6 @@ import json
 
 from bot.type.variable_store import strip_youtube_title
 
-from .error import Error
-
 
 class Song:
     def __init__(
@@ -17,7 +15,6 @@ class Song:
         duration=None,
         loadtime=None,
         thumbnail=None,
-        error=Error(False),
         user=None,
         image_url=None,
         abr=None,
@@ -34,7 +31,6 @@ class Song:
             self.stream = song.stream
             self.duration = song.duration
             self.loadtime = song.loadtime
-            self.error = song.error
             self.user = song.user
             self.image_url = song.image_url
             self.abr = song.abr
@@ -52,7 +48,6 @@ class Song:
             self.duration = duration
             self.loadtime = loadtime
             self.thumbnail = thumbnail
-            self.error = error
             self.user = user
             self.image_url = image_url
             self.abr = abr
@@ -85,8 +80,6 @@ class Song:
 
     @staticmethod
     def copy_song(_from, _to):
-        if isinstance(_from, Error):
-            return _from
         _from: Song
         _to: Song
         for attribute in _from.__dict__.keys():

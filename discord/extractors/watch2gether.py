@@ -1,11 +1,10 @@
-import random
 import re
 
 import aiohttp
 import async_timeout
 
-from bot.type.error import Error
 from bot.type.errors import Errors
+from bot.type.exceptions import BasicError
 
 
 class Watch2Gether:
@@ -16,29 +15,29 @@ class Watch2Gether:
             r"<html><body>You are being <a href=\"(.+)\">redirected</a>\.</body></html>",
             re.IGNORECASE,
         )
-        # these tokens are extracted from requests created by the site itself in the networking tab of the chrome
-        # developer settings
-        self.tokens = [
-            "YLxjPozp1eSYplEoUMYsMdJfeuk4mBSUDehd9rq27kJ5xsgV3D/bmwehVA+Vr9Sm/0qOVe0IZhoAvoXzqh/eZA==",
-            "irRFFH4cSQOMEJgOMo5VPADfHT8fFR6/3IGGVN26EkmTzu4/LspHfBMXnSn3562rLcrpg8qFbDHR115RzRMibw==",
-        ]
 
-    async def create_new_room(self) -> (str, Error):
+    async def create_new_room(self) -> str:
         try:
             async with async_timeout.timeout(timeout=5):
                 async with self.session.post(
                     url=self.base_url,
-                    data={
-                        "utf8": "✓",
-                        "authenticity_token": random.choice(self.tokens),
-                    },
+                    # this is not needed as i found out today, you can just do an empty post to create a
+                    # new room
+                    #
+                    # data={
+                    #    "utf8": "✓",
+                    #    "authenticity_token": "",
+                    # },
+                    # this is the original data used by watch2gether itself
                     allow_redirects=False,
+                    # this is the important part, because you can extract the room url from the redirect
                 ) as req:
                     response = await req.text()
-
                     if req.status == 302:
+                        # if the status is not 302, the request failed
                         redirect_url = re.match(self.pattern, response).group(1)
                         return redirect_url
         except (aiohttp.ServerTimeoutError, TimeoutError):
             pass
-        return Error(True, Errors.default)
+
+        raise BasicError(Errors.default)

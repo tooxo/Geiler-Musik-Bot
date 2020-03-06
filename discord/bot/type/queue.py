@@ -8,7 +8,6 @@ class Queue(asyncio.Queue):
         super().__init__(*args, **kwargs)
         self.queue = self._queue
         self._back_queue = deque()
-
         self._parking_lot = None
 
     def _get(self):

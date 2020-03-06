@@ -450,7 +450,7 @@ class Node:
                     if not data:
                         continue
                     d = data.decode()
-                    if d.startswith("C"):
+                    if d.startswith("#C"):
                         try:
                             await discord.handle_command(d)
                         except Exception as e:

@@ -54,7 +54,13 @@ class Mongo:
 
     @staticmethod
     async def insert_empty(
-        collection, guild_id, volume="0.5", full="█", empty="░", service="basic"
+        collection,
+        guild_id,
+        volume="0.5",
+        full="█",
+        empty="░",
+        service="basic",
+        announce=True,
     ):
         await collection.insert_one(
             {
@@ -63,6 +69,7 @@ class Mongo:
                 "full": full,
                 "empty": empty,
                 "service": service,
+                "announce": announce,
             }
         )
 
@@ -132,6 +139,29 @@ class Mongo:
         if doc is None:
             return "basic"
         return doc["service"]
+
+    async def set_announce(self, guild_id, announce_status):
+        if self.mongo_enabled is False:
+            return
+        collection = self.db.guilds
+        doc = await collection.find_one({"id": guild_id})
+        if doc is None:
+            await self.insert_empty(
+                collection, guild_id, announce=announce_status
+            )
+        else:
+            await collection.update_one(
+                {"id": guild_id}, {"$set": {"announce": announce_status}}
+            )
+
+    async def get_announce(self, guild_id) -> bool:
+        if self.mongo_enabled is False:
+            return True
+        collection = self.db.guilds
+        doc = await collection.find_one({"id": guild_id})
+        if doc is None:
+            return True
+        return doc["announce"]
 
     async def set_restart_key(self, restart_key):
         if self.mongo_enabled is False:

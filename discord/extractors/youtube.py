@@ -6,8 +6,8 @@ import async_timeout
 
 import logging_manager
 from bot.node_controller.controller import Controller
-from bot.type.error import Error
 from bot.type.errors import Errors
+from bot.type.exceptions import BackendDownException, BasicError, NoResultsFound
 from bot.type.song import Song
 from bot.type.variable_store import VariableStore
 
@@ -15,7 +15,8 @@ log = logging_manager.LoggingManager()
 
 
 class YoutubeDLLogger(object):
-    def debug(self, msg):
+    @staticmethod
+    def debug(msg):
         if "youtube:search" in msg and "query" in msg:
             log.debug(
                 logging_manager.debug_info(
@@ -25,10 +26,12 @@ class YoutubeDLLogger(object):
                 )
             )
 
-    def warning(self, msg):
+    @staticmethod
+    def warning(msg):
         log.warning(logging_manager.debug_info(msg))
 
-    def error(self, msg):
+    @staticmethod
+    def error(msg):
         log.error(logging_manager.debug_info(msg))
 
 
@@ -42,25 +45,25 @@ class Youtube:
         self.url_url = "http://{}:{}/research/youtube_video"
         self.playlist_url = "http://{}:{}/research/youtube_playlist"
 
-    async def http_get(self, url):
+    async def http_get(self, url) -> str:
         try:
             with async_timeout.timeout(5):
                 async with self.session.get(url=url) as re:
-                    return re.text()
+                    return await re.text()
         except asyncio.TimeoutError:
-            return Error(True, Errors.default)
+            raise BasicError(Errors.default)
 
-    async def http_post(self, url, data):
+    async def http_post(self, url, data) -> str:
         try:
             with async_timeout.timeout(10):
                 async with self.session.post(url=url, data=data) as re:
                     if re.status != 200:
                         if re.status == 500:
-                            return Error(True, Errors.backend_down)
-                        return Error(True, await re.text())
+                            raise BackendDownException(Errors.backend_down)
+                        raise BasicError(await re.text())
                     return await re.text()
         except asyncio.TimeoutError:
-            return Error(True, Errors.default)
+            raise BasicError(Errors.default)
 
     async def youtube_term(self, song: (Song, str), service: str):
         log.info(f'Using Search Service "{service}"')
@@ -70,7 +73,7 @@ class Youtube:
             elif song.title:
                 term = song.title
             else:
-                return Error(True, Errors.no_results_found)
+                raise NoResultsFound(Errors.no_results_found)
         else:
             term = song
 
@@ -81,15 +84,10 @@ class Youtube:
             json.dumps({"service": service, "term": term}),
         )
 
-        if isinstance(url, Error):
-            return url
-
         url = VariableStore.youtube_url_to_id(url)
         sd = await self.http_post(
             url=self.url_url.format(node.ip, node.port), data=url
         )
-        if isinstance(sd, Error):
-            return sd
         song_dict: dict = json.loads(sd)
         song_dict["term"] = term
 
@@ -103,24 +101,21 @@ class Youtube:
             url=self.url_url.format(node.ip, node.port), data=url
         )
 
-        if isinstance(sd, Error):
-            return sd
-
         song_dict: dict = json.loads(sd)
 
         if song_dict == {}:
-            return Error(Errors.default)
+            raise NoResultsFound(Errors.no_results_found)
         song: Song = Song.from_dict(song_dict)
         return song
 
     async def youtube_playlist(self, url):
         url = VariableStore.youtube_url_to_id(url)
         node = self.node_controller.get_best_node()
-        sd = await self.http_post(
-            url=self.playlist_url.format(node.ip, node.port), data=url
-        )
-
-        if isinstance(sd, Error):
+        try:
+            sd = await self.http_post(
+                url=self.playlist_url.format(node.ip, node.port), data=url
+            )
+        except BasicError:
             return []
 
         songs = []

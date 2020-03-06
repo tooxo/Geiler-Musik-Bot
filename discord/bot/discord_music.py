@@ -7,11 +7,11 @@ from os import environ
 from typing import Dict, Optional
 
 import dbl
-
 import discord
+from discord.ext import commands
+
 import logging_manager
 from bot.node_controller.controller import Controller
-from bot.type.error import Error
 from bot.type.errors import Errors
 from bot.type.guild import Guild
 from bot.type.song import Song
@@ -20,19 +20,17 @@ from bot.voice.events import Events
 from bot.voice.player import Player
 from bot.voice.player_controls import PlayerControls
 from bot.voice.tts import TTS
-from discord.ext import commands
 from extractors import genius, mongo, soundcloud, spotify, watch2gether, youtube
 
 
 class DiscordBot(commands.Cog, name="Miscellaneous"):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.log = logging_manager.LoggingManager()
         self.log.debug("[Startup]: Initializing Music Module . . .")
 
         self.guilds: Dict[Guild] = {}
 
-        self.bot = bot
-
+        self.bot: commands.Bot = bot
         self.player = Player(self.bot, self)
 
         self.bot.add_cog(self.player)
@@ -72,7 +70,12 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         self.run_dbl_stats()
 
     @staticmethod
-    def generate_key(length):
+    def generate_key(length: int) -> str:
+        """
+        Generates a n character long string of ascii letters
+        :param length: length
+        :return: key / string
+        """
         letters = string.ascii_letters
         response = ""
         for _ in range(0, length):
@@ -85,17 +88,16 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         message: str,
         delete_after: Optional[int] = 10,
         url: str = "https://d.chulte.de",
-    ):
-        if environ.get("USE_EMBEDS", "True") == "True":
-            embed = discord.Embed(title=message, url=url, colour=0x00FFCC)
-            message = await ctx.send(embed=embed, delete_after=delete_after)
-        else:
-            message = await ctx.send(message, delete_after=delete_after)
-        if delete_after is not None:
-            asyncio.ensure_future(
-                DiscordBot.delete_message(ctx.message, delete_after)
-            )
-        return message
+    ) -> discord.Message:
+        try:
+            if environ.get("USE_EMBEDS", "True") == "True":
+                embed = discord.Embed(title=message, url=url, colour=0x00FFCC)
+                message = await ctx.send(embed=embed, delete_after=delete_after)
+            else:
+                message = await ctx.send(message, delete_after=delete_after)
+            return message
+        except discord.Forbidden:
+            raise commands.CommandError("Message forbidden.")
 
     def disconnect(self):
         for _guild in self.bot.guilds:
@@ -103,26 +105,29 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             asyncio.ensure_future(
                 self.guilds[_guild.id].inflate_from_mongo(self.mongo, _guild.id)
             )
-            if _guild.me.voice is not None:
-                if hasattr(_guild.me.voice, "channel"):
+            try:
+                if _guild.me.voice is not None:
+                    if hasattr(_guild.me.voice, "channel"):
 
-                    async def reconnect(_guild):
-                        """
-                        Reconnects disconnected clients after restart
-                        :param _guild: guild
-                        :return:
-                        """
-                        self.log.debug(
-                            "[Disconnect] Disconnecting " + str(_guild)
-                        )
-                        t = await _guild.me.voice.channel.connect(
-                            timeout=5, reconnect=False
-                        )
-                        await t.disconnect(force=True)
+                        async def reconnect(_guild):
+                            """
+                            Reconnects disconnected clients after restart
+                            :param _guild: guild
+                            :return:
+                            """
+                            self.log.debug(
+                                "[Disconnect] Disconnecting " + str(_guild)
+                            )
+                            t = await _guild.me.voice.channel.connect(
+                                timeout=5, reconnect=False
+                            )
+                            await t.disconnect(force=True)
 
-                    asyncio.run_coroutine_threadsafe(
-                        reconnect(_guild), self.bot.loop
-                    )
+                        asyncio.run_coroutine_threadsafe(
+                            reconnect(_guild), self.bot.loop
+                        )
+            except AttributeError:
+                self.log.warning(f"Failed disconnect for ID: {_guild.id}")
 
     def run_dbl_stats(self):
         if self.dbl_key != "":
@@ -132,7 +137,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                 last_count = 0
                 while not client.bot.is_closed():
                     try:
-                        if client.guild_count() == last_count:
+                        if client.guild_count() != last_count:
                             await client.post_guild_count()
                             self.log.debug(
                                 "[SERVER COUNT] Posted server count ({})".format(
@@ -228,6 +233,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         except Exception as e:
             await self.send_error_message(ctx, "An Error occurred: " + str(e))
 
+    @commands.check(Checks.manipulation_checks)
     @commands.command(aliases=["v"])
     async def volume(self, ctx, volume=None):
         """
@@ -236,8 +242,6 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         :param volume:
         :return:
         """
-        if not await self.control_check.manipulation_checks(ctx):
-            return
         current_volume = getattr(
             self.guilds[ctx.guild.id],
             "volume",
@@ -304,7 +308,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                 name="Stream Information",
                 inline=False,
                 value=(
-                    f"**Successful**: `{not song.error.error}`\n"
+                    f"**Successful**: `{True}`\n"
                     + f"**Codec**: `{song.codec}\n`"
                     + f"**Bitrate**: `{song.abr} kb/s`"
                 ),
@@ -455,7 +459,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             await ctx.send(embed=embed)
             return
         try:
-            s = exec(code)
+            s = exec(code)  # pylint: disable=exec-used
         except (Exception, RuntimeWarning) as e:
             s = str(e)
         if not s:
@@ -511,6 +515,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             )
         await ctx.send(embed=embed)
 
+    @commands.check(Checks.song_playing_check)
     @commands.command(aliases=["a", "art"])
     async def albumart(self, ctx):
         """
@@ -518,18 +523,10 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         :param ctx:
         :return:
         """
-        if not self.guilds.get(ctx.guild.id, None):
-            return
-        if not await self.control_check.manipulation_checks(ctx):
-            return
-        if not self.guilds[ctx.guild.id].now_playing:
-            return await self.send_error_message(
-                ctx, "Nothing is playing right now."
-            )
         return await ctx.send(self.guilds[ctx.guild.id].now_playing.image)
 
     @commands.command(aliases=["lyric", "songtext", "text"])
-    async def lyrics(self, ctx, *, song_name: str = None):
+    async def lyrics(self, ctx: commands.Context, *, song_name: str = None):
         """
         Displays the lyrics.
         :param ctx:
@@ -537,10 +534,9 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         :return:
         """
         url = None
+        await ctx.channel.trigger_typing()
         if song_name:
             url = await genius.Genius.search_genius(song_name, "")
-            if isinstance(url, Error):
-                return await self.send_error_message(ctx, url.reason)
         elif hasattr(self.guilds.get(ctx.guild.id, None), "now_playing"):
             if isinstance(self.guilds[ctx.guild.id].now_playing, Song):
                 song: Song = self.guilds[ctx.guild.id].now_playing
@@ -552,24 +548,22 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                         )
                     else:
                         url = await genius.Genius.search_genius(song.title, "")
-                    if isinstance(url, Error):
-                        return await self.send_error_message(ctx, url.reason)
         if url:
             lyrics, header = await genius.Genius.extract_from_genius(url)
-            if isinstance(lyrics, Error):
-                return await self.send_error_message(ctx, lyrics.reason)
             lines = lyrics.split("\n")
             await ctx.send(content=f"> **{header}**")
             t = ""
             for line in lines:
-                if line in ("", " "):
-                    line = (
-                        "\N{MONGOLIAN VOWEL SEPARATOR}"
-                    )  # the good ol' mongolian vowel separator
                 if (len(t) + len(line)) > 1900:
                     await ctx.send(content=t)
                     t = ""
-                t += "> " + line + "\n"
+                if line in ("", " "):
+                    if not t.endswith("> \N{MONGOLIAN VOWEL SEPARATOR}\n"):
+                        t += (
+                            "> \N{MONGOLIAN VOWEL SEPARATOR}\n"
+                        )  # the good ol' mongolian vowel separator
+                else:
+                    t += "> " + line + "\n"
             return await ctx.send(content=t)
         return await self.send_error_message(
             ctx, "Currently not supported for this song."
@@ -647,8 +641,6 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         :return:
         """
         url = await self.watch2gether.create_new_room()
-        if isinstance(url, Error):
-            return await self.send_error_message(ctx, url.reason)
         return await self.send_embed_message(
             ctx, url, url=url, delete_after=None
         )

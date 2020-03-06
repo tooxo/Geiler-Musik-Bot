@@ -2,10 +2,11 @@ import asyncio
 import time
 import traceback
 from os import environ
+from typing import Optional
 
 import aiohttp
-
 import discord
+
 import logging_manager
 from bot.node_controller.NodeVoiceClient import NodeVoiceClient
 
@@ -14,7 +15,6 @@ class NowPlayingMessage:
     def __init__(
         self,
         ctx,
-        message,
         song=None,
         full=None,
         empty=None,
@@ -26,9 +26,9 @@ class NowPlayingMessage:
         self.song = song
         self._stop = False
         self.ctx = ctx
-        self.message: discord.Message = message
         self.full = full
         self.empty = empty
+        self.message: Optional[discord.message.Message] = None
         if voice_client is not None:
             self.voice_client: NodeVoiceClient = voice_client
         if self.song is not None:
@@ -62,14 +62,14 @@ class NowPlayingMessage:
                 )
                 embed.set_author(name="Currently Playing:")
                 embed.add_field(name="░░░░░░░░░░░░░░░░░░░░░░░░░", value=" 0%")
-                await self.message.edit(embed=embed)
+                self.message = await self.ctx.send(embed=embed)
                 asyncio.ensure_future(self.update())
             else:
                 embed = discord.Embed(
                     title=self.title, color=0x00FFCC, url=self.song.link
                 )
                 embed.set_author(name="Currently Playing:")
-                await self.message.edit(embed=embed)
+                self.message = await self.ctx.send(embed=embed)
             await self.message.add_reaction(
                 "\N{BLACK RIGHT-POINTING TRIANGLE WITH DOUBLE VERTICAL BAR}"
                 # pause play
@@ -81,7 +81,7 @@ class NowPlayingMessage:
             await self.reaction_waiter()
         else:
             try:
-                await self.message.edit(content=self.title)
+                self.message = await self.ctx.send(content=self.title)
             except discord.errors.NotFound as p:
                 self.log.warning(logging_manager.debug_info(p))
 
