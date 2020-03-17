@@ -4,20 +4,19 @@ import subprocess
 import traceback
 
 import discord
-import youtube_dl
-from discord.ext import commands
-from discord.ext.commands.bot import BotBase
-
 import logging_manager
 from bot.discord_music import DiscordBot
 from bot.discord_text import TextResponse
 from bot.HelpCommand import Help
 from bot.type.exceptions import (
     BotNotConnected,
+    NoNodeReadyException,
     NothingPlaying,
     NotSameChannel,
     UserNotConnected,
 )
+from discord.ext import commands
+from discord.ext.commands.bot import BotBase
 
 if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
 
@@ -105,11 +104,19 @@ async def on_command_error(ctx, error):
         await DiscordBot.send_error_message(
             ctx=ctx, message="The bot isn't connected."
         )
+    elif isinstance(error, NoNodeReadyException):
+        await DiscordBot.send_error_message(
+            ctx=ctx,
+            message="Our backend seems to be down right now, try again in a few minutes.",
+        )
     elif isinstance(error, discord.ext.commands.MissingRequiredArgument):
         pass
     else:
         log.error(logging_manager.debug_info(str(error)))
-        traceback.print_tb(error.original.__traceback__)
+        if hasattr(error, "original"):
+            traceback.print_tb(error.original.__traceback__)
+        else:
+            traceback.print_tb(error.__traceback__)
 
 
 @client.event
@@ -118,8 +125,14 @@ async def on_error(*args, **kwargs):
     traceback.print_exc()
 
 
-discord_version = discord.__version__ + "-" + discord.version_info.releaselevel
-youtube_version = youtube_dl.version.__version__
+versions = {}
+for mod in subprocess.check_output(["pip", "freeze"]).decode().split("\n"):
+    if mod:
+        versions[mod.split("==")[0]] = mod.split("==")[1]
+
+
+discord_version = versions["discord.py"]
+youtube_version = versions["youtube-dl"]
 
 log.debug("")
 log.debug("[Startup]: Using Discord.Py Version " + discord_version)

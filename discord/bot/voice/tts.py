@@ -1,11 +1,10 @@
 from typing import Dict
 from urllib.parse import quote
 
-from discord.ext import commands
-
 from bot.type.guild import Guild
 from bot.type.queue import Queue
 from bot.type.song import Song
+from discord.ext import commands
 
 
 def check_tts_requirements(ctx, *args, **kwargs):
@@ -29,7 +28,7 @@ class TTS(commands.Cog):
             return
         if not self.tts_queue.empty():
             song = await self.tts_queue.get()
-            self.guilds[ctx.guild.id].voice_client.play(
+            await self.guilds[ctx.guild.id].voice_client.play(
                 song, self.guilds[ctx.guild.id].volume
             )
             self.guilds[ctx.guild.id].voice_client.set_after(self.next_tts, ctx)
@@ -44,7 +43,6 @@ class TTS(commands.Cog):
                     {
                         "guild_id": ctx.guild.id,
                         "stream": f"{self.tts_base_url}{quoted}",
-                        "youtube_stream": "",
                         "cipher": "",
                     }
                 )

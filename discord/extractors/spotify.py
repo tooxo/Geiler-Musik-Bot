@@ -7,6 +7,10 @@ import aiohttp
 import async_timeout
 
 import logging_manager
+from bot.type.exceptions import (
+    PlaylistExtractionException,
+    SongExtractionException,
+)
 from bot.type.spotify_song import SpotifySong
 from bot.type.spotify_type import SpotifyType
 
@@ -32,11 +36,11 @@ class Spotify:
             async with self.session.get(url, headers=header) as response:
                 return await response.text()
 
-    def invalidate_token(self):
+    def _invalidate_token(self) -> None:
         self.log.info("Spotify Token Invalidated.")
         self.token = ""
 
-    async def request_token(self):
+    async def _request_token(self) -> str:
         if self.token == "":
             try:
                 string = self.client_id + ":" + self.client_secret
@@ -47,36 +51,39 @@ class Spotify:
                     "Content-Type": "application/x-www-form-urlencoded",
                 }
                 payload = "grant_type=client_credentials"
-                test = await self.request_post(url, header, payload)
-                asyncio.get_event_loop().call_later(3000, self.invalidate_token)
-                self.token = json.loads(test)["access_token"]
+                token_data = await self.request_post(url, header, payload)
+                asyncio.get_event_loop().call_later(
+                    3000, self._invalidate_token
+                )
+                self.token = json.loads(token_data)["access_token"]
                 self.log.logger.info(f"Got new Spotify Token: {self.token}")
             except asyncio.TimeoutError:
-                return await self.request_token()
+                return await self._request_token()
         return self.token
 
     async def spotify_track(self, track_url):
-        token = await self.request_token()
+        token = await self._request_token()
         track = SpotifyType(track_url)
         if not track.valid:
-            return None
+            raise SongExtractionException()
         url = "https://api.spotify.com/v1/tracks/" + track.id
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
         result = json.loads(result)
+        if "error" in result:
+            raise SongExtractionException()
         return SpotifySong(
             title=result["artists"][0]["name"] + " - " + result["name"],
             image_url=result["album"]["images"][0]["url"],
             song_name=result["name"],
             artist=result["artists"][0]["name"],
         )
-        # return result["artists"][0]["name"] + " - " + result["name"]
 
     async def spotify_playlist(self, playlist_url):
-        token = await self.request_token()
+        token = await self._request_token()
         playlist = SpotifyType(playlist_url)
         if not playlist.valid:
-            return []
+            raise PlaylistExtractionException()
         url = (
             "https://api.spotify.com/v1/playlists/"
             + playlist.id
@@ -85,6 +92,8 @@ class Spotify:
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
         js = json.loads(result)
+        if "error" in js:
+            raise PlaylistExtractionException()
         t_list = []
         more = True
         while more is True:
@@ -134,31 +143,38 @@ class Spotify:
                 if "error" in js:
                     self.token = ""
                 more = False
+
+            if not t_list:
+                raise PlaylistExtractionException()
         return t_list
 
     async def spotify_album(self, album_url):
-        token = await self.request_token()
+        token = await self._request_token()
         album = SpotifyType(album_url)
         if not album.valid:
-            return []
+            raise PlaylistExtractionException()
         url = (
             "https://api.spotify.com/v1/albums/" + album.id + "/tracks?limit=50"
         )
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
         js = json.loads(result)
+        if "error" in js:
+            raise PlaylistExtractionException()
         track_list = []
         for item in js["items"]:
             artist = item["artists"][0]["name"]
             song = item["name"]
             track_list.append(artist + " - " + song)
+        if not track_list:
+            raise PlaylistExtractionException()
         return track_list
 
     async def spotify_artist(self, artist_url):
-        token = await self.request_token()
+        token = await self._request_token()
         artist = SpotifyType(artist_url)
         if not artist.valid:
-            return []
+            raise PlaylistExtractionException()
         url = (
             "https://api.spotify.com/v1/artists/"
             + artist.id
@@ -167,9 +183,13 @@ class Spotify:
         header = {"Authorization": "Bearer " + token}
         result = await self.request_get(url, header)
         js = json.loads(result)
+        if "error" in js:
+            raise PlaylistExtractionException()
         track_list = []
         for item in js["tracks"]:
             artist = item["artists"][0]["name"]
             song = item["name"]
             track_list.append(artist + " - " + song)
+        if not track_list:
+            raise PlaylistExtractionException
         return track_list

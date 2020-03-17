@@ -58,7 +58,6 @@ class Song:
             self.guild_id = guild_id
 
         self.cipher = ""
-        self.youtube_stream = None
 
     @property
     def image(self):
@@ -99,3 +98,6 @@ class Song:
             ):  # pylint: disable=unidiomatic-typecheck
                 x[attr] = self.__dict__.get(attr)
         return json.dumps(x)
+
+    def __str__(self):
+        return self.to_string()

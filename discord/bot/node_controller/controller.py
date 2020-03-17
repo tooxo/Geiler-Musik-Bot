@@ -1,36 +1,34 @@
+"""
+Controller
+"""
 import asyncio
 import json
 import logging
 import random
-import socket
 import string
 from os import environ
 from typing import Dict, Optional
 
+from karp.request import Request
+from karp.response import Response
+from karp.server import Client, KARPServer
+
 from bot.type.errors import Errors
+from bot.type.exceptions import NoNodeReadyException
 from bot.type.guild import Guild
 
 
 class Controller:
     def __init__(self, parent):
-        self.host = "0.0.0.0"  # nosec
-        self.port = 9988
+        self.host = "0.0.0.0"
+        self.port = "9988"
         self.key = environ.get("API_KEY", "API_KEY")
 
         self.parent = parent
         self.guilds: Dict[int, Guild] = parent.guilds
 
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-        self.socket.bind((self.host, self.port))
-
-        self.server = None
-
         self.nodes = {}
         self.node_cache = {}
-
-        self.stopped = False
 
         self.login_logger = logging.Logger("LOGIN", logging.DEBUG)
         ch = logging.StreamHandler()
@@ -41,178 +39,113 @@ class Controller:
             )
         )
         self.login_logger.addHandler(ch)
+        self.server = KARPServer(self.host, self.port)
+        self.server.logger.setLevel(logging.INFO)
 
     @staticmethod
-    def random_string(length: int = 16):
+    def random_string(length: int = 16) -> str:
+        """
+        Generates a random string
+        :param length:
+        :return:
+        """
         s = ""
         for x in range(length):
             s += random.choice(string.ascii_lowercase)
         return s
 
-    async def connection_handler(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-    ):
-        # start authentication
-        _ip = writer.transport.get_extra_info("peername")
-        _id = self.random_string(16)
-        self.login_logger.info(f"New connection from {_ip}")
-
+    async def _on_new_connection(self, client: Client) -> None:
+        node: Node = Node(client)
         try:
-            # receive the api key saved in the node and compares it to the local one
-            proposed_api_key = (await reader.read(1024)).decode()[2:]
-        except UnicodeDecodeError:
-            self.login_logger.info(
-                f"Connection declined for {_ip}. Reason: InvalidEncoding"
+
+            response: Response = await node.client.request(
+                "identify", "", True, 10
             )
-            writer.close()
-            return
-
-        if proposed_api_key != self.key:
-            writer.close()
-            self.login_logger.info(
-                f"Connection declined for {_ip}. Reason: InvalidApiKey"
-            )
-            return
-
-        writer.write(
-            b"A_ACCEPT"
-        )  # this notifies the client, that it can transfer the config
-        await writer.drain()
-
-        proposed_configuration = await reader.read(
-            4096
-        )  # this equals 4096 bytes of configuration, which should be enough
-        try:
-            proposed_configuration = proposed_configuration.decode("UTF-8")
-        except UnicodeDecodeError:
-            self.login_logger.info(
-                f"Connection declined for {_ip}. Reason: InvalidConfEncoding"
-            )
-            writer.close()
-            return
-
-        try:
-            configuration = json.loads(proposed_configuration)
-            new_node = Node()
-            valid_config = new_node.from_dict(configuration)
-            if valid_config:
-                self.nodes[_id] = new_node
-            else:
-                self.login_logger.info(
-                    f"Connection declined for {_ip}. Reason: InvalidConf"
-                )
-                return
-        except json.JSONDecodeError:
-            self.login_logger.info(
-                f"Connection declined for {_ip}. Reason: InvalidConf"
-            )
-            return
-
-        accepted = False
-        while not accepted:
-            writer.write(f"BT_{environ.get('BOT_TOKEN', '')}".encode())
-            await writer.drain()
-            if (await reader.read(1024)).decode() == "BT_ACCEPT":
-                accepted = True
-
-        is_ready = False
-        while not is_ready and not self.stopped:
-            await asyncio.sleep(0.1)
+            if not response.successful:
+                raise asyncio.TimeoutError()
             try:
-                response = await reader.read(1024)
-            except BrokenPipeError:
-                self.login_logger.info(f"Connection lost to {_ip}. Reason: BPE")
-                break
-            if response.decode() == "D_READY":
-                self.nodes[_id].writer = writer
-                self.nodes[_id].reader = reader
-                is_ready = True
+                content: dict = json.loads(response.text)
+            except json.JSONDecodeError:
+                raise asyncio.TimeoutError()
 
-        self.login_logger.info(f"Connection established to {_ip}")
-
-        while not self.stopped and is_ready:
             try:
-                response = await reader.read(1024)
-            except BrokenPipeError:
-                del self.nodes[_id]
-                self.login_logger.info(f"Connection lost to {_ip}. Reason: BPE")
-                break
-            if not response:
-                break
-            self._handle_response(_response=response.decode())
-            await asyncio.sleep(0.1)
-        self.login_logger.info(f"Connection lost to {_ip}. Reason: Basic")
-        writer.close()
+                api_key = content["API_KEY"]
+            except (TypeError, KeyError):
+                raise asyncio.TimeoutError()
+
+            if api_key != self.key:
+                raise asyncio.TimeoutError()
+
+            response: Response = await node.client.request(
+                "accepted",
+                json.dumps({"DISCORD_API_KEY": environ.get("BOT_TOKEN", "")}),
+                True,
+                60,
+            )
+        except asyncio.TimeoutError:
+            node.client.writer.close()
+            return
+        if response.text == "1":
+            self.login_logger.info("Connection Established.")
+            self.nodes[node.id] = node
+
+    def _on_connection_lost(self, client: Client):
+        if client.id in self.nodes:
+            del self.nodes[client.id]
 
     async def start_server(self):
-        self.server = await asyncio.start_server(
-            self.connection_handler, self.host, self.port
-        )
-        asyncio.ensure_future(self.server.serve_forever())
+        self.server.on_new_connection = self._on_new_connection
+        self.server.on_connection_lost = self._on_connection_lost
+        self._add_routes()
+        asyncio.ensure_future(self.server.start())
 
-    def _handle_response(self, _response: str):
-        if _response.count("#S_") > 1:
-            responses = _response.split("#S_")[1:]
-        else:
-            responses = [_response]
-        for response in responses:
-            if response.startswith("#S_AFT_"):
-                data: dict = json.loads(response[7:])
-                guild_id = data.get("guild_id", None)
-                if guild_id:
-                    if self.guilds[guild_id].voice_client:
-                        self.guilds[guild_id].voice_client.after()
-            elif response.startswith("#S_BR_"):
-                response = json.loads(response[6:])
-                if self.guilds[response["guild_id"]].now_playing_message:
-                    self.guilds[
-                        response["guild_id"]
-                    ].now_playing_message.bytes_read = response["bytes_read"]
+    def _add_routes(self) -> None:
+        @self.server.add_route(route="discord_after")
+        async def _discord_after(request: Request) -> None:
+            data: dict = json.loads(request.text)
+            guild_id = data.get("guild_id", None)
+            if guild_id:
+                if self.guilds[guild_id].voice_client:
+                    # noinspection PyProtectedMember
+                    self.guilds[guild_id].voice_client._is_connected = data.get(
+                        "connected", True
+                    )
 
-    def get_best_node(self, guild_id: int = None, black_list=None):
-        if black_list is None:
-            black_list = list()
+                    await self.guilds[guild_id].voice_client.after()
+
+        @self.server.add_route(route="discord_bytes")
+        def _discord_bytes(request: Request) -> None:
+            response = json.loads(request.text)
+            if self.guilds[response["guild_id"]].now_playing_message:
+                self.guilds[
+                    response["guild_id"]
+                ].now_playing_message.bytes_read = response["bytes_read"]
+
+    def get_best_node(self, guild_id: Optional[int] = None):
+        """
+        Gets the best node
+        :param guild_id: get node designated to guild
+        :return:
+        """
         if guild_id is not None:
             if guild_id in self.node_cache.keys():
                 node = self.nodes.get(self.node_cache[guild_id], None)
                 if node:
-                    if node.is_ready():
-                        return node
-        if len(black_list) < len(self.nodes):
-            node: Node = self.nodes[random.choice(list(self.nodes.keys()))]
-            while node in black_list:
-                node: Node = self.nodes[random.choice(list(self.nodes.keys()))]
-            if not node.is_ready():
-                black_list.append(node)
-                return self.get_best_node(black_list=black_list)
-            self.node_cache[guild_id] = node
+                    return node
+        if len(self.nodes) > 0:
+            node = self.nodes[random.choice(list(self.nodes.keys()))]
+            if guild_id:
+                self.nodes[guild_id] = node
             return node
         raise NoNodeReadyException(Errors.backend_down)
 
 
-class NoNodeReadyException(Exception):
-    pass
-
-
 class Node:
-    def __init__(self):
-        self.ip = ""
-        self.port = 0
+    def __init__(self, client: Client):
         self.name = ""
-        self.reader: Optional[asyncio.StreamReader] = None
-        self.writer: Optional[asyncio.StreamWriter] = None
+        self.id = client.id
 
-    def is_ready(self):
-        if hasattr(self, "reader") and hasattr(self, "writer"):
-            return True
-        return False
+        self.client: Client = client
 
-    def from_dict(self, d: dict):
-        self.ip = d.get("ip", None)
-        self.port = d.get("port", None)
-        self.name = d.get("name", None)
-        return (
-            self.ip is not None
-            and self.port is not None
-            and self.name is not None
-        )
+        self.reader: asyncio.StreamReader = client.reader
+        self.writer: asyncio.StreamWriter = client.writer

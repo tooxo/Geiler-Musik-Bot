@@ -1,5 +1,4 @@
 import discord.ext.commands
-
 from bot.type.exceptions import (
     BotNotConnected,
     NothingPlaying,

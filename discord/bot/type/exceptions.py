@@ -29,3 +29,29 @@ class NoResultsFound(BasicError):
 
 class BackendDownException(BasicError):
     pass
+
+
+class NoNodeReadyException(BackendDownException):
+    pass
+
+
+class InfoExtractionException(BasicError):
+    """
+    Raised, when information extraction for a song or a playlist fails
+    """
+
+    pass
+
+
+class PlaylistExtractionException(InfoExtractionException):
+    """
+    Raised, when information extraction for a playlist fails
+    """
+
+    pass
+
+
+class SongExtractionException(InfoExtractionException):
+    """
+    Raised, when information extraction for a song fails
+    """

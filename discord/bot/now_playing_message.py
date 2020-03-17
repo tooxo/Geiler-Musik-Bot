@@ -4,8 +4,8 @@ from os import environ
 from typing import Optional
 
 import aiohttp
-import discord
 
+import discord
 import logging_manager
 from bot.node_controller.NodeVoiceClient import NodeVoiceClient
 
@@ -161,6 +161,11 @@ class NowPlayingMessage:
                         return True
             return False
 
+        def run_coroutine(coroutine):
+            asyncio.run_coroutine_threadsafe(
+                coroutine, asyncio.get_event_loop()
+            )
+
         def check_add(reaction: discord.Reaction, user: discord.Member):
             if reaction.message.id == self.message.id:
                 if self.discord_music.bot.user.id != user.id:
@@ -169,7 +174,7 @@ class NowPlayingMessage:
                             reaction.emoji
                             == "\N{BLACK RIGHT-POINTING DOUBLE TRIANGLE}"
                         ):
-                            self.voice_client.stop()
+                            run_coroutine(self.voice_client.stop())
                             self._stop = True
                             return True
                         if (
@@ -178,9 +183,9 @@ class NowPlayingMessage:
                         ):
                             try:
                                 if self.voice_client.is_paused():
-                                    self.voice_client.resume()
+                                    run_coroutine(self.voice_client.resume())
                                 else:
-                                    self.voice_client.pause()
+                                    run_coroutine(self.voice_client.pause())
                             except AttributeError as ae:
                                 self.log.warning(logging_manager.debug_info(ae))
                 return False
@@ -195,9 +200,9 @@ class NowPlayingMessage:
                         ):
                             try:
                                 if self.voice_client.is_paused():
-                                    self.voice_client.resume()
+                                    run_coroutine(self.voice_client.resume())
                                 else:
-                                    self.voice_client.pause()
+                                    run_coroutine(self.voice_client.pause())
                             except AttributeError as ae:
                                 self.log.warning(logging_manager.debug_info(ae))
                 return False

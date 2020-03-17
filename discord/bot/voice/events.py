@@ -3,14 +3,15 @@ import time
 from typing import Dict
 
 import async_timeout
-from discord.ext.commands import Cog
 
 from bot.type.guild import Guild
+from discord import Member, VoiceState
+from discord.ext.commands import Bot, Cog
 
 
 class Events(Cog):
     def __init__(self, bot, parent):
-        self.bot = bot
+        self.bot: Bot = bot
         self.parent = parent
         self.guilds: Dict[int, Guild] = parent.guilds
 
@@ -28,7 +29,9 @@ class Events(Cog):
             )
 
         @self.bot.event
-        async def on_voice_state_update(member, before, after):
+        async def on_voice_state_update(
+            member: Member, before: VoiceState, after: VoiceState
+        ):
             """
             Check for user leaving or joining your channel.
             :param member: Member, which joined
@@ -44,10 +47,11 @@ class Events(Cog):
 
                 if self.guilds[guild_id].voice_channel is None:
                     return
-                if member is self.bot.user:
-                    if self.bot.get_guild(guild_id).voice_client is not None:
+                if member == self.bot.user:
+                    if not after.channel:
                         self.guilds[guild_id].voice_channel = None
                         self.guilds[guild_id].voice_client = None
+                        await self.guilds[guild_id].now_playing_message.stop()
                         return
 
                 if (
@@ -82,4 +86,4 @@ class Events(Cog):
             if self.guilds[guild_id].voice_client is not None:
                 # await self.guilds[guild_id].voice_client.disconnect()
                 self.guilds[guild_id].song_queue.clear()
-                self.guilds[guild_id].voice_client.stop()
+                await self.guilds[guild_id].voice_client.stop()

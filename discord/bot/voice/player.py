@@ -4,16 +4,18 @@ import re
 import traceback
 from typing import Dict
 
-import discord
-from discord.ext import commands
-from discord.ext.commands import Cog
-
 import bot.node_controller.NodeVoiceClient
+import discord
 import logging_manager
 from bot.node_controller.controller import NoNodeReadyException
 from bot.now_playing_message import NowPlayingMessage
 from bot.type.errors import Errors
-from bot.type.exceptions import BasicError
+from bot.type.exceptions import (
+    BasicError,
+    NoResultsFound,
+    PlaylistExtractionException,
+    SongExtractionException,
+)
 from bot.type.guild import Guild
 from bot.type.song import Song
 from bot.type.soundcloud_type import SoundCloudType
@@ -23,6 +25,8 @@ from bot.type.url import Url
 from bot.type.variable_store import VariableStore
 from bot.type.youtube_type import YouTubeType
 from bot.voice.checks import Checks
+from discord.ext import commands
+from discord.ext.commands import Cog
 
 
 class Player(Cog):
@@ -38,8 +42,6 @@ class Player(Cog):
                 small_dict = await self.guilds[ctx.guild.id].song_queue.get()
             else:
                 small_dict = bypass
-            if self.guilds[ctx.guild.id].announce:
-                await ctx.trigger_typing()
             if small_dict.stream is None:
                 try:
                     if small_dict.link is not None:
@@ -74,6 +76,18 @@ class Player(Cog):
                             ),
                             small_dict,
                         )
+                except NoResultsFound:
+                    await self.parent.send_error_message(
+                        ctx, Errors.no_results_found
+                    )
+                    await self.pre_player(ctx)
+                    return
+                except SongExtractionException:
+                    await self.parent.send_error_message(
+                        ctx, Errors.youtube_video_not_available
+                    )
+                    await self.pre_player(ctx)
+                    return
                 except BasicError as be:
                     if str(be) != Errors.error_please_retry:
                         await self.parent.send_error_message(ctx, str(be))
@@ -131,7 +145,7 @@ class Player(Cog):
             __songs = []
             __song_list = await self.parent.youtube.youtube_playlist(url)
             if len(__song_list) == 0:
-                await self.parent.send_error_message(ctx, Errors.spotify_pull)
+                await self.parent.send_error_message(ctx, Errors.playlist_pull)
                 return []
             for track in __song_list:
                 track.user = ctx.message.author
@@ -144,11 +158,11 @@ class Player(Cog):
             try:
                 song: Song = await self.parent.soundcloud.soundcloud_track(url)
                 if song.title is None:
-                    self.parent.send_error_message(
+                    await self.parent.send_error_message(
                         ctx=ctx, message=Errors.default
                     )
             except BasicError as e:
-                self.parent.send_error_message(ctx=ctx, message=str(e))
+                await self.parent.send_error_message(ctx=ctx, message=str(e))
                 return []
             song.user = ctx.message.author
             return [song]
@@ -169,7 +183,7 @@ class Player(Cog):
             __song_list = await self.parent.spotify.spotify_playlist(url)
             if len(__song_list) == 0:
                 await self.parent.send_error_message(
-                    ctx=ctx, message=Errors.spotify_pull
+                    ctx=ctx, message=Errors.playlist_pull
                 )
                 return []
             for track in __song_list:
@@ -226,13 +240,31 @@ class Player(Cog):
     async def add_to_queue(
         self, url, ctx, first_index_push=False, playskip=False, shuffle=False
     ):
+        try:
+            change = not self.guilds[ctx.guild.id].voice_client.node.is_ready()
+        except AttributeError:
+            change = False
+
+        try:
+            songs: list = await self.extract_infos(url=url, ctx=ctx)
+        except NoResultsFound:
+            await self.parent.send_error_message(ctx, Errors.no_results_found)
+            return
+        except PlaylistExtractionException:
+            await self.parent.send_error_message(ctx, Errors.playlist_pull)
+            return
+        except SongExtractionException:
+            await self.parent.send_error_message(
+                ctx, Errors.youtube_video_not_available
+            )
+            return
+
         if playskip:
             self.guilds[ctx.guild.id].song_queue.clear()
 
-        songs: list = await self.extract_infos(url=url, ctx=ctx)
-        for __song in songs:
-            __song: Song
-            __song.guild_id = ctx.guild.id
+        for song in songs:
+            song: Song
+            song.guild_id = ctx.guild.id
         if len(songs) > 1:
             if shuffle:
                 random.shuffle(songs)
@@ -260,29 +292,42 @@ class Player(Cog):
                 self.guilds[ctx.guild.id].now_playing
                 or self.guilds[ctx.guild.id].queue_lock
             ):
-                if not playskip:
+                if not playskip and not change:
                     await self.parent.send_embed_message(
                         ctx, ":asterisk: Added **" + title + "** to Queue."
                     )
 
+        # noinspection PyBroadException
         try:
+            if change:
+                if self.guilds[ctx.guild.id].announce:
+                    await ctx.trigger_typing()
+                return await self.pre_player(ctx)
             if playskip:
                 if self.guilds[ctx.guild.id].voice_client is not None:
                     if self.guilds[ctx.guild.id].voice_client.is_playing():
-                        self.guilds[ctx.guild.id].voice_client.stop()
+                        await self.guilds[ctx.guild.id].voice_client.stop()
             if not self.guilds[ctx.guild.id].now_playing:
                 if not self.guilds[ctx.guild.id].queue_lock:
                     # locks the queue for direct play
                     self.guilds[ctx.guild.id].queue_lock = True
+                    if self.guilds[ctx.guild.id].announce:
+                        await ctx.trigger_typing()
                     await self.pre_player(ctx)
         except Exception:
             self.parent.log.error(
                 logging_manager.debug_info(traceback.format_exc())
             )
 
-    async def join_check(self, ctx):
+    async def join_check(self, ctx: commands.Context):
         if self.guilds[ctx.guild.id].voice_channel is None:
+            state: discord.VoiceState = ctx.author.voice
             if ctx.author.voice is not None:
+                if len(state.channel.members) >= state.channel.user_limit != 0:
+                    await self.parent.send_error_message(
+                        ctx=ctx, message="Your channel is full."
+                    )
+                    return False
                 self.guilds[
                     ctx.guild.id
                 ].voice_channel = ctx.author.voice.channel
@@ -317,7 +362,6 @@ class Player(Cog):
                 TimeoutError,
                 discord.HTTPException,
                 discord.ClientException,
-                discord.DiscordException,
             ) as e:
                 self.parent.log.warning(
                     logging_manager.debug_info("channel_join " + str(e))
@@ -428,30 +472,36 @@ class Player(Cog):
             return False
         return True
 
-    async def song_conclusion(self, ctx, error=None):
-        if len(self.guilds[ctx.guild.id].song_queue.queue) == 0:
-            self.guilds[ctx.guild.id].now_playing = None
-        if error is not None:
-            self.parent.log.error(str(error))
-            await self.parent.send_error_message(ctx, str(error))
-
+    async def song_conclusion(self, ctx: commands.Context):
+        """
+        Things to do after a song is finished.
+        :param ctx: Context
+        :return: nothing
+        """
+        guild_id = ctx.guild.id
+        if len(self.guilds[guild_id].song_queue.queue) == 0:
+            self.guilds[guild_id].now_playing = None
         # catch all one after another to make most of them succeed
+
+        async def _player_wrapper(_ctx: commands.Context):
+            if self.guilds[guild_id].voice_client:
+                if self.guilds[guild_id].voice_client.is_connected():
+                    return await self.pre_player(_ctx)
 
         tasks = [
             self.parent.clear_presence(ctx),
             self.empty_channel(ctx),
-            self.pre_player(ctx),
+            _player_wrapper(ctx),
         ]
-        if self.guilds[ctx.guild.id].announce:
-            if self.guilds[ctx.guild.id].now_playing_message:
-                tasks.append(
-                    self.guilds[ctx.guild.id].now_playing_message.stop()
-                )
+        if self.guilds[guild_id].announce:
+            if self.guilds[guild_id].now_playing_message:
+                tasks.append(self.guilds[guild_id].now_playing_message.stop())
         for task in tasks:
+            # noinspection PyBroadException
             try:
                 await task
             except Exception as e:
-                self.parent.log.error(str(e))
+                self.parent.log.error(traceback.format_exc(e))
 
     async def player(self, ctx, small_dict):
         try:
@@ -461,9 +511,9 @@ class Player(Cog):
                 return
             try:
                 small_dict.guild_id = ctx.guild.id
-                self.guilds[ctx.guild.id].voice_client.play(small_dict)
+                await self.guilds[ctx.guild.id].voice_client.play(small_dict)
                 self.guilds[ctx.guild.id].voice_client.set_after(
-                    self.song_conclusion, ctx, error=None
+                    self.song_conclusion, ctx
                 )
             except discord.ClientException:
                 if ctx.guild.voice_client is None:
@@ -476,14 +526,14 @@ class Player(Cog):
                             timeout=10, reconnect=True
                         )
                         small_dict.guild_id = ctx.guild.id
-                        self.guilds[ctx.guild.id].voice_client.play(
+                        await self.guilds[ctx.guild.id].voice_client.play(
                             small_dict,
                             # after=lambda error: self.song_conclusion(
                             #    ctx, error=error
                             # ),
                         )
                         self.guilds[ctx.guild.id].voice_client.set_after(
-                            self.song_conclusion, ctx, error=None
+                            self.song_conclusion, ctx
                         )
             if self.guilds[ctx.guild.id].announce:
                 full, empty = (
@@ -522,10 +572,23 @@ class Player(Cog):
                         backup_title: str = str(item.title)
                         if item.link is not None:
                             try:
-                                youtube_dict = await self.parent.youtube.youtube_url(
-                                    item.link, ctx.guild.id
-                                )
+                                type_of_source = Url.determine_source(item.link)
+                                if type_of_source == Url.youtube_url:
+                                    youtube_dict = await self.parent.youtube.youtube_url(
+                                        item.link, ctx.guild.id
+                                    )
+                                elif type_of_source == Url.soundcloud_track:
+                                    youtube_dict = await self.parent.soundcloud.soundcloud_track(
+                                        item.link
+                                    )
+                                else:
+                                    continue
                             except BasicError:
+                                self.parent.log(
+                                    logging_manager.debug_info(
+                                        traceback.format_exc()
+                                    )
+                                )
                                 continue
                             youtube_dict.user = item.user
                         else:

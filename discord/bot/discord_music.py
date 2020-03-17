@@ -6,9 +6,8 @@ from os import environ
 from typing import Dict, Optional
 
 import dbl
-import discord
-from discord.ext import commands
 
+import discord
 import logging_manager
 from bot.node_controller.controller import Controller
 from bot.type.errors import Errors
@@ -19,6 +18,7 @@ from bot.voice.events import Events
 from bot.voice.player import Player
 from bot.voice.player_controls import PlayerControls
 from bot.voice.tts import TTS
+from discord.ext import commands
 from extractors import genius, mongo, soundcloud, spotify, watch2gether, youtube
 
 
@@ -264,7 +264,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         await self.mongo.set_volume(ctx.guild.id, var)
         self.guilds[ctx.guild.id].volume = var
         try:
-            self.guilds[ctx.guild.id].voice_client.set_volume(var)
+            await self.guilds[ctx.guild.id].voice_client.set_volume(var)
         except (AttributeError, TypeError):
             # if pcm source, can be ignored simply
             pass
@@ -431,8 +431,14 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             )
             await ctx.send(embed=embed)
 
+    # noinspection PyUnusedLocal
     @commands.command(hidden=True)
     async def eval(self, ctx, *, code: str = None):
+        guild_id = ctx.guild.id
+        queue = self.guilds[guild_id].song_queue
+        guild = self.guilds[guild_id]
+        now_playing = self.guilds[guild_id].now_playing
+        now_playing_message = self.guilds[guild_id].now_playing_message
         if ctx.author.id != 322807058254528522:
             embed = discord.Embed(title="No permission.", color=0xFF0000)
             await ctx.send(embed=embed)

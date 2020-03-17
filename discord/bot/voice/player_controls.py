@@ -4,12 +4,11 @@ import random
 from os import environ
 
 import discord
-from discord.ext import commands
-from discord.ext.commands import Cog
-
 from bot.type.guild import Guild
 from bot.type.queue import Queue
 from bot.voice.checks import Checks
+from discord.ext import commands
+from discord.ext.commands import Cog
 
 
 class PlayerControls(Cog, name="Player Controls"):
@@ -80,7 +79,7 @@ class PlayerControls(Cog, name="Player Controls"):
         """
         self.guilds[ctx.guild.id].song_queue.clear()
         self.guilds[ctx.guild.id].now_playing = None
-        self.guilds[ctx.guild.id].voice_client.stop()
+        await self.guilds[ctx.guild.id].voice_client.stop()
         await self.parent.send_embed_message(
             ctx, "Music Stopped! :octagonal_sign:"
         )
@@ -98,7 +97,7 @@ class PlayerControls(Cog, name="Player Controls"):
             await self.parent.send_error_message(ctx, "Already Paused.")
             return
         if self.guilds[ctx.guild.id].voice_client is not None:
-            self.guilds[ctx.guild.id].voice_client.pause()
+            await self.guilds[ctx.guild.id].voice_client.pause()
             message = await self.parent.send_embed_message(
                 ctx, "Paused! :pause_button:"
             )
@@ -128,7 +127,7 @@ class PlayerControls(Cog, name="Player Controls"):
                     await self.parent.send_embed_message(
                         ctx, "Skipped! :track_next:", delete_after=10
                     )
-                    self.guilds[ctx.guild.id].voice_client.stop()
+                    await self.guilds[ctx.guild.id].voice_client.stop()
                 elif count < 1:
                     await self.parent.send_error_message(
                         ctx, "Please provide a valid number."
@@ -142,7 +141,7 @@ class PlayerControls(Cog, name="Player Controls"):
                             + str(self.guilds[ctx.guild.id].song_queue.qsize())
                             + " Tracks! :track_next:",
                         )
-                        self.guilds[ctx.guild.id].voice_client.stop()
+                        await self.guilds[ctx.guild.id].voice_client.stop()
                     else:
 
                         queue = self.guilds[ctx.guild.id].song_queue.queue
@@ -152,7 +151,7 @@ class PlayerControls(Cog, name="Player Controls"):
                         ].song_queue.queue = collections.deque(
                             list(queue)[(count - 1) :]
                         )
-                    self.guilds[ctx.guild.id].voice_client.stop()
+                    await self.guilds[ctx.guild.id].voice_client.stop()
                     await self.parent.send_embed_message(
                         ctx, "Skipped " + str(count) + " Tracks! :track_next:"
                     )
@@ -185,7 +184,7 @@ class PlayerControls(Cog, name="Player Controls"):
         if not _song_queue.back_queue.__len__() == 0:
             last_song = _song_queue.get_last()
             _song_queue.queue.appendleft(last_song)
-            _voice_client.stop()
+            await _voice_client.stop()
 
     @commands.check(Checks.manipulation_checks)
     @commands.check(Checks.song_playing_check)
@@ -198,7 +197,7 @@ class PlayerControls(Cog, name="Player Controls"):
         :return:
         """
         if self.guilds[ctx.guild.id].voice_client.is_paused():
-            self.guilds[ctx.guild.id].voice_client.resume()
+            await self.guilds[ctx.guild.id].voice_client.resume()
             await self.parent.send_embed_message(ctx, "Unpaused! :play_pause:")
         else:
             await self.parent.send_error_message(ctx, "Not Paused.")
@@ -222,7 +221,7 @@ class PlayerControls(Cog, name="Player Controls"):
             return  # shit
         if self.guilds[ctx.guild.id].voice_client.is_playing():
             if not self.guilds[ctx.guild.id].voice_client.is_paused():
-                self.guilds[ctx.guild.id].voice_client.seek(
+                await self.guilds[ctx.guild.id].voice_client.seek(
                     song=self.guilds[ctx.guild.id].now_playing,
                     volume=self.guilds[ctx.guild.id].volume,
                     seconds_to_seek=parsed,

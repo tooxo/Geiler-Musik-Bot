@@ -1,13 +1,15 @@
-import asyncio
 import json
 
 import aiohttp
-import async_timeout
 
 import logging_manager
-from bot.node_controller.controller import Controller
+from bot.node_controller.controller import Controller, Node
 from bot.type.errors import Errors
-from bot.type.exceptions import BackendDownException, BasicError, NoResultsFound
+from bot.type.exceptions import (
+    NoResultsFound,
+    PlaylistExtractionException,
+    SongExtractionException,
+)
 from bot.type.song import Song
 from bot.type.variable_store import VariableStore
 
@@ -41,54 +43,37 @@ class Youtube:
         self.session = aiohttp.ClientSession()
         self.node_controller = node_controller
 
-        self.term_url = "http://{}:{}/research/youtube_search"
-        self.url_url = "http://{}:{}/research/youtube_video"
-        self.playlist_url = "http://{}:{}/research/youtube_playlist"
-
-    async def http_get(self, url) -> str:
-        try:
-            with async_timeout.timeout(5):
-                async with self.session.get(url=url) as re:
-                    return await re.text()
-        except asyncio.TimeoutError:
-            raise BasicError(Errors.default)
-
-    async def http_post(self, url, data) -> str:
-        try:
-            with async_timeout.timeout(10):
-                async with self.session.post(url=url, data=data) as re:
-                    if re.status != 200:
-                        if re.status == 500:
-                            raise BackendDownException(Errors.backend_down)
-                        raise BasicError(await re.text())
-                    return await re.text()
-        except asyncio.TimeoutError:
-            raise BasicError(Errors.default)
-
     async def youtube_term(self, song: (Song, str), service: str):
         log.info(f'Using Search Service "{service}"')
-        if isinstance(song, Song):
-            if song.term:
-                term = song.term
-            elif song.title:
-                term = song.title
-            else:
-                raise NoResultsFound(Errors.no_results_found)
-        else:
-            term = song
 
-        node = self.node_controller.get_best_node(guild_id=song.guild_id)
+        term = getattr(song, "title", getattr(song, "term", None))
+        if not term:
+            raise NoResultsFound(Errors.no_results_found)
 
-        url = await self.http_post(
-            self.term_url.format(node.ip, node.port),
+        node: Node = self.node_controller.get_best_node(guild_id=song.guild_id)
+
+        response = await node.client.request(
+            "youtube_search",
             json.dumps({"service": service, "term": term}),
+            response=True,
+            timeout=10,
         )
+
+        if not response.successful:
+            raise NoResultsFound(response.text)
+        url = response.text
 
         url = VariableStore.youtube_url_to_id(url)
-        sd = await self.http_post(
-            url=self.url_url.format(node.ip, node.port), data=url
+
+        response = await node.client.request(
+            "youtube_video", url, response=True, timeout=10
         )
-        song_dict: dict = json.loads(sd)
+
+        if not response.successful:
+            log.warning(f"[YT-TERM] {url} {response.text}")
+            raise SongExtractionException()
+
+        song_dict: dict = json.loads(response.text)
         song_dict["term"] = term
 
         song: Song = Song.from_dict(song_dict)
@@ -96,12 +81,17 @@ class Youtube:
 
     async def youtube_url(self, url, guild_id: int):
         url = VariableStore.youtube_url_to_id(url)
-        node = self.node_controller.get_best_node(guild_id)
-        sd = await self.http_post(
-            url=self.url_url.format(node.ip, node.port), data=url
+        node: Node = self.node_controller.get_best_node(guild_id)
+
+        response = await node.client.request(
+            "youtube_url", url, response=True, timeout=10
         )
 
-        song_dict: dict = json.loads(sd)
+        if not response.successful:
+            log.warning(f"[YT-URL] {url} {response.text}")
+            raise SongExtractionException()
+
+        song_dict: dict = json.loads(response.text)
 
         if song_dict == {}:
             raise NoResultsFound(Errors.no_results_found)
@@ -110,16 +100,17 @@ class Youtube:
 
     async def youtube_playlist(self, url):
         url = VariableStore.youtube_url_to_id(url)
-        node = self.node_controller.get_best_node()
-        try:
-            sd = await self.http_post(
-                url=self.playlist_url.format(node.ip, node.port), data=url
-            )
-        except BasicError:
-            return []
+        node: Node = self.node_controller.get_best_node()
+
+        response = await node.client.request(
+            "youtube_playlist", url, response=True, timeout=10
+        )
+
+        if not response.successful:
+            raise PlaylistExtractionException()
 
         songs = []
-        for t in json.loads(sd):
+        for t in json.loads(response.text):
             s = Song()
             s.title = t["title"]
             s.link = t["link"]
