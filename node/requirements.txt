@@ -1,5 +1,3 @@
-flask
-youtube_dl
 expiringdict
 pyyaml
 pyopenssl
@@ -9,3 +7,4 @@ pynacl
 aiohttp
 av
 karp
+git+git://github.com/tooxo/pytube.git

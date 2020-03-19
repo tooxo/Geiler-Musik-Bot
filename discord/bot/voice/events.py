@@ -48,7 +48,8 @@ class Events(Cog):
                 if self.guilds[guild_id].voice_channel is None:
                     return
                 if member == self.bot.user:
-                    if not after.channel:
+                    if not after.channel and not self.bot.get_guild(guild_id).voice_client:
+                        print("resetting voice_client", member, before, after)
                         self.guilds[guild_id].voice_channel = None
                         self.guilds[guild_id].voice_client = None
                         await self.guilds[guild_id].now_playing_message.stop()

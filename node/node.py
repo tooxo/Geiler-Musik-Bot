@@ -2,24 +2,20 @@
 Node
 """
 import asyncio
-import http.client
 import json
 import os
-import random
 import re
 import time
 import traceback
-import urllib.request
-from http.client import HTTPResponse
 from typing import List, Tuple, Union
 from urllib.parse import quote
 
+import aiohttp
+import pytube
 from expiringdict import ExpiringDict
 from karp.client import KARPClient
 from karp.request import Request
 from yaml import YAMLError, safe_load
-from youtube_dl import YoutubeDL
-from youtube_dl.utils import DownloadError, ExtractorError
 
 from discord_handler import DiscordHandler
 
@@ -31,7 +27,6 @@ class Errors:
 
     no_results_found = "No Results found."
     default = "An Error has occurred."
-    info_check = "An Error has occurred while checking Info."
     spotify_pull = (
         "**There was an error pulling the Playlist, 0 Songs were added. "
         "This may be caused by the playlist being private or deleted.**"
@@ -47,46 +42,6 @@ class Errors:
     backend_down = (
         "Our backend seems to be down right now, try again in a few minutes."
     )
-
-
-class YoutubeDLLogger(object):
-    """
-    Custom logger for YoutubeDL
-    """
-
-    @staticmethod
-    def debug(msg: str) -> None:
-        """
-        Print debug
-        :param msg: message
-        :return:
-        """
-        if "youtube:search" in msg and "query" in msg:
-            print(
-                "[YouTube Search] Searched Term: '"
-                + msg.split('"')[1].split('"')[-1]
-                + "'"
-            )
-
-    @staticmethod
-    def warning(msg: str) -> None:
-        """
-        Print warning
-        :param msg: message
-        :return:
-        """
-        print("warn", msg)
-
-    @staticmethod
-    def error(msg: str) -> None:
-        """
-        Print error
-        :param msg: message
-        :return:
-        """
-        if "This video is no longer available" in msg:
-            raise NotAvailableException("notavailable")
-        raise ExtractorError("Video Downloading failed.")
 
 
 class NotAvailableException(Exception):
@@ -106,10 +61,9 @@ class YouTube:
         self.research_cache: ExpiringDict = ExpiringDict(1000, 10000)
         self.search_cache: dict = dict()
         self.music_search_cache: dict = dict()
-        self.logger = YoutubeDLLogger()
 
     @staticmethod
-    def extract_manifest(manifest_url: str) -> str:
+    async def extract_manifest(manifest_url: str) -> str:
         """
         Extract a stream url from a manifest url
         :param manifest_url:
@@ -120,8 +74,8 @@ class YouTube:
             r"bandwidth=\"\d+\">(<AudioChannelConfiguration[^/]+/>)?<BaseURL>(\S+)</BaseURL>"
         )
         print("extracting from manifest:", manifest_url)
-        with urllib.request.urlopen(manifest_url) as res:
-            text = res.read().decode()
+        async with aiohttp.request("GET", manifest_url) as res:
+            text = (await res.read()).decode()
             it = re.finditer(manifest_pattern, text)
             return_stream_url = ""
             return_sample_rate = 0
@@ -132,27 +86,28 @@ class YouTube:
             return return_stream_url
 
     @staticmethod
-    def get_format(formats: List[dict]) -> Tuple[str, str, int]:
+    def get_format(formats: pytube.StreamQuery) -> Tuple[str, str, int]:
         """
         Decide on a format from all formats
         :param formats: formats
         :return:
         """
-        for item in formats:
-            if item["format_id"] == "250":
-                return item["url"], item["acodec"], item["abr"]
-        for item in formats:
-            if item["format_id"] == "251":
-                return item["url"], item["acodec"], item["abr"]
-        for item in formats:
-            if item["format_id"] == "249":
-                return item["url"], item["acodec"], item["abr"]
-        for item in formats:
-            # return some audio stream
-            if "audio only" in item["format"]:
-                return item["url"], item["acodec"], item["abr"]
+        if formats.get_by_itag(250):
+            f = formats.get_by_itag(250)
+            return f.url, f.audio_codec, f.abr[:-4]
+        if formats.get_by_itag(251):
+            f = formats.get_by_itag(251)
+            return f.url, f.audio_codec, f.abr[:-4]
+        if formats.get_by_itag(249):
+            f = formats.get_by_itag(249)
+            return f.url, f.audio_codec, f.abr[:-4]
+        return (
+            formats.filter(only_audio=True).first().url,
+            formats.filter(only_audio=True).first().audio_codec,
+            formats.filter(only_audio=True).first().abr[:-4],
+        )
 
-    def youtube_extraction(self, video_id: str, url: str) -> Union[dict, str]:
+    async def youtube_extraction(self, video_id: str, url: str) -> dict:
         """
         Extract data from YouTube
         :param video_id:
@@ -163,65 +118,50 @@ class YouTube:
             start = time.time()
             if self.research_cache.get(video_id, None) is not None:
                 return self.research_cache.get(video_id)
-            with YoutubeDL({"logger": self.logger}) as ydl:
-                info_dict = ydl.extract_info(url, download=False)
-                song = {
-                    "link": url,
-                    "id": info_dict["id"],
-                    "title": info_dict["title"],
-                }
-                yt_s, c, abr = self.get_format(info_dict["formats"])
-                song["stream"] = yt_s
-                song["codec"] = c
-                song["abr"] = abr
-                # preferring format 250: 78k bitrate (discord default = 64, max = 96) + already opus formatted
+            ydl = await pytube.YouTube.create(url)
+            yt_s, c, abr = self.get_format(ydl.streams)
+            # preferring format 250: 78k bitrate (discord default = 64, max = 96) + already opus formatted
+            song = {
+                "link": url,
+                "id": ydl.video_id,
+                "title": ydl.title,
+                "stream": yt_s,
+                "codec": c,
+                "abr": abr,
+                "duration": ydl.length,
+                "thumbnail": ydl.thumbnail_url,
+                "term": "",
+            }
 
-                if "manifest" in song["stream"]:
-                    # youtube-dl doesn't handle manifest extraction, so I need to do it.
-                    song["stream"] = self.extract_manifest(song["stream"])
-                song["duration"] = info_dict["duration"]
-            for n in info_dict["thumbnails"]:
-                song["thumbnail"] = n["url"]
-            song["term"] = ""
+            if "manifest" in song["stream"]:
+                # youtube-dl doesn't handle manifest extraction, so I need to do it.
+                song["stream"] = self.extract_manifest(song["stream"])
             song["loadtime"] = int(time.time() - start)
             self.research_cache[song["id"]] = song
-            del info_dict
+            del ydl
             return song
         except NotAvailableException:
-            return Errors.youtube_video_not_available
-        except (DownloadError, ExtractorError):
+            raise NotAvailableException()
+        except Exception:
             traceback.print_exc()
-            return Errors.default
-        except Exception as ex:
-            print(ex)
-            return Errors.error_please_retry
+            raise
 
-    def extract_playlist(self, playlist_id: str) -> List[dict]:
+    @staticmethod
+    async def extract_playlist(playlist_id: str) -> List[dict]:
         """
         Extract tracks from playlist url
         :param playlist_id: playlist id
         :return:
         """
         url = "https://youtube.com/playlist?list=" + playlist_id
-        youtube_dl_opts = {
-            "extract_flat": True,
-            "ignore_errors": True,
-            "logger": self.logger,
-        }
         output = []
-        with YoutubeDL(youtube_dl_opts) as ydl:
-            info_dict = ydl.extract_info(url, download=False)
-            for video in info_dict["entries"]:
-                if not video:
-                    continue
-                song = dict()
-                song["title"] = video["title"]
-                song["link"] = "https://youtube.com/watch?v=" + video["url"]
-                output.append(song)
-            del info_dict
+        ydl = await pytube.Playlist.create(url)
+        for url, title in ydl:
+            output.append({"title": title, "link": url})
+        del ydl
         return output
 
-    def search_youtube_basic(self, term: str) -> str:
+    async def search_youtube_basic(self, term: str) -> str:
         """
         Search YouTube
         :param term:
@@ -233,18 +173,17 @@ class YouTube:
         url = f"https://www.youtube.com/results?search_query={query}%2C+video&pbj=1"
         for x in range(0, 2, 1):
             url_list = []
-            request = urllib.request.Request(
+            async with aiohttp.request(
+                "GET",
                 url,
                 headers={
                     "x-youtube-client-name": "1",
                     "x-youtube-client-version": "2.20200312.05.00",
                 },
-            )
-            with urllib.request.urlopen(request) as res:
-                res: HTTPResponse
+            ) as res:
                 if res.status != 200:
                     continue
-                text = res.read()
+                text = await res.read()
                 data = json.loads(text)
 
                 data = data[1]["response"]["contents"][
@@ -310,7 +249,7 @@ class YouTube:
         except (TypeError, KeyError, AttributeError):
             raise NotAvailableException("no videos found")
 
-    def search_youtube_music(self, term: str) -> str:
+    async def search_youtube_music(self, term: str) -> str:
         """
         Search YouTube Music
         :param term: Search Term
@@ -320,8 +259,9 @@ class YouTube:
             return self.music_search_cache[term]
         url = "https://music.youtube.com/youtubei/v1/search?alt=json&key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30"
         for x in range(1, 2, 1):
-            req = urllib.request.Request(
-                url,
+            async with aiohttp.request(
+                "POST",
+                url=url,
                 headers={
                     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
                     "Chrome/80.0.3987.87 Safari/537.36",
@@ -329,12 +269,10 @@ class YouTube:
                     "Content-Type": "application/json",
                 },
                 data=self._create_music_payload(query=term).encode(),
-            )
-            with urllib.request.urlopen(req) as res:
-                res: HTTPResponse
+            ) as res:
                 if res.status != 200:
                     continue
-                response: dict = json.loads(res.read())
+                response: dict = json.loads(await res.read())
                 video_id = self._get_stream_from_youtube_music_response(
                     response
                 )
@@ -344,7 +282,7 @@ class YouTube:
                 )
                 return f"https://youtube.com/watch?v={video_id}"
 
-    def search(self, input_json: str) -> str:
+    async def search(self, input_json: str) -> str:
         """
         Search
         :param input_json: data
@@ -352,8 +290,8 @@ class YouTube:
         """
         input_json = json.loads(input_json)
         if input_json.get("service", "basic") == "music":
-            return self.search_youtube_music(input_json["term"])
-        return self.search_youtube_basic(input_json["term"])
+            return await self.search_youtube_music(input_json["term"])
+        return await self.search_youtube_basic(input_json["term"])
 
 
 class SoundCloud:
@@ -365,9 +303,7 @@ class SoundCloud:
         self.cache: ExpiringDict = ExpiringDict(1000, 10000)
         self.api_key = ""
 
-    API_KEYS = ["a3dd183a357fcff9a6943c0d65664087"]
     URL_RESOLVE = "https://api.soundcloud.com/resolve?url={}&client_id={}"
-    URL_STREAM = "https://api.soundcloud.com/i1/tracks/{}/streams?client_id={}"
 
     SCRIPT_REGEX = re.compile(
         r"(https://a-v2\.sndcdn\.com/assets/48-[\da-z]{8}-[\da-z].js)"
@@ -389,14 +325,14 @@ class SoundCloud:
         r"https://[a-z-\\]+\.sndcdn.com/media/[\d]+/[\d]+[\S]+"
     )
 
-    def _get_api_key(self) -> str:
+    async def _get_api_key(self) -> str:
         if self.api_key:
             return self.api_key
-        with urllib.request.urlopen(url="https://soundcloud.com") as res:
-            response = res.read().decode()
+        async with aiohttp.request("GET", "https://soundcloud.com") as res:
+            response = (await res.read()).decode()
         script = re.findall(self.SCRIPT_REGEX, response)[0]
-        with urllib.request.urlopen(url=script) as res:
-            script_src = res.read().decode()
+        async with aiohttp.request("GET", script) as res:
+            script_src = (await res.read()).decode()
         client_id = re.findall(self.ID_REGEX, script_src)[0]
         self.api_key = client_id
         return client_id
@@ -413,7 +349,7 @@ class SoundCloud:
             list(formats.keys())[0].split("_")[2],
         )
 
-    def research_track(self, url: str) -> Union[dict, str]:
+    async def research_track(self, url: str) -> Union[dict, str]:
         """
         Extract information from an SoundCloud Track
         :param url: soundcloud url
@@ -423,13 +359,13 @@ class SoundCloud:
             return self.cache.get(url, {})
         try:
             _time = time.time()
-            with urllib.request.urlopen(
-                url=urllib.request.Request(
-                    self.URL_RESOLVE.format(url, self._get_api_key()),
-                    headers=self.COMMON_HEADERS,
-                )
+            async with aiohttp.request(
+                "GET",
+                self.URL_RESOLVE.format(url, await self._get_api_key()),
+                headers=self.COMMON_HEADERS,
             ) as res:
-                data = json.loads(res.read().decode())
+                res: aiohttp.ClientResponse
+                data = json.loads((await res.read()).decode())
 
             codec_url = ""
             codec = ""
@@ -444,28 +380,17 @@ class SoundCloud:
                 codec_url = data["media"]["transcodings"][0]["url"]
                 codec = "mp3"
 
-            with urllib.request.urlopen(
-                url=urllib.request.Request(
-                    f"{codec_url}?client_id={self._get_api_key()}",
-                    headers=self.COMMON_HEADERS,
-                )
+            async with aiohttp.request(
+                "GET",
+                f"{codec_url}?client_id={await self._get_api_key()}",
+                headers=self.COMMON_HEADERS,
             ) as res:
-                url = json.loads(res.read())["url"]
-
-            # with urllib.request.urlopen(
-            #    url=urllib.request.Request(
-            #        self.URL_STREAM.format(data["id"], self._get_api_key()),
-            #        headers=self.COMMON_HEADERS,
-            #    )
-            # ) as res:
-            #    streams = json.loads(res.read().decode())
-
-            # url, codec, abr = self._decide_on_format(streams)
+                url = json.loads(await res.read())["url"]
 
             if "playlist.m3u8" in url:
-                with urllib.request.urlopen(url) as res:
+                async with aiohttp.request("GET", url) as res:
                     last_entry = re.findall(
-                        self.PLAYLIST_PATTERN, res.read().decode()
+                        self.PLAYLIST_PATTERN, (await res.read()).decode()
                     )[-1]
                     url = re.sub(r"/[\d]+/", "/0/", last_entry)
 
@@ -485,22 +410,22 @@ class SoundCloud:
             return song
         except (json.JSONDecodeError, KeyError, AttributeError, ValueError):
             traceback.print_exc()
-            return Errors.default
+            raise Exception(Errors.default)
 
-    def playlist(self, url: str) -> Union[List[dict], str]:
+    async def playlist(self, url: str) -> Union[List[dict], str]:
         """
         Extract songs from SoundCloud playlist
         :param url: playlist url
         :return: songs
         """
         try:
-            request = urllib.request.Request(
-                url=self.URL_RESOLVE.format(url, self._get_api_key()),
+            async with aiohttp.request(
+                "GET",
+                url=self.URL_RESOLVE.format(url, await self._get_api_key()),
                 headers=self.COMMON_HEADERS,
-            )
-            with urllib.request.urlopen(request) as res:
-                res: http.client.HTTPResponse
-                data = json.loads(res.read())
+            ) as res:
+                res: aiohttp.ClientResponse
+                data = json.loads(await res.read())
 
             tracks = []
             for track in data["tracks"]:
@@ -514,7 +439,11 @@ class SoundCloud:
 
 
 class Node:
-    def __init__(self):
+    """
+    Node
+    """
+
+    def __init__(self) -> None:
         # loading config
         if os.path.exists("configuration.yaml"):
             filename = "configuration.yaml"
@@ -557,6 +486,7 @@ class Node:
         :return:
         """
 
+        # noinspection PyUnusedLocal
         @self.client.add_route(route="identify")
         def _identify(request: Request):
             return json.dumps({"API_KEY": self.api_key})
@@ -583,43 +513,33 @@ class Node:
         """
 
         @self.client.add_route(route="youtube_video")
-        def _youtube_video(request: Request):
+        async def _youtube_video(request: Request):
             video_id = request.text
             if video_id == "":
                 raise Exception("No VideoID provided")
-            extracted_content: dict = self.youtube.youtube_extraction(
+            extracted_content: dict = await self.youtube.youtube_extraction(
                 video_id=video_id,
                 url="https://www.youtube.com/watch?v=" + video_id,
             )
-            if isinstance(extracted_content, str):
-                raise Exception(extracted_content)
             return json.dumps(extracted_content)
 
         @self.client.add_route(route="youtube_playlist")
-        def _youtube_playlist(request: Request):
+        async def _youtube_playlist(request: Request):
             playlist_id = request.text
             if playlist_id == "":
                 raise Exception("No PlaylistID provided")
-            playlist = self.youtube.extract_playlist(playlist_id=playlist_id)
-            playlist_string = "["
-            for n in playlist:
-                playlist_string += json.dumps(n)
-                playlist_string += ","
-            del playlist
-            playlist_string = playlist_string.rstrip(",")
-            playlist_string += "]"
-            return playlist_string
+            playlist = await self.youtube.extract_playlist(
+                playlist_id=playlist_id
+            )
+            return json.dumps(playlist)
 
         @self.client.add_route(route="youtube_search")
-        def _youtube_search(request: Request):
+        async def _youtube_search(request: Request):
             search_term = request.text
             if search_term == "":
                 raise Exception("No Term provided")
-            try:
-                url = self.youtube.search(search_term)
-                return url
-            except (ExtractorError, DownloadError, NotAvailableException):
-                raise Exception(Errors.no_results_found)
+            url = await self.youtube.search(search_term)
+            return url
 
     def _add_soundcloud_routes(self) -> None:
         """
@@ -628,26 +548,24 @@ class Node:
         """
 
         @self.client.add_route(route="soundcloud_track")
-        def _soundcloud_track(request: Request):
+        async def _soundcloud_track(request: Request):
             url = request.text
             if url == "":
                 raise Exception("No Link provided")
-            infos = self.soundcloud.research_track(url)
-            if isinstance(infos, dict):
-                return json.dumps(infos)
-            raise Exception(infos)
+            infos = await self.soundcloud.research_track(url)
+            return json.dumps(infos)
 
         @self.client.add_route(route="soundcloud_playlist")
-        def _soundcloud_playlist(request: Request):
+        async def _soundcloud_playlist(request: Request):
             url = request.text
             if url == "":
                 raise Exception("No Link provided")
-            infos = self.soundcloud.playlist(url=url)
+            infos = await self.soundcloud.playlist(url=url)
             if isinstance(infos, list):
                 return json.dumps(infos)
             raise Exception(infos)
 
-    def _add_discord_routes(self):
+    def _add_discord_routes(self) -> None:
         """
         Add routes used for discord.
         :return:

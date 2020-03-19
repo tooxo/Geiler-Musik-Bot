@@ -84,7 +84,7 @@ class Youtube:
         node: Node = self.node_controller.get_best_node(guild_id)
 
         response = await node.client.request(
-            "youtube_url", url, response=True, timeout=10
+            "youtube_video", url, response=True, timeout=10
         )
 
         if not response.successful:

@@ -95,7 +95,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             else:
                 message = await ctx.send(message, delete_after=delete_after)
             return message
-        except discord.Forbidden:
+        except (discord.Forbidden, discord.HTTPException, discord.NotFound):
             raise commands.CommandError("Message forbidden.")
 
     def disconnect(self):
@@ -168,7 +168,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             if self.guilds[ctx.guild.id].now_playing_message is not None:
                 await self.guilds[ctx.guild.id].now_playing_message.stop()
                 try:
-                    await ctx.message.delete()
+                    await self.delete_message(message=ctx.message)
                 except discord.NotFound:
                     pass
         except discord.NotFound:
@@ -178,8 +178,8 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
     async def delete_message(message: discord.Message, delay: int = None):
         try:
             await message.delete(delay=delay)
-        except (discord.HTTPException, discord.Forbidden) as e:
-            logging_manager.LoggingManager().warning(
+        except (discord.HTTPException, discord.Forbidden, discord.NotFound) as e:
+            logging_manager.LoggingManager().debug(
                 logging_manager.debug_info(e)
             )
 
@@ -192,13 +192,17 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         :param message: the message to send
         :return:
         """
-        if environ.get("USE_EMBEDS", "True") == "True":
-            embed = discord.Embed(description=message, color=0xFF0000)
-            await ctx.send(embed=embed, delete_after=delete_after)
-        else:
-            await ctx.send(message, delete_after=delete_after)
-        if delete_after is not None:
-            await DiscordBot.delete_message(ctx.message, delete_after)
+        try:
+            if environ.get("USE_EMBEDS", "True") == "True":
+                embed = discord.Embed(description=message, color=0xFF0000)
+                await ctx.send(embed=embed, delete_after=delete_after)
+            else:
+                await ctx.send(message, delete_after=delete_after)
+            if delete_after is not None:
+                await DiscordBot.delete_message(ctx.message, delete_after)
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException) as e:
+            pass
+
 
     @commands.command()
     async def rename(self, ctx, *, name: str):
@@ -606,7 +610,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                 await self.send_embed_message(
                     ctx, f'Set search provider to "{name}"'
                 )
-                await message.delete()
+                await self.delete_message(message)
 
             if reaction.message.id == message.id:
                 if user.id != self.bot.user.id:

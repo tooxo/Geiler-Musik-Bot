@@ -1,32 +1,13 @@
 # host / ip address of the parent controller
 parent_host: "discord"
 
-# custom name for the node
-node_id: "local-node"
-
 # port of the parent controller host
 # default: 9988
 parent_port: "9988"
 
-# port to map to
-#
-# if you are using heroku, comment this line
-port: "9123"
-
-# ip where the node is accessible from
-own_ip: "node"
-
-# port where the node is accessible from
-# if you are using heroku, comment that line
-#
-# port to send the server, this is only really needed on heroku
-# if commented, this defaults to the port above
-
-# custom_port: "80"
-
-
 # api key, needs to be exactly the same as the node
-#API_KEY: "037gMn6oTXrE9VWjYRDG"
+
+# API_KEY: "037gMn6oTXrE9VWjYRDG"
 
 # just a randomly generated key, comment the line, if you want to disable the feature
 # you also need to comment the line in the configuration for the parent node

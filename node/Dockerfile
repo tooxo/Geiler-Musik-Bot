@@ -4,7 +4,7 @@ COPY requirements.txt /requirements.txt
 
 RUN apt-get update -qq && apt-get --no-install-recommends install libopus-dev wget xz-utils pkg-config gcc make \
  libev-dev libc-dev libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev libswscale-dev libswresample-dev \
- libavfilter-dev -y \
+ libavfilter-dev git -y \
  && apt-get autoremove -y \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/* \

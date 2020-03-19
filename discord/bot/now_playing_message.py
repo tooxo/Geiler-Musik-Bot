@@ -221,14 +221,14 @@ class NowPlayingMessage:
     async def stop(self):
         self._stop = True
         if self.song is None:
-            await self.message.delete()
+            await self.discord_music.delete_message(message=self.message)
             return
         if not self.no_embed_mode:
             try:
-                await self.message.delete()
+                await self.discord_music.delete_message(self.message)
                 self.remove_subroutine.cancel()
                 self.add_subroutine.cancel()
             except (AttributeError, discord.NotFound):
                 pass
         else:
-            await self.message.delete()
+            await self.discord_music.delete_message(self.message)

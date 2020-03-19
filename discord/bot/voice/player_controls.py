@@ -101,9 +101,8 @@ class PlayerControls(Cog, name="Player Controls"):
             message = await self.parent.send_embed_message(
                 ctx, "Paused! :pause_button:"
             )
-            await asyncio.sleep(5)
-            await message.delete()
-            await ctx.message.delete()
+            await self.parent.delete_message(message=message, delay=5)
+            await self.parent.delete_message(message=ctx.message, delay=5)
 
     @commands.check(Checks.manipulation_checks)
     @commands.command(aliases=["next", "müll", "s", "n", "nein"])
@@ -165,8 +164,7 @@ class PlayerControls(Cog, name="Player Controls"):
                 ctx, "Not connected!", delete_after=10
             )
 
-        await asyncio.sleep(10)
-        await ctx.message.delete()
+        await self.parent.delete_message(message=ctx.message, delay=10)
 
     @commands.check(Checks.manipulation_checks)
     @commands.check(Checks.voice_client_check)
