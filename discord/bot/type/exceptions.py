@@ -1,38 +1,55 @@
+"""
+Exceptions
+"""
 from discord.ext.commands import CommandError
-
-from .errors import Errors
 
 
 class NotSameChannel(CommandError):
-    pass
+    """
+    Raised, if the user is not in the same channel as the bot while executing a channel dependent command
+    """
 
 
 class BotNotConnected(CommandError):
-    pass
+    """
+    Raised, if the bot is not connected while executing a channel dependent command
+    """
 
 
 class UserNotConnected(CommandError):
-    pass
+    """
+    Raised, if the user is not connected while executing a channel dependent command
+    """
 
 
 class NothingPlaying(CommandError):
-    pass
+    """
+    Raised, if no song is playing while the user executes a command relying on a song playing.
+    """
 
 
 class BasicError(CommandError):
-    pass
+    """
+    Basic Error class
+    """
 
 
 class NoResultsFound(BasicError):
-    pass
+    """
+    Raised, when no results were found during song aggregation
+    """
 
 
 class BackendDownException(BasicError):
-    pass
+    """
+    Raised, when the backend is down or not started, while the user tries to execute a command.
+    """
 
 
 class NoNodeReadyException(BackendDownException):
-    pass
+    """
+    Raised, when no node is currently connected or in auth process, while the user requests something node dependent
+    """
 
 
 class InfoExtractionException(BasicError):
@@ -40,15 +57,11 @@ class InfoExtractionException(BasicError):
     Raised, when information extraction for a song or a playlist fails
     """
 
-    pass
-
 
 class PlaylistExtractionException(InfoExtractionException):
     """
     Raised, when information extraction for a playlist fails
     """
-
-    pass
 
 
 class SongExtractionException(InfoExtractionException):

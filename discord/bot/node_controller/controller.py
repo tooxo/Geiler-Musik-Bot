@@ -19,8 +19,12 @@ from bot.type.guild import Guild
 
 
 class Controller:
-    def __init__(self, parent):
-        self.host = "0.0.0.0"
+    """
+    Controller
+    """
+
+    def __init__(self, parent) -> None:
+        self.host = "0.0.0.0"  # nosec
         self.port = "9988"
         self.key = environ.get("API_KEY", "API_KEY")
 

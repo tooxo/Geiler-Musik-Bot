@@ -29,7 +29,7 @@ class NowPlayingMessage(object):
         self.parent: "DiscordBot" = parent
         self.message: typing.Optional[discord.Message] = None
         self.no_embed_mode = environ.get("USE_EMBEDS", "True") == "False"
-        self._song: typing.Optional[Song] = None
+        self._song: typing.Optional["Song"] = None
 
         self._title: typing.Optional[str] = None
         self.bytes_read: int = 0

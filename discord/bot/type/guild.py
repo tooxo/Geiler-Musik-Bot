@@ -16,12 +16,13 @@ class Guild(object):
     """
     Guild
     """
+
     def __init__(self) -> None:
-        self.voice_client: Optional[NodeVoiceClient] = None
-        self.voice_channel: Optional[VoiceChannel] = None
+        self.voice_client: Optional["NodeVoiceClient"] = None
+        self.voice_channel: Optional["VoiceChannel"] = None
         self.song_queue: Optional[Queue] = Queue()
-        self.now_playing_message: Optional[NowPlayingMessage] = None
-        self.now_playing: Optional[Song] = None
+        self.now_playing_message: Optional["NowPlayingMessage"] = None
+        self.now_playing: Optional["Song"] = None
         self.volume: float = 0.5
         self.full: str = "█"
         self.empty: str = "░"
@@ -44,14 +45,19 @@ class Guild(object):
         self.announce = await mongo.get_announce(guild_id)
 
     @property
-    def service(self):
+    def service(self) -> str:
         """
         Returns the used search service
         :return:
         """
         return self.search_service
 
-    def toggle_announce(self):
+    def toggle_announce(self) -> bool:
+        """
+        Toggles the announcements of songs
+        :return Returns the new state
+        :rtype bool
+        """
         self.announce = not self.announce
         return self.announce
 

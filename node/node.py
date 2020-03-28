@@ -5,6 +5,7 @@ import asyncio
 import json
 import os
 import re
+import sys
 import time
 import traceback
 from typing import List, Tuple, Union
@@ -48,8 +49,6 @@ class NotAvailableException(Exception):
     """
     Exception raised if a video is unavailable
     """
-
-    pass
 
 
 class YouTube:
@@ -114,6 +113,7 @@ class YouTube:
         :param url:
         :return:
         """
+        # noinspection PyBroadException
         try:
             start = time.time()
             if self.research_cache.get(video_id, None) is not None:
@@ -134,7 +134,7 @@ class YouTube:
             }
 
             if "manifest" in song["stream"]:
-                # youtube-dl doesn't handle manifest extraction, so I need to do it.
+                # pytube doesn't handle manifest extraction, so I need to do it.
                 song["stream"] = self.extract_manifest(song["stream"])
             song["loadtime"] = int(time.time() - start)
             self.research_cache[song["id"]] = song
@@ -508,15 +508,13 @@ class Node:
             filename = "./configuration.yml"
         else:
             print("Configuration File Missing.")
-            exit(1)
-            return
-        f = open(filename, "r")
-        y = None
+            sys.exit(1)
+        file = open(filename, "r")
         try:
-            y = safe_load(f)
+            y = safe_load(file)
         except YAMLError as ex:
             print(ex)
-            exit(1)
+            sys.exit(1)
 
         self.parent_host = y.get("parent_host", "")
         self.parent_port = y.get("parent_port", "")
@@ -670,7 +668,8 @@ class Node:
             await self.discord.resume(request.text)
 
 
-node = Node()
-asyncio.get_event_loop().create_task(node.login())
+if __name__ == "__main__":
+    NODE = Node()
+    asyncio.get_event_loop().create_task(NODE.login())
 
-asyncio.get_event_loop().run_forever()
+    asyncio.get_event_loop().run_forever()

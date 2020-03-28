@@ -11,7 +11,7 @@ ARG MAKEFLAGS="-j4"
 RUN echo "deb http://deb.debian.org/debian buster non-free" >> /etc/apt/sources.list
 
 # FFmpeg build dependencies.
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install --no-install-recommends -y \
   build-essential \
   coreutils \
   gcc \
@@ -80,7 +80,7 @@ LABEL MAINTAINER = "Till Schulte"
 
 RUN echo "deb http://deb.debian.org/debian buster non-free" >> /etc/apt/sources.list
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
   libpcre3-dev \
   libmp3lame-dev \
   libogg-dev \

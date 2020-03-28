@@ -73,7 +73,7 @@ class Events(Cog):
                             self.guilds[guild_id].now_playing_message = None
                         self.guilds[guild_id].song_queue = Queue()
                         return
-                    elif after.channel:
+                    if after.channel:
                         # Keep track of channel movements.
                         self.guilds[guild_id].voice_channel = after.channel
                         if self.guilds[guild_id].voice_client:

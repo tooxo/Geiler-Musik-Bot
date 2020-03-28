@@ -42,7 +42,7 @@ class Player(Cog):
             return await self.parent.youtube.youtube_term(
                 song=song, service=search_service
             )
-        elif search_service == "soundcloud":
+        if search_service == "soundcloud":
             return await self.parent.soundcloud.soundcloud_search(song=song)
         else:
             raise NotImplementedError()

@@ -104,7 +104,11 @@ async def on_error(*args, **kwargs):
 
 
 versions = {}
-for mod in subprocess.check_output(["pip", "freeze"]).decode().split("\n"):
+for mod in (
+    subprocess.check_output(["/usr/bin/pip", "freeze"], shell=False)
+    .decode()
+    .split("\n")
+):
     if mod:
         versions[mod.split("==")[0]] = mod.split("==")[1]
 
