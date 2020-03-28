@@ -123,7 +123,7 @@ class DiscordHandler:
         """
         voice_client: discord.VoiceClient = self.guilds[guild_id].voice_client
         source: FFmpegPCMAudio.FFmpegPCMAudioB = voice_client.source
-        while voice_client.is_playing():
+        while voice_client.is_playing() or voice_client.is_paused():
             await asyncio.sleep(2)
             if not voice_client.is_paused():
                 document = {

@@ -141,10 +141,9 @@ class YouTube:
             del ydl
             return song
         except NotAvailableException:
-            raise NotAvailableException()
+            raise NotAvailableException(Errors.no_results_found)
         except Exception:
             traceback.print_exc()
-            raise
 
     @staticmethod
     async def extract_playlist(playlist_id: str) -> List[dict]:
@@ -437,6 +436,64 @@ class SoundCloud:
             traceback.print_exc()
             return Errors.default
 
+    async def search(self, search_term: str) -> dict:
+        """
+        Search SoundCloud
+        :return:
+        """
+
+        _time = time.time()
+
+        search_url = (
+            f"https://api-v2.soundcloud.com/search?q={quote(search_term)}"
+            f"&client_id={await self._get_api_key()}"
+        )
+
+        async with aiohttp.request("GET", search_url) as req:
+            response: dict = json.loads(await req.read())
+            result = response["collection"][0]
+
+        codec_url = ""
+        codec = ""
+        abr = 70
+
+        for transcoding in result["media"]["transcodings"]:
+            if "opus" in transcoding["preset"]:
+                codec_url = transcoding["url"]
+                codec = "opus"
+
+        if not codec_url:
+            codec_url = result["media"]["transcodings"][0]["url"]
+            codec = "mp3"
+
+        async with aiohttp.request(
+            "GET",
+            f"{codec_url}?client_id={await self._get_api_key()}",
+            headers=self.COMMON_HEADERS,
+        ) as res:
+            url = json.loads(await res.read())["url"]
+
+        if "playlist.m3u8" in url:
+            async with aiohttp.request("GET", url) as res:
+                last_entry = re.findall(
+                    self.PLAYLIST_PATTERN, (await res.read()).decode()
+                )[-1]
+                url = re.sub(r"/[\d]+/", "/0/", last_entry)
+
+        song = {
+            "title": result.get("title", "_"),
+            "link": result.get("permalink_url", ""),
+            "duration": round(result.get("duration", 0) / 1000),
+            "thumbnail": result.get("artwork_url", ""),
+            "loadtime": time.time() - _time,
+            "term": result.get("title", "_"),
+            "stream": url,
+            "codec": codec,
+            "abr": abr,
+        }
+
+        return song
+
 
 class Node:
     """
@@ -562,6 +619,15 @@ class Node:
                 raise Exception("No Link provided")
             infos = await self.soundcloud.playlist(url=url)
             if isinstance(infos, list):
+                return json.dumps(infos)
+            raise Exception(infos)
+
+        @self.client.add_route(route="soundcloud_search")
+        async def _soundcloud_search(request: Request):
+            term = request.text
+            assert term != ""
+            infos = await self.soundcloud.search(search_term=term)
+            if isinstance(infos, dict):
                 return json.dumps(infos)
             raise Exception(infos)
 

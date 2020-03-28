@@ -5,6 +5,5 @@ discord.py
 opuslib
 pynacl
 aiohttp
-av
 karp
 git+git://github.com/tooxo/pytube.git

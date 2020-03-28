@@ -178,7 +178,11 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
     async def delete_message(message: discord.Message, delay: int = None):
         try:
             await message.delete(delay=delay)
-        except (discord.HTTPException, discord.Forbidden, discord.NotFound) as e:
+        except (
+            discord.HTTPException,
+            discord.Forbidden,
+            discord.NotFound,
+        ) as e:
             logging_manager.LoggingManager().debug(
                 logging_manager.debug_info(e)
             )
@@ -200,9 +204,12 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                 await ctx.send(message, delete_after=delete_after)
             if delete_after is not None:
                 await DiscordBot.delete_message(ctx.message, delete_after)
-        except (discord.NotFound, discord.Forbidden, discord.HTTPException) as e:
+        except (
+            discord.NotFound,
+            discord.Forbidden,
+            discord.HTTPException,
+        ) as e:
             pass
-
 
     @commands.command()
     async def rename(self, ctx, *, name: str):
@@ -589,12 +596,20 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         if self.guilds[ctx.guild.id].service == "music":
             embed.add_field(
                 name="Available Services",
-                value="_`1) YouTube Search`_\n" "**`2) YouTube Music Search`**",
+                value="_`1) YouTube Search`_\n"
+                "**`2) YouTube Music Search`**\n_`3) SoundCloud Search`_",
+            )
+        elif self.guilds[ctx.guild.id].service == "basic":
+            embed.add_field(
+                name="Available Services",
+                value="**`1) YouTube Search`**\n"
+                "_`2) YouTube Music Search`_\n_`3) SoundCloud Search`_",
             )
         else:
             embed.add_field(
                 name="Available Services",
-                value="**`1) YouTube Search`**\n" "_`2) YouTube Music Search`_",
+                value="_`1) YouTube Search`_\n"
+                "_`2) YouTube Music Search`_\n**`3) SoundCloud Search`**",
             )
         message: discord.Message = await ctx.send(embed=embed)
         await message.add_reaction(
@@ -603,9 +618,12 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         await message.add_reaction(
             "\N{Digit Two}\N{Combining Enclosing Keycap}"
         )
+        await message.add_reaction(
+            "\N{Digit Three}\N{Combining Enclosing Keycap}"
+        )
 
         def check(reaction: discord.Reaction, user: discord.Member):
-            async def set_service(_type, name):
+            async def _set_service(_type, name):
                 await self.mongo.set_service(ctx.guild.id, _type)
                 await self.send_embed_message(
                     ctx, f'Set search provider to "{name}"'
@@ -620,7 +638,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     ):
                         self.guilds[ctx.guild.id].search_service = "basic"
                         asyncio.ensure_future(
-                            set_service("basic", "YouTube Search")
+                            _set_service("basic", "YouTube Search")
                         )
                         return True
                     if (
@@ -629,7 +647,16 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     ):
                         self.guilds[ctx.guild.id].search_service = "music"
                         asyncio.ensure_future(
-                            set_service("music", "YouTube Music")
+                            _set_service("music", "YouTube Music")
+                        )
+                        return True
+                    if (
+                        reaction.emoji
+                        == "\N{Digit Three}\N{Combining Enclosing Keycap}"
+                    ):
+                        self.guilds[ctx.guild.id].search_service = "soundcloud"
+                        asyncio.ensure_future(
+                            _set_service("soundcloud", "SoundCloud")
                         )
                         return True
             return False

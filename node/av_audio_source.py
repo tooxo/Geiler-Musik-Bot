@@ -258,7 +258,8 @@ class AvAudioSource(AudioSource, ABC):
         Useful for clearing buffer data or processes after
         it is done playing audio.
         """
-        self.decoder.cleanup()
+        if hasattr(self, "decoder"):
+            self.decoder.cleanup()
 
     def set_volume(self, volume: float):
         """

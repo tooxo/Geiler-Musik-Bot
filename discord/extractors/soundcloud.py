@@ -9,6 +9,7 @@ import logging_manager
 from bot.node_controller.controller import Node
 from bot.type.errors import Errors
 from bot.type.exceptions import (
+    NoResultsFound,
     PlaylistExtractionException,
     SongExtractionException,
 )
@@ -21,6 +22,31 @@ class SoundCloud:
         self.log.debug("[Startup]: Initializing SoundCloud Module . . .")
         self.client = aiohttp.ClientSession()
         self.node_controller = node_controller
+
+    async def soundcloud_search(self, song: Song) -> Song:
+        """
+        Search SoundCloud
+        :param song:
+        :return:
+        """
+        term = getattr(song, "title", getattr(song, "term", None))
+        if not term:
+            raise NoResultsFound(Errors.no_results_found)
+        node: Node = self.node_controller.get_best_node(guild_id=song.guild_id)
+
+        response = await node.client.request(
+            "soundcloud_search", term, response=True, timeout=10
+        )
+
+        if not response.successful:
+            self.log.warning(f"[YT-TERM] {term} {response.text}")
+            raise SongExtractionException()
+
+        song_dict: dict = json.loads(response.text)
+        song_dict["term"] = term
+
+        song: Song = Song.from_dict(song_dict)
+        return song
 
     async def soundcloud_track(self, url: str):
         try:

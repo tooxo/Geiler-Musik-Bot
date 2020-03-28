@@ -25,11 +25,7 @@ class PlayerControls(Cog, name="Player Controls"):
         :param ctx:
         :return:
         """
-        self.guilds[ctx.guild.id].now_playing = None
-        self.guilds[ctx.guild.id].song_queue = Queue()
-        await self.parent.clear_presence(ctx)
         await self.guilds[ctx.guild.id].voice_client.disconnect()
-        self.guilds[ctx.guild.id].voice_client = None
         await self.parent.send_embed_message(ctx, "Goodbye! :wave:")
 
     @commands.check(Checks.manipulation_checks)

@@ -35,6 +35,18 @@ class Player(Cog):
         self.parent = parent
         self.guilds: Dict[int, Guild] = self.parent.guilds
 
+    async def _search_song(self, ctx: commands.Context, song: Song) -> Song:
+        search_service: str = self.guilds[ctx.guild.id].service
+        self.parent.log.info(f'Using Search Service "{search_service}"')
+        if search_service in ("basic", "music"):
+            return await self.parent.youtube.youtube_term(
+                song=song, service=search_service
+            )
+        elif search_service == "soundcloud":
+            return await self.parent.soundcloud.soundcloud_search(song=song)
+        else:
+            raise NotImplementedError()
+
     async def pre_player(self, ctx: commands.Context, bypass=None):
         guild_id = ctx.guild.id
         if self.guilds[guild_id].song_queue.qsize() > 0 or bypass is not None:
@@ -71,26 +83,26 @@ class Player(Cog):
                             self.parent.log.warning(small_dict)
                         # term
                         youtube_dict = Song.copy_song(
-                            await self.parent.youtube.youtube_term(
-                                small_dict, self.guilds[ctx.guild.id].service
-                            ),
-                            small_dict,
+                            await self._search_song(ctx, small_dict), small_dict
                         )
                 except NoResultsFound:
                     await self.parent.send_error_message(
                         ctx, Errors.no_results_found
                     )
+                    self.guilds[guild_id].queue_lock = False
                     await self.pre_player(ctx)
                     return
                 except SongExtractionException:
                     await self.parent.send_error_message(
                         ctx, Errors.youtube_video_not_available
                     )
+                    self.guilds[guild_id].queue_lock = False
                     await self.pre_player(ctx)
                     return
                 except BasicError as be:
                     if str(be) != Errors.error_please_retry:
                         await self.parent.send_error_message(ctx, str(be))
+                        self.guilds[guild_id].queue_lock = False
                         await self.pre_player(ctx)
                         return
                     return await self.pre_player(ctx, bypass=small_dict)
@@ -241,7 +253,10 @@ class Player(Cog):
         self, url, ctx, first_index_push=False, playskip=False, shuffle=False
     ):
         try:
-            change = not self.guilds[ctx.guild.id].voice_client.node.is_ready()
+            change = (
+                not self.guilds[ctx.guild.id].voice_client.node
+                in self.parent.node_controller.nodes.values()
+            )
         except AttributeError:
             change = False
 
@@ -358,6 +373,9 @@ class Player(Cog):
                     ].voice_client = await bot.node_controller.NodeVoiceClient.NodeVoiceChannel.from_channel(
                         ctx.author.voice.channel, self.parent.node_controller
                     ).connect()
+                    self.guilds[
+                        ctx.guild.id
+                    ].now_playing_message = NowPlayingMessage(ctx, self.parent)
             except (
                 TimeoutError,
                 discord.HTTPException,
@@ -488,14 +506,13 @@ class Player(Cog):
                 if self.guilds[guild_id].voice_client.is_connected():
                     return await self.pre_player(_ctx)
 
-        tasks = [
-            self.parent.clear_presence(ctx),
-            self.empty_channel(ctx),
-            _player_wrapper(ctx),
-        ]
+        tasks = []
         if self.guilds[guild_id].announce:
             if self.guilds[guild_id].now_playing_message:
-                tasks.append(self.guilds[guild_id].now_playing_message.stop())
+                tasks.append(
+                    self.guilds[guild_id].now_playing_message.after_song()
+                )
+        tasks.append(_player_wrapper(ctx))
         for task in tasks:
             # noinspection PyBroadException
             try:
@@ -536,22 +553,7 @@ class Player(Cog):
                             self.song_conclusion, ctx
                         )
             if self.guilds[ctx.guild.id].announce:
-                full, empty = (
-                    self.guilds[ctx.guild.id].full,
-                    self.guilds[ctx.guild.id].empty,
-                )
-                self.guilds[
-                    ctx.guild.id
-                ].now_playing_message = NowPlayingMessage(
-                    ctx=ctx,
-                    song=self.guilds[ctx.guild.id].now_playing,
-                    full=full,
-                    empty=empty,
-                    discord_music=self.parent,
-                    voice_client=self.guilds[ctx.guild.id].voice_client,
-                )
-                await self.guilds[ctx.guild.id].now_playing_message.send()
-
+                await self.guilds[ctx.guild.id].now_playing_message.new_song()
         except (Exception, discord.ClientException) as e:
             self.parent.log.debug(
                 logging_manager.debug_info(traceback.format_exc(e))
@@ -594,15 +596,8 @@ class Player(Cog):
                         else:
                             if item.title is not None:
                                 try:
-                                    youtube_dict = await self.parent.youtube.youtube_term(
-                                        item, self.guilds[ctx.guild.id].service
-                                    )
-                                except BasicError:
-                                    continue
-                            else:
-                                try:
-                                    youtube_dict = await self.parent.youtube.youtube_term(
-                                        item, self.guilds[ctx.guild.id].service
+                                    youtube_dict = await self._search_song(
+                                        ctx, item
                                     )
                                 except BasicError:
                                     continue
@@ -628,26 +623,3 @@ class Player(Cog):
             pass
         except AttributeError:
             traceback.print_exc()
-
-    async def empty_channel(self, ctx):
-        """
-        Leaves the channel if the bot is alone
-        :param ctx:
-        :return:
-        """
-        if len(self.guilds[ctx.guild.id].voice_channel.members) == 1:
-            if (
-                self.guilds[ctx.guild.id].voice_channel.members[0]
-                == ctx.guild.me
-            ):
-                if ctx.guild.id not in (
-                    671367903018483722,
-                    619567786590470147,
-                    561858486430859264,
-                ):
-                    self.guilds[ctx.guild.id].song_queue.clear()
-                    await self.guilds[ctx.guild.id].voice_client.disconnect()
-                    await self.parent.send_embed_message(
-                        ctx=ctx,
-                        message="I've left the channel, because it was empty.",
-                    )

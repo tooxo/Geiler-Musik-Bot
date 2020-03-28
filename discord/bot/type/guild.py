@@ -1,23 +1,43 @@
-from .queue import Queue
+"""
+Guild
+"""
+from typing import TYPE_CHECKING, Optional
+
+from bot.type.queue import Queue
+
+if TYPE_CHECKING:
+    from bot.node_controller.NodeVoiceClient import NodeVoiceClient
+    from bot.now_playing_message import NowPlayingMessage
+    from discord.channel import VoiceChannel
+    from bot.type.song import Song
 
 
-class Guild:
-    def __init__(self):
-        self.voice_client = None
-        self.voice_channel = None
-        self.song_queue: Queue = Queue()
-        self.now_playing_message = None
-        self.now_playing = None
-        self.volume = 0.5
-        self.full = "█"
-        self.empty = "░"
+class Guild(object):
+    """
+    Guild
+    """
+    def __init__(self) -> None:
+        self.voice_client: Optional[NodeVoiceClient] = None
+        self.voice_channel: Optional[VoiceChannel] = None
+        self.song_queue: Optional[Queue] = Queue()
+        self.now_playing_message: Optional[NowPlayingMessage] = None
+        self.now_playing: Optional[Song] = None
+        self.volume: float = 0.5
+        self.full: str = "█"
+        self.empty: str = "░"
 
-        self.search_service = "basic"
-        self.announce = True
+        self.search_service: str = "basic"
+        self.announce: bool = True
 
-        self.queue_lock = False
+        self.queue_lock: bool = False
 
-    async def inflate_from_mongo(self, mongo, guild_id):
+    async def inflate_from_mongo(self, mongo, guild_id) -> None:
+        """
+        Inflate from mongo
+        :param mongo:
+        :param guild_id:
+        :return:
+        """
         self.volume = await mongo.get_volume(guild_id)
         self.full, self.empty = await mongo.get_chars(guild_id)
         self.search_service = await mongo.get_service(guild_id)
@@ -25,11 +45,15 @@ class Guild:
 
     @property
     def service(self):
+        """
+        Returns the used search service
+        :return:
+        """
         return self.search_service
 
     def toggle_announce(self):
-        if self.announce:
-            self.announce = False
-        else:
-            self.announce = True
+        self.announce = not self.announce
         return self.announce
+
+    def __str__(self) -> str:
+        return str(self.__dict__)

@@ -16,27 +16,6 @@ from bot.type.variable_store import VariableStore
 log = logging_manager.LoggingManager()
 
 
-class YoutubeDLLogger(object):
-    @staticmethod
-    def debug(msg):
-        if "youtube:search" in msg and "query" in msg:
-            log.debug(
-                logging_manager.debug_info(
-                    "[YouTube Search] Searched Term: '"
-                    + msg.split('"')[1].split('"')[-1]
-                    + "'"
-                )
-            )
-
-    @staticmethod
-    def warning(msg):
-        log.warning(logging_manager.debug_info(msg))
-
-    @staticmethod
-    def error(msg):
-        log.error(logging_manager.debug_info(msg))
-
-
 class Youtube:
     def __init__(self, node_controller: Controller):
         log.debug("[Startup]: Initializing YouTube Module . . .")
@@ -44,8 +23,6 @@ class Youtube:
         self.node_controller = node_controller
 
     async def youtube_term(self, song: (Song, str), service: str):
-        log.info(f'Using Search Service "{service}"')
-
         term = getattr(song, "title", getattr(song, "term", None))
         if not term:
             raise NoResultsFound(Errors.no_results_found)

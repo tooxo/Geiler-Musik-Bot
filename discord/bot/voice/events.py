@@ -1,3 +1,6 @@
+"""
+Events
+"""
 import asyncio
 import time
 from typing import Dict
@@ -5,18 +8,23 @@ from typing import Dict
 import async_timeout
 
 from bot.type.guild import Guild
+from bot.type.queue import Queue
 from discord import Member, VoiceState
 from discord.ext.commands import Bot, Cog
 
 
 class Events(Cog):
-    def __init__(self, bot, parent):
+    """
+    Events
+    """
+
+    def __init__(self, bot, parent) -> None:
         self.bot: Bot = bot
         self.parent = parent
         self.guilds: Dict[int, Guild] = parent.guilds
 
         @self.bot.event
-        async def on_guild_join(guild):
+        async def on_guild_join(guild) -> None:
             """
             Triggers if someone joins a guild and adds it to memory
             :param guild: the server joined
@@ -48,13 +56,30 @@ class Events(Cog):
                 if self.guilds[guild_id].voice_channel is None:
                     return
                 if member == self.bot.user:
-                    if not after.channel and not self.bot.get_guild(guild_id).voice_client:
-                        print("resetting voice_client", member, before, after)
+                    if (
+                        not after.channel
+                        and not self.bot.get_guild(guild_id).voice_client
+                    ):
                         self.guilds[guild_id].voice_channel = None
+                        if hasattr(self.guilds[guild_id], "voice_client"):
+                            await self.guilds[guild_id].voice_client.after()
                         self.guilds[guild_id].voice_client = None
-                        await self.guilds[guild_id].now_playing_message.stop()
+                        if hasattr(
+                            self.guilds[guild_id], "now_playing_message"
+                        ):
+                            await self.guilds[
+                                guild_id
+                            ].now_playing_message.after_song()
+                            self.guilds[guild_id].now_playing_message = None
+                        self.guilds[guild_id].song_queue = Queue()
                         return
-
+                    elif after.channel:
+                        # Keep track of channel movements.
+                        self.guilds[guild_id].voice_channel = after.channel
+                        if self.guilds[guild_id].voice_client:
+                            self.guilds[
+                                guild_id
+                            ].voice_client.channel_id = after.channel.id
                 if (
                     self.guilds[guild_id].voice_channel is before.channel
                     and self.guilds[guild_id].voice_channel is not after.channel
@@ -66,7 +91,7 @@ class Events(Cog):
             except KeyError:
                 pass
 
-    async def check_my_channel(self, channel, guild_id):
+    async def check_my_channel(self, channel, guild_id) -> None:
         """
         Asynchronous function, checking if a bot is alone in a channel
         :param channel:

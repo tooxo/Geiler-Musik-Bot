@@ -52,12 +52,16 @@ class NodeVoiceChannel(discord.VoiceChannel):
                 "_overwrites": voice_channel._overwrites,
                 "category_id": voice_channel.category_id,
             },
-            node=node_controller.get_best_node(voice_channel.guild),
+            node=node_controller.get_best_node(voice_channel.guild.id),
             node_controller=node_controller,
         )
 
 
 class NodeVoiceClient:
+    """
+    NodeVoiceClient
+    """
+
     def __init__(
         self,
         channel_id: int,

@@ -135,7 +135,7 @@ class Controller:
         if len(self.nodes) > 0:
             node = self.nodes[random.choice(list(self.nodes.keys()))]
             if guild_id:
-                self.nodes[guild_id] = node
+                self.node_cache[guild_id] = node
             return node
         raise NoNodeReadyException(Errors.backend_down)
 
