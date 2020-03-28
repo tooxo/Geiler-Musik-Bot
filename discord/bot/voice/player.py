@@ -44,8 +44,7 @@ class Player(Cog):
             )
         if search_service == "soundcloud":
             return await self.parent.soundcloud.soundcloud_search(song=song)
-        else:
-            raise NotImplementedError()
+        raise NotImplementedError()
 
     async def pre_player(self, ctx: commands.Context, bypass=None):
         guild_id = ctx.guild.id

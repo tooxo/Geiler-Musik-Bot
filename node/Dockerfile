@@ -93,7 +93,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libopus-dev \
   rtmpdump \
   git-core \
-  wget
+  wget \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /opt/ffmpeg/bin/* /usr/bin/
 COPY --from=build /opt/ffmpeg/lib/* /lib/
