@@ -144,6 +144,7 @@ class Test(unittest.TestCase):
         (
             "https://www.youtube.com/watch?v=TJqL-UHQuP8&list="
             "PLWdX866kdHceiAYM-lO_3AoVohzI3_8OD&index=5TJqL-UHQuP8",
+            "TJqL-UHQuP8",
         ),
         ("https://www.youtube.com/watch?v=1lWJXDG2i0A", "1lWJXDG2i0A"),
     ]

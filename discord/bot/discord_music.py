@@ -240,7 +240,8 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                             self.log.debug(
                                 "[Disconnect] Disconnecting " + str(_guild)
                             )
-                            _temporary_voice_client = await _guild.me.voice.channel.connect(
+                            _voice = _guild.me.voice.channel
+                            _temporary_voice_client = await _voice.connect(
                                 timeout=5, reconnect=False
                             )
                             await _temporary_voice_client.disconnect(force=True)
@@ -262,9 +263,8 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                         if client.guild_count() != last_count:
                             await client.post_guild_count()
                             self.log.debug(
-                                "[SERVER COUNT] Posted server count ({})".format(
-                                    client.guild_count()
-                                )
+                                f"[SERVER COUNT] Posted server count "
+                                f"({client.guild_count()})"
                             )
                             await self.bot.change_presence(
                                 activity=discord.Activity(
@@ -277,7 +277,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                             last_count = client.guild_count()
                     except Exception as raised_exception:
                         self.log.warning(
-                            logging_manager.debug_info(raised_exception)
+                            logging_manager.debug_info(str(raised_exception))
                         )
                     await asyncio.sleep(1800)
 
@@ -455,7 +455,8 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                 value=(
                     f"**Name**: `{song.title}`\n"
                     + f"**Url**: `{song.link}`\n"
-                    + f"**Duration**: `{datetime.timedelta(seconds=song.duration)}`\n"
+                    + f"**Duration**: "
+                    f"`{datetime.timedelta(seconds=song.duration)}`\n"
                     + f"**User**: `{song.user}`\n"
                     + f"**Term**: `{song.term}`\n"
                 ),
@@ -510,8 +511,8 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                 )
                 embed.add_field(
                     name="Syntax to add:",
-                    value=".chars <full> <empty> \n"
-                    "Useful Website: https://changaco.oy.lc/unicode-progress-bars/",
+                    value=".chars <full> <empty> \nUseful Website: "
+                    "https://changaco.oy.lc/unicode-progress-bars/",
                 )
                 await ctx.send(embed=embed)
                 return
@@ -544,7 +545,8 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         elif last is None:
             await self.send_error_message(
                 ctx=ctx,
-                message="You need to provide 2 Unicode Characters separated with a blank space.",
+                message="You need to provide 2 Unicode Characters "
+                "separated with a blank space.",
             )
             return
         if len(first) > 1 or len(last) > 1:

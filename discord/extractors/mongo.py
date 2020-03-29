@@ -100,7 +100,7 @@ class Mongo:
             }
         )
 
-    async def set_volume(self, guild_id: str, volume: str) -> None:
+    async def set_volume(self, guild_id: str, volume: float) -> None:
         """
         Set the volume to Mongo
         @param guild_id:
@@ -113,7 +113,7 @@ class Mongo:
         doc = await collection.find_one({"id": guild_id})
         if doc is None:
             await self.insert_empty(
-                collection=collection, guild_id=guild_id, volume=volume
+                collection=collection, guild_id=guild_id, volume=str(volume)
             )
         else:
             await collection.update_one(
