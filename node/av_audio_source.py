@@ -255,7 +255,7 @@ class AvAudioSource(AudioSource, ABC):
             pass
         return chunk
 
-    def is_opus(self) -> bool:
+    def is_opus(self) -> bool:  # pylint: disable=no-self-use
         """Checks if the audio source is already encoded in Opus."""
         return True
 
