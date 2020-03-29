@@ -1,3 +1,6 @@
+"""
+DiscordMusic
+"""
 import asyncio
 import datetime
 import random
@@ -67,10 +70,10 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         self.dbl_key = environ.get("DBL_KEY", "")
 
         # disconnects all pending clients
-        self.disconnect()
+        self._disconnect()
 
         # start server count
-        self.run_dbl_stats()
+        self._run_dbl_stats()
 
     @staticmethod
     def generate_key(length: int) -> str:
@@ -218,7 +221,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         except (discord.Forbidden, discord.HTTPException, discord.NotFound):
             raise commands.CommandError("Message forbidden.")
 
-    def disconnect(self):
+    def _disconnect(self) -> None:
         for _guild in self.bot.guilds:
             self.guilds[_guild.id] = Guild()
             asyncio.ensure_future(
@@ -228,7 +231,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                 if _guild.me.voice is not None:
                     if hasattr(_guild.me.voice, "channel"):
 
-                        async def reconnect(_guild):
+                        async def _reconnect(_guild) -> None:
                             """
                             Reconnects disconnected clients after restart
                             :param _guild: guild
@@ -237,22 +240,22 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                             self.log.debug(
                                 "[Disconnect] Disconnecting " + str(_guild)
                             )
-                            t = await _guild.me.voice.channel.connect(
+                            _temporary_voice_client = await _guild.me.voice.channel.connect(
                                 timeout=5, reconnect=False
                             )
-                            await t.disconnect(force=True)
+                            await _temporary_voice_client.disconnect(force=True)
 
                         asyncio.run_coroutine_threadsafe(
-                            reconnect(_guild), self.bot.loop
+                            _reconnect(_guild), self.bot.loop
                         )
             except AttributeError:
                 self.log.warning(f"Failed disconnect for ID: {_guild.id}")
 
-    def run_dbl_stats(self):
+    def _run_dbl_stats(self) -> None:
         if self.dbl_key != "":
             dbl_client = dbl.DBLClient(self.bot, self.dbl_key)
 
-            async def update_stats(client):
+            async def _update_stats(client) -> None:
                 last_count = 0
                 while not client.bot.is_closed():
                     try:
@@ -272,11 +275,13 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                                 )
                             )
                             last_count = client.guild_count()
-                    except Exception as e:
-                        self.log.warning(logging_manager.debug_info(e))
+                    except Exception as raised_exception:
+                        self.log.warning(
+                            logging_manager.debug_info(raised_exception)
+                        )
                     await asyncio.sleep(1800)
 
-            self.bot.loop.create_task(update_stats(dbl_client))
+            self.bot.loop.create_task(_update_stats(dbl_client))
 
     async def clear_presence(self, ctx: discord.ext.commands.Context):
         """
@@ -295,20 +300,30 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             self.guilds[ctx.guild.id].now_playing_message = None
 
     @staticmethod
-    async def delete_message(message: discord.Message, delay: int = None):
+    async def delete_message(
+        message: discord.Message, delay: int = None
+    ) -> None:
+        """
+        Deletes a message with an optional delay
+        @param message:
+        @param delay:
+        @return:
+        """
         try:
             await message.delete(delay=delay)
         except (
             discord.HTTPException,
             discord.Forbidden,
             discord.NotFound,
-        ) as e:
+        ) as raised_exceptions:
             logging_manager.LoggingManager().debug(
-                logging_manager.debug_info(e)
+                logging_manager.debug_info(raised_exceptions)
             )
 
     @staticmethod
-    async def send_error_message(ctx, message, delete_after=30):
+    async def send_error_message(
+        ctx: commands.Context, message: str, delete_after: int = 30
+    ) -> discord.Message:
         """
         Sends an error message
         :param delete_after:
@@ -335,11 +350,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                 )
             )[-1]
 
-        except (
-            discord.NotFound,
-            discord.Forbidden,
-            discord.HTTPException,
-        ) as e:
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
             raise commands.CommandError("Message Forbidden.")
 
     @commands.command()
@@ -357,26 +368,30 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     "You need to be an Administrator to execute this action.",
                 )
                 return
-        except AttributeError as ae:
+        except AttributeError as attribute_error:
             self.log.error(
-                logging_manager.debug_info("AttributeError " + str(ae))
+                logging_manager.debug_info(
+                    "AttributeError " + str(attribute_error)
+                )
             )
         try:
             if len(name) > 32:
                 await self.send_error_message(
                     ctx, "Name too long. 32 chars is the limit."
                 )
-            me = ctx.guild.me
-            await me.edit(nick=name)
+            bot_user = ctx.guild.me
+            await bot_user.edit(nick=name)
             await self.send_embed_message(
                 ctx, "Rename to **" + name + "** successful."
             )
-        except Exception as e:
-            await self.send_error_message(ctx, "An Error occurred: " + str(e))
+        except Exception as raised_exception:
+            await self.send_error_message(
+                ctx, "An Error occurred: " + str(raised_exception)
+            )
 
     @commands.check(Checks.manipulation_checks)
     @commands.command(aliases=["v"])
-    async def volume(self, ctx, volume=None):
+    async def volume(self, ctx, volume=None) -> None:
         """
         Changes playback volume.
         :param ctx:
@@ -413,7 +428,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         await self.send_embed_message(ctx, "The Volume was set to: " + str(var))
 
     @commands.command(aliases=["i", "information"])
-    async def info(self, ctx):
+    async def info(self, ctx) -> None:
         """
         Shows song info.
         :param ctx:
@@ -459,8 +474,8 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     url=self.guilds[ctx.guild.id].now_playing.image
                 )
             await ctx.send(embed=embed)
-        except (KeyError, TypeError) as e:
-            self.log.warning(logging_manager.debug_info(str(e)))
+        except (KeyError, TypeError) as raised_exception:
+            self.log.warning(logging_manager.debug_info(str(raised_exception)))
             embed = discord.Embed(
                 title="Error",
                 description=Errors.info_check,
@@ -470,7 +485,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             await ctx.send(embed=embed)
 
     @commands.command(aliases=[])
-    async def chars(self, ctx, first=None, last=None):
+    async def chars(self, ctx, first=None, last=None) -> None:
         """
         Changes playback bar.
         :param ctx:
@@ -554,7 +569,13 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         )
 
     @commands.command(hidden=True)
-    async def restart(self, ctx, restart_string=None):
+    async def restart(self, ctx, restart_string=None) -> None:
+        """
+        Hidden DEBUG Command
+        @param ctx:
+        @param restart_string:
+        @return:
+        """
         if restart_string is None:
             embed = discord.Embed(
                 title="You need to provide a valid restart key.",
@@ -575,7 +596,13 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
 
     # noinspection PyUnusedLocal
     @commands.command(hidden=True)
-    async def eval(self, ctx, *, code: str = None):
+    async def eval(self, ctx, *, code: str = None) -> None:
+        """
+        Hidden DEBUG Method
+        @param ctx:
+        @param code:
+        @return:
+        """
         guild_id = ctx.guild.id
         queue = self.guilds[guild_id].song_queue
         guild = self.guilds[guild_id]
@@ -586,34 +613,34 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             await ctx.send(embed=embed)
             return
         try:
-            s = str(eval(code))  # pylint: disable=eval-used
-        except Exception as e:
-            s = str(e)
-        await self._send_message(content=s, ctx=ctx, use_code_block=True)
+            eval_response = str(eval(code))  # pylint: disable=eval-used
+        except Exception as raised_exception:
+            eval_response = str(raised_exception)
+        await self._send_message(
+            content=eval_response, ctx=ctx, use_code_block=True
+        )
 
     @commands.command(hidden=True)
-    async def exec(self, ctx, *, code: str = None):
+    async def exec(self, ctx, *, code: str = None) -> None:
+        """
+        Hidden DEBUG Method
+        @param ctx:
+        @param code:
+        @return:
+        """
         if ctx.author.id != 322807058254528522:
             embed = discord.Embed(title="No permission.", color=0x00FF0000)
             await ctx.send(embed=embed)
             return
         try:
-            s = exec(code)  # pylint: disable=exec-used
-        except (Exception, RuntimeWarning) as e:
-            s = str(e)
-        if not s:
+            exec_response = exec(code)  # pylint: disable=exec-used
+        except (Exception, RuntimeWarning) as raised_exception:
+            exec_response = str(raised_exception)
+        if not exec_response:
             embed = discord.Embed(title="None")
             await ctx.send(embed=embed)
             return
-        if len(s) < 256:
-            embed = discord.Embed(title=s)
-            await ctx.send(embed=embed)
-        elif len(s) < 1994:
-            sa = "```" + s + "```"
-            await ctx.send(sa)
-        else:
-            sa = "```" + s[:1994] + "```"
-            await ctx.send(sa)
+        await self._send_message(ctx, exec_response)
 
     @commands.command(aliases=["np", "nowplaying"])
     async def now_playing(self, ctx: commands.Context) -> None:
@@ -656,7 +683,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
 
     @commands.check(Checks.song_playing_check)
     @commands.command(aliases=["a", "art"])
-    async def albumart(self, ctx):
+    async def albumart(self, ctx) -> None:
         """
         Displays the album art.
         :param ctx:
@@ -666,7 +693,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             title=self.guilds[ctx.guild.id].now_playing.title
         )
         embed.set_image(url=self.guilds[ctx.guild.id].now_playing.image)
-        return await ctx.send(embed=embed)
+        await ctx.send(embed=embed)
 
     @commands.command(aliases=["lyric", "songtext", "text"])
     async def lyrics(self, ctx: commands.Context, *, song_name: str = None):
@@ -702,7 +729,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         )
 
     @commands.command(aliases=["search"])
-    async def service(self, ctx):
+    async def service(self, ctx: commands.Context) -> None:
         """
         Select the provider used for search.
         :param ctx:
@@ -738,8 +765,8 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             "\N{Digit Three}\N{Combining Enclosing Keycap}"
         )
 
-        def check(reaction: discord.Reaction, user: discord.Member):
-            async def _set_service(_type, name):
+        def _check(reaction: discord.Reaction, user: discord.Member):
+            async def _set_service(_type: str, name: str) -> None:
                 await self.mongo.set_service(ctx.guild.id, _type)
                 await self.send_embed_message(
                     ctx, f'Set search provider to "{name}"'
@@ -777,22 +804,20 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                         return True
             return False
 
-        async def reaction_manager():
+        async def _reaction_manager() -> None:
             try:
-                await self.bot.wait_for("reaction_add", timeout=60, check=check)
+                await self.bot.wait_for("reaction_add", timeout=60, check=_check)
             except asyncio.TimeoutError:
                 return
 
-        asyncio.ensure_future(reaction_manager())
+        asyncio.ensure_future(_reaction_manager())
 
-    @commands.command(aliases=["w2g", "watchtogether"])
-    async def watch2gether(self, ctx):
+    @commands.command(aliases=["watch2gether", "watchtogether"])
+    async def w2g(self, ctx) -> None:
         """
         Creates a Watch2Gether Room
         :param ctx:
         :return:
         """
         url = await self.watch2gether.create_new_room()
-        return await self.send_embed_message(
-            ctx, url, url=url, delete_after=None
-        )
+        await self.send_embed_message(ctx, url, url=url, delete_after=None)
