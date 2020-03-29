@@ -1,16 +1,28 @@
+"""
+SpotifyType
+"""
 import re
+from typing import Optional
 
 from bot.type.variable_store import VariableStore
 
 
 class SpotifyType:
-    def __init__(self, url):
+    """
+    SpotifyType
+    """
+
+    def __init__(self, url) -> None:
         self.url = url
         self.spotify_uri = "SPOTIFY_URI"
         self.spotify_url = "SPOTIFY_URL"
 
     @property
-    def valid(self):
+    def valid(self) -> bool:
+        """
+        Checks if the provided spotify url is valid.
+        @return:
+        """
         if re.match(VariableStore.spotify_url_pattern, self.url) is not None:
             return True
         if re.match(VariableStore.spotify_uri_pattern, self.url) is not None:
@@ -18,7 +30,11 @@ class SpotifyType:
         return False
 
     @property
-    def type(self):
+    def type(self) -> Optional[str]:
+        """
+        Returns the type of the provided spotify url
+        @return:
+        """
         if self.valid:
             if (
                 re.match(VariableStore.spotify_url_pattern, self.url)
@@ -33,7 +49,11 @@ class SpotifyType:
         return None
 
     @property
-    def id(self):
+    def id(self) -> Optional[str]:
+        """
+        Extract the id from the provided url
+        @return:
+        """
         if self.type is self.spotify_url:
             return re.search(VariableStore.spotify_url_pattern, self.url).group(
                 "id"

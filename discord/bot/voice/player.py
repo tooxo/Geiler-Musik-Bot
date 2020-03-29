@@ -19,7 +19,6 @@ from bot.type.exceptions import (
 from bot.type.guild import Guild
 from bot.type.song import Song
 from bot.type.soundcloud_type import SoundCloudType
-from bot.type.spotify_song import SpotifySong
 from bot.type.spotify_type import SpotifyType
 from bot.type.url import Url
 from bot.type.variable_store import VariableStore
@@ -191,44 +190,19 @@ class Player(Cog):
         __song = Song()
         __song.user = ctx.message.author
         if spotify_type == Url.spotify_playlist:
-            __song_list = await self.parent.spotify.spotify_playlist(url)
-            if len(__song_list) == 0:
-                await self.parent.send_error_message(
-                    ctx=ctx, message=Errors.playlist_pull
-                )
-                return []
-            for track in __song_list:
-                track: SpotifySong
-                __song = Song(song=__song)
-                __song.title = track.title
-                __song.image_url = track.image_url
-                __song.artist = track.artist
-                __song.song_name = track.song_name
-                __songs.append(__song)
-            return __songs
+            song_list = await self.parent.spotify.spotify_playlist(url)
+            return song_list
         if spotify_type == Url.spotify_track:
             track = await self.parent.spotify.spotify_track(url)
-            if track is not None:
-                __song.title = track.title
-                __song.image_url = track.image_url
-                __song.artist = track.artist
-                __song.song_name = track.song_name
-                return [__song]
+            if track:
+                return [track]
             return []
         if spotify_type == Url.spotify_artist:
             song_list = await self.parent.spotify.spotify_artist(url)
-            for track in song_list:
-                __song = Song(song=__song)
-                __song.title = track
-                __songs.append(__song)
-            return __songs
+            return song_list
         if spotify_type == Url.spotify_album:
             song_list = await self.parent.spotify.spotify_album(url)
-            for track in song_list:
-                __song = Song(song=__song)
-                __song.title = track
-                __songs.append(__song)
-            return __songs
+            return song_list
 
     async def extract_first_infos_other(self, url, ctx):
         if url == "charts":
@@ -279,6 +253,7 @@ class Player(Cog):
         for song in songs:
             song: Song
             song.guild_id = ctx.guild.id
+            song.user = ctx.message.author
         if len(songs) > 1:
             if shuffle:
                 random.shuffle(songs)

@@ -3,7 +3,7 @@ import datetime
 import random
 import string
 from os import environ
-from typing import Dict, Optional, List
+from typing import Dict, List, Optional
 
 import dbl
 
@@ -23,25 +23,29 @@ from extractors import genius, mongo, soundcloud, spotify, watch2gether, youtube
 
 
 class DiscordBot(commands.Cog, name="Miscellaneous"):
-    def __init__(self, bot: commands.Bot):
+    """
+    DiscordBot
+    """
+
+    def __init__(self, bot: commands.Bot) -> None:
         self.log = logging_manager.LoggingManager()
         self.log.debug("[Startup]: Initializing Music Module . . .")
 
         self.guilds: Dict[int, Guild] = {}
 
         self.bot: commands.Bot = bot
-        self.player = Player(self.bot, self)
+        self.player: Player = Player(self.bot, self)
 
         self.bot.add_cog(self.player)
         self.bot.add_cog(Events(self.bot, self))
         self.bot.add_cog(PlayerControls(self.bot, self))
         self.bot.add_cog(TTS(self.bot, self))
 
-        self.node_controller = Controller(self)
+        self.node_controller: Controller = Controller(self)
         asyncio.ensure_future(self.node_controller.start_server())
 
-        self.spotify = spotify.Spotify()
-        self.mongo = mongo.Mongo()
+        self.spotify: spotify.Spotify = spotify.Spotify()
+        self.mongo: mongo.Mongo = mongo.Mongo()
 
         self.soundcloud = soundcloud.SoundCloud(
             node_controller=self.node_controller
@@ -90,7 +94,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         use_code_block: Optional[bool] = False,
         delete_after: Optional[int] = None,
         url: Optional[str] = None,
-        color: Optional[int] = 0x00ffcc,
+        color: Optional[int] = 0x00FFCC,
     ) -> List[discord.Message]:
         # decide on transfer method
         # embed title = max 256 chars
@@ -137,7 +141,12 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     if line in ("", " "):
                         if not new_chunk.endswith(
                             "> \N{MONGOLIAN VOWEL SEPARATOR}\n"
-                        ) and (not partial.endswith("> \N{MONGOLIAN VOWEL SEPARATOR}\n") and not new_chunk):
+                        ) and (
+                            not partial.endswith(
+                                "> \N{MONGOLIAN VOWEL SEPARATOR}\n"
+                            )
+                            and not new_chunk
+                        ):
                             new_chunk += (
                                 "> \N{MONGOLIAN VOWEL SEPARATOR}\n"
                             )  # the good ol' mongolian vowel separator
@@ -658,9 +667,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         embed: discord.Embed = discord.Embed(
             title=self.guilds[ctx.guild.id].now_playing.title
         )
-        embed.set_image(
-            url=self.guilds[ctx.guild.id].now_playing.image
-        )
+        embed.set_image(url=self.guilds[ctx.guild.id].now_playing.image)
         return await ctx.send(embed=embed)
 
     @commands.command(aliases=["lyric", "songtext", "text"])
@@ -689,7 +696,9 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         if url:
             lyrics, header = await genius.Genius.extract_from_genius(url)
             await ctx.send(content=f"> **{header}**")
-            return (await self._send_message(ctx, lyrics, use_citation=True))[-1]
+            return (await self._send_message(ctx, lyrics, use_citation=True))[
+                -1
+            ]
         return await self.send_error_message(
             ctx, "Currently not supported for this song."
         )
