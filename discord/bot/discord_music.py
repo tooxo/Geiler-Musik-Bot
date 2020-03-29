@@ -110,17 +110,16 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     await ctx.send(embed=embed, delete_after=delete_after)
                 )
                 return messages
-            else:
-                while content:
-                    embed_content = content[:2048]
-                    content = content[2048:]
-                    embed: discord.Embed = discord.Embed(
-                        description=embed_content, color=color, url=url
-                    )
-                    messages.append(
-                        await ctx.send(embed=embed, delete_after=delete_after)
-                    )
-                return messages
+            while content:
+                embed_content = content[:2048]
+                content = content[2048:]
+                embed: discord.Embed = discord.Embed(
+                    description=embed_content, color=color, url=url
+                )
+                messages.append(
+                    await ctx.send(embed=embed, delete_after=delete_after)
+                )
+            return messages
         if use_citation:
             lines = content.split("\n")
             new_chunk = ""
@@ -211,12 +210,11 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                         url=url,
                     )
                 )[-1]
-            else:
-                return (
-                    await DiscordBot._send_message(
-                        ctx, message, delete_after=delete_after
-                    )
-                )[-1]
+            return (
+                await DiscordBot._send_message(
+                    ctx, message, delete_after=delete_after
+                )
+            )[-1]
         except (discord.Forbidden, discord.HTTPException, discord.NotFound):
             raise commands.CommandError("Message forbidden.")
 
