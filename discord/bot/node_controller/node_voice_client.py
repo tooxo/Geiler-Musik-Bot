@@ -155,10 +155,10 @@ class NodeVoiceClient:
     def set_after(self, after_function, *args, **kwargs) -> None:
         """
         Sets the action, which gets called after playback is complete
-        @param after_function: 
-        @param args: 
-        @param kwargs: 
-        @return: 
+        @param after_function:
+        @param args:
+        @param kwargs:
+        @return:
         """
         self.after_fn = after_function
         self.after_args = args

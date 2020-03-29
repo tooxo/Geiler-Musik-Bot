@@ -150,7 +150,6 @@ def mongo_most() -> Response:
 @APP.route("/http/mongo_response")
 def mongo_response() -> Response:
     """
-    
     @return:
     """
     collection = DB.connectiontime
