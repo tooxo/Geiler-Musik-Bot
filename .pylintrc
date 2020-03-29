@@ -140,7 +140,12 @@ disable=print-statement,
         exception-escape,
         comprehension-escape,
         cyclic-import,
-        
+        too-many-locals,
+        unused-variable,
+        too-many-arguments,
+        broad-except,
+        too-many-branches,
+        too-many-statements,
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
