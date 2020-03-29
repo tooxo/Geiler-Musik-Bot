@@ -105,7 +105,7 @@ async def on_error(*args, **kwargs):
 
 versions = {}
 for mod in (
-    subprocess.check_output(["/usr/bin/pip", "freeze"], shell=False)
+    subprocess.check_output(["/usr/local/bin/pip", "freeze"], shell=False)
     .decode()
     .split("\n")
 ):

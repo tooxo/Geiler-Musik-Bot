@@ -69,12 +69,8 @@ class Controller:
                 raise asyncio.TimeoutError()
             try:
                 content: dict = json.loads(response.text)
-            except json.JSONDecodeError:
-                raise asyncio.TimeoutError()
-
-            try:
                 api_key = content["API_KEY"]
-            except (TypeError, KeyError):
+            except (json.JSONDecodeError, TypeError, KeyError):
                 raise asyncio.TimeoutError()
 
             if api_key != self.key:

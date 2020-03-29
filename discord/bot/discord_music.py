@@ -3,7 +3,7 @@ import datetime
 import random
 import string
 from os import environ
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 import dbl
 
@@ -82,19 +82,132 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         return response
 
     @staticmethod
+    async def _send_message(
+        ctx: commands.Context,
+        content: str,
+        use_embed: Optional[bool] = False,
+        use_citation: Optional[bool] = False,
+        use_code_block: Optional[bool] = False,
+        delete_after: Optional[int] = None,
+        url: Optional[str] = None,
+        color: Optional[int] = 0x00ffcc,
+    ) -> List[discord.Message]:
+        # decide on transfer method
+        # embed title = max 256 chars
+        # embed description = max 2048 characters
+        # common message = max 2000 chars
+        messages = []  # all the message sent.
+        if use_embed:
+            if len(content) <= 256:
+                embed: discord.Embed = discord.Embed(
+                    title=content, url=url, color=color
+                )
+                messages.append(
+                    await ctx.send(embed=embed, delete_after=delete_after)
+                )
+                return messages
+            else:
+                while content:
+                    embed_content = content[:2048]
+                    content = content[2048:]
+                    embed: discord.Embed = discord.Embed(
+                        description=embed_content, color=color, url=url
+                    )
+                    messages.append(
+                        await ctx.send(embed=embed, delete_after=delete_after)
+                    )
+                return messages
+        if use_citation:
+            lines = content.split("\n")
+            new_chunk = ""
+            partial = ""
+            for _line in lines:
+                if len(_line) > 1997:
+                    _line_container = []
+                    while _line:
+                        _line_container.append(_line[:1997])
+                        _line = _line[
+                            1997:
+                        ]  # 1997, because the ">" the " " and the "\n" need to be substracted.
+                else:
+                    _line_container = [_line]
+
+                for line in _line_container:
+                    new_chunk = ""
+                    if line in ("", " "):
+                        if not new_chunk.endswith(
+                            "> \N{MONGOLIAN VOWEL SEPARATOR}\n"
+                        ) and (not partial.endswith("> \N{MONGOLIAN VOWEL SEPARATOR}\n") and not new_chunk):
+                            new_chunk += (
+                                "> \N{MONGOLIAN VOWEL SEPARATOR}\n"
+                            )  # the good ol' mongolian vowel separator
+                    else:
+                        new_chunk += "> " + line + "\n"
+                    if (len(partial) + len(new_chunk)) >= 2000:
+                        messages.append(
+                            await ctx.send(
+                                content=partial, delete_after=delete_after
+                            )
+                        )
+                        partial = new_chunk
+                    else:
+                        partial += new_chunk
+            if partial:
+                messages.append(
+                    await ctx.send(content=partial, delete_after=delete_after)
+                )
+            if new_chunk:
+                messages.append(
+                    await ctx.send(content=new_chunk, delete_after=delete_after)
+                )
+            return messages
+        if use_code_block:
+            while content:
+                message_content = f"```{content[:1993]}```"
+                content = content[1993:]
+                messages.append(
+                    await ctx.send(
+                        content=message_content, delete_after=delete_after
+                    )
+                )
+            return messages
+        while content:
+            message_content = content[:2000]
+            content = content[2000:]
+            messages.append(
+                await ctx.send(
+                    content=message_content, delete_after=delete_after
+                )
+            )
+        return messages
+
+    @staticmethod
     async def send_embed_message(
         ctx: discord.ext.commands.Context,
         message: str,
         delete_after: Optional[int] = 10,
         url: str = "https://d.chulte.de",
     ) -> discord.Message:
+        """
+        Send Embedded messages to a discord text channel
+        """
         try:
             if environ.get("USE_EMBEDS", "True") == "True":
-                embed = discord.Embed(title=message, url=url, colour=0x00FFCC)
-                message = await ctx.send(embed=embed, delete_after=delete_after)
+                return (
+                    await DiscordBot._send_message(
+                        ctx=ctx,
+                        content=message,
+                        delete_after=delete_after,
+                        use_embed=True,
+                        url=url,
+                    )
+                )[-1]
             else:
-                message = await ctx.send(message, delete_after=delete_after)
-            return message
+                return (
+                    await DiscordBot._send_message(
+                        ctx, message, delete_after=delete_after
+                    )
+                )[-1]
         except (discord.Forbidden, discord.HTTPException, discord.NotFound):
             raise commands.CommandError("Message forbidden.")
 
@@ -198,18 +311,29 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         """
         try:
             if environ.get("USE_EMBEDS", "True") == "True":
-                embed = discord.Embed(description=message, color=0xFF0000)
-                await ctx.send(embed=embed, delete_after=delete_after)
-            else:
-                await ctx.send(message, delete_after=delete_after)
-            if delete_after is not None:
-                await DiscordBot.delete_message(ctx.message, delete_after)
+                return (
+                    await DiscordBot._send_message(
+                        ctx=ctx,
+                        content=message,
+                        delete_after=delete_after,
+                        use_embed=True,
+                    )
+                )[-1]
+            return (
+                await DiscordBot._send_message(
+                    ctx=ctx,
+                    content=message,
+                    delete_after=delete_after,
+                    use_embed=False,
+                )
+            )[-1]
+
         except (
             discord.NotFound,
             discord.Forbidden,
             discord.HTTPException,
         ) as e:
-            pass
+            raise commands.CommandError("Message Forbidden.")
 
     @commands.command()
     async def rename(self, ctx, *, name: str):
@@ -458,15 +582,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             s = str(eval(code))
         except Exception as e:
             s = str(e)
-        if len(s) < 256:
-            embed = discord.Embed(title=s)
-            await ctx.send(embed=embed)
-        elif len(s) < 1994:
-            sa = "```" + s + "```"
-            await ctx.send(sa)
-        else:
-            sa = "```" + s[:1994] + "```"
-            await ctx.send(sa)
+        await self._send_message(content=s, ctx=ctx, use_code_block=True)
 
     @commands.command(hidden=True)
     async def exec(self, ctx, *, code: str = None):
@@ -492,8 +608,8 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             sa = "```" + s[:1994] + "```"
             await ctx.send(sa)
 
-    @commands.command(aliases=["np", "now_playing"])
-    async def nowplaying(self, ctx):
+    @commands.command(aliases=["np", "nowplaying"])
+    async def now_playing(self, ctx: commands.Context) -> None:
         """
         Shows what other servers are playing.
         :param ctx:
@@ -566,21 +682,8 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                         url = await genius.Genius.search_genius(song.title, "")
         if url:
             lyrics, header = await genius.Genius.extract_from_genius(url)
-            lines = lyrics.split("\n")
             await ctx.send(content=f"> **{header}**")
-            t = ""
-            for line in lines:
-                if (len(t) + len(line)) > 1900:
-                    await ctx.send(content=t)
-                    t = ""
-                if line in ("", " "):
-                    if not t.endswith("> \N{MONGOLIAN VOWEL SEPARATOR}\n"):
-                        t += (
-                            "> \N{MONGOLIAN VOWEL SEPARATOR}\n"
-                        )  # the good ol' mongolian vowel separator
-                else:
-                    t += "> " + line + "\n"
-            return await ctx.send(content=t)
+            return (await self._send_message(ctx, lyrics, use_citation=True))[-1]
         return await self.send_error_message(
             ctx, "Currently not supported for this song."
         )
