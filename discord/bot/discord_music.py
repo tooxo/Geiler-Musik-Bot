@@ -655,7 +655,13 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         :param ctx:
         :return:
         """
-        return await ctx.send(self.guilds[ctx.guild.id].now_playing.image)
+        embed: discord.Embed = discord.Embed(
+            title=self.guilds[ctx.guild.id].now_playing.title
+        )
+        embed.set_image(
+            url=self.guilds[ctx.guild.id].now_playing.image
+        )
+        return await ctx.send(embed=embed)
 
     @commands.command(aliases=["lyric", "songtext", "text"])
     async def lyrics(self, ctx: commands.Context, *, song_name: str = None):
