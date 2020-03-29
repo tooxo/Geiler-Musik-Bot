@@ -24,6 +24,7 @@ class VariableStore:
     """
     VariableStore
     """
+
     spotify_url_pattern = re.compile(
         r"^(http(s)?://)?"
         r"(open\.|play\.)"
@@ -102,7 +103,10 @@ class VariableStore:
             return url
         match = VariableStore.youtube_video_pattern.match(url)
         if match:
-            if "id2" in match.groupdict() and match.groupdict()["id2"] is not None:
+            if (
+                "id2" in match.groupdict()
+                and match.groupdict()["id2"] is not None
+            ):
                 return match.group("id2")
             return match.group("id")
         return None

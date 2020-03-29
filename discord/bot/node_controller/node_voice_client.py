@@ -8,9 +8,10 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 import discord
+from discord.ext import commands
+
 from bot.node_controller.controller import Controller, Node
 from bot.type.song import Song
-from discord.ext import commands
 
 
 class NodeVoiceClient:
@@ -294,7 +295,7 @@ class NodeVoiceChannel(discord.VoiceChannel):
                 "user_limit": voice_channel.user_limit,
                 "_state": voice_channel._state,  # pylint: disable=protected-access
                 "position": voice_channel.position,
-                "_overwrites": voice_channel._overwrites, # pylint: disable=protected-access
+                "_overwrites": voice_channel._overwrites,  # pylint: disable=protected-access
                 "category_id": voice_channel.category_id,
             },
             node=node_controller.get_best_node(voice_channel.guild.id),

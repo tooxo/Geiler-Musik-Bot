@@ -12,6 +12,7 @@ class LastFM:
     """
     LastFM
     """
+
     def __init__(self) -> None:
         self.api_key = os.environ.get("LASTFM_KEY", "")
         self.session = aiohttp.ClientSession()

@@ -9,6 +9,7 @@ class Help(commands.Cog):
     """
     Help
     """
+
     def __init__(self, bot: commands.Bot) -> None:
         self.bot: commands.Bot = bot
 
@@ -93,7 +94,9 @@ class Help(commands.Cog):
         embed = Embed(title=f"Help - Page {page + 1}")
         for cog_name in cogs:
             if cogs[cog_name]:
-                embed.add_field(name=f"**{cog_name}**", value=cogs[cog_name], inline=False)
+                embed.add_field(
+                    name=f"**{cog_name}**", value=cogs[cog_name], inline=False
+                )
         return await ctx.send(embed=embed)
 
     async def help_command(
@@ -126,7 +129,9 @@ class Help(commands.Cog):
             else:
                 syntax_text += f" ({param})"
         embed.add_field(name="**Info**", value=command.short_doc, inline=False)
-        embed.add_field(name="**Syntax**", value=f"`{syntax_text}`", inline=False)
+        embed.add_field(
+            name="**Syntax**", value=f"`{syntax_text}`", inline=False
+        )
         embed.set_footer(text="Syntax: [alias] <required> (optional)")
         return await ctx.send(embed=embed)
 

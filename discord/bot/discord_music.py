@@ -9,8 +9,9 @@ from os import environ
 from typing import Dict, List, Optional
 
 import dbl
-
 import discord
+from discord.ext import commands
+
 import logging_manager
 from bot.node_controller.controller import Controller
 from bot.type.errors import Errors
@@ -21,7 +22,6 @@ from bot.voice.events import Events
 from bot.voice.player import Player
 from bot.voice.player_controls import PlayerControls
 from bot.voice.tts import TTS
-from discord.ext import commands
 from extractors import genius, mongo, soundcloud, spotify, watch2gether, youtube
 
 
@@ -806,7 +806,9 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
 
         async def _reaction_manager() -> None:
             try:
-                await self.bot.wait_for("reaction_add", timeout=60, check=_check)
+                await self.bot.wait_for(
+                    "reaction_add", timeout=60, check=_check
+                )
             except asyncio.TimeoutError:
                 return
 

@@ -3,8 +3,8 @@ Mongo
 """
 import os
 import time
+from typing import Optional, Tuple
 
-from typing import Tuple, Optional
 from motor.motor_asyncio import AsyncIOMotorClient
 
 import logging_manager

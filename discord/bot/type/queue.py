@@ -10,6 +10,7 @@ class Queue(asyncio.Queue):
     """
     Queue
     """
+
     def __init__(self, *args, **kwargs) -> None:
         self._queue = deque()
         super().__init__(*args, **kwargs)

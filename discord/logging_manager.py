@@ -9,6 +9,7 @@ class LoggingManager:
     """
     LoggingManager
     """
+
     def __init__(self) -> None:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger("LOG")
