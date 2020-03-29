@@ -586,7 +586,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             await ctx.send(embed=embed)
             return
         try:
-            s = str(eval(code))
+            s = str(eval(code))  # pylint: disable=eval-used
         except Exception as e:
             s = str(e)
         await self._send_message(content=s, ctx=ctx, use_code_block=True)
