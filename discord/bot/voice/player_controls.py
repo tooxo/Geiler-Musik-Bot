@@ -1,7 +1,11 @@
+"""
+PlayerControls
+"""
 import asyncio
 import collections
 import random
 from os import environ
+from typing import TYPE_CHECKING, Dict
 
 import discord
 from bot.type.guild import Guild
@@ -10,16 +14,25 @@ from bot.voice.checks import Checks
 from discord.ext import commands
 from discord.ext.commands import Cog
 
+if TYPE_CHECKING:
+    from bot.discord_music import (  # pylint: disable=ungrouped-imports
+        DiscordBot,
+    )
+
 
 class PlayerControls(Cog, name="Player Controls"):
-    def __init__(self, bot, parent):
-        self.bot = bot
-        self.parent = parent
-        self.guilds = self.parent.guilds
+    """
+    PlayerControls
+    """
+
+    def __init__(self, bot: commands.Bot, parent: "DiscordBot") -> None:
+        self.bot: commands.Bot = bot
+        self.parent: "DiscordBot" = parent
+        self.guilds: Dict[int, Guild] = self.parent.guilds
 
     @commands.check(Checks.manipulation_checks)
     @commands.command(aliases=["exit"])
-    async def quit(self, ctx):
+    async def quit(self, ctx: commands.Context) -> None:
         """
         Disconnects the bot.
         :param ctx:
@@ -30,7 +43,7 @@ class PlayerControls(Cog, name="Player Controls"):
 
     @commands.check(Checks.manipulation_checks)
     @commands.command(aliases=["empty"])
-    async def clear(self, ctx):
+    async def clear(self, ctx: commands.Context) -> None:
         """
         Clears the queue.
         :param ctx:
@@ -48,7 +61,7 @@ class PlayerControls(Cog, name="Player Controls"):
 
     @commands.check(Checks.manipulation_checks)
     @commands.command(aliases=["mixer"])
-    async def shuffle(self, ctx):
+    async def shuffle(self, ctx: commands.Context):
         """
         Shuffles the queue.
         :param ctx:
@@ -67,7 +80,7 @@ class PlayerControls(Cog, name="Player Controls"):
     @commands.check(Checks.manipulation_checks)
     @commands.check(Checks.voice_client_check)
     @commands.command(aliases=["yeehee"])
-    async def stop(self, ctx):
+    async def stop(self, ctx: commands.Context):
         """
         Stops playback.
         :param ctx:
@@ -83,7 +96,7 @@ class PlayerControls(Cog, name="Player Controls"):
     @commands.check(Checks.manipulation_checks)
     @commands.check(Checks.song_playing_check)
     @commands.command(aliases=["halteein"])
-    async def pause(self, ctx):
+    async def pause(self, ctx: commands.Context):
         """
         Pauses playback.
         :param ctx:
@@ -102,7 +115,7 @@ class PlayerControls(Cog, name="Player Controls"):
 
     @commands.check(Checks.manipulation_checks)
     @commands.command(aliases=["next", "müll", "s", "n", "nein"])
-    async def skip(self, ctx, count="1"):
+    async def skip(self, ctx: commands.Context, count="1") -> None:
         """
         Skips a song.
         :param ctx:
@@ -166,7 +179,7 @@ class PlayerControls(Cog, name="Player Controls"):
     @commands.check(Checks.voice_client_check)
     @commands.check(Checks.song_playing_check)
     @commands.command(aliases=["back"])
-    async def prev(self, ctx):
+    async def prev(self, ctx: commands.Context) -> None:
         """
         Jumps back a song.
         :param ctx:
@@ -184,7 +197,7 @@ class PlayerControls(Cog, name="Player Controls"):
     @commands.check(Checks.song_playing_check)
     @commands.check(Checks.voice_client_check)
     @commands.command(aliases=["unpause"])
-    async def resume(self, ctx):
+    async def resume(self, ctx: commands.Context):
         """
         Resumes playback.
         :param ctx:
@@ -231,7 +244,7 @@ class PlayerControls(Cog, name="Player Controls"):
         )
 
     @commands.command(aliases=["q"])
-    async def queue(self, ctx):
+    async def queue(self, ctx: commands.Context):
         """
         Shows the queue.
         :param ctx:
@@ -266,22 +279,28 @@ class PlayerControls(Cog, name="Player Controls"):
 
         if len(self.guilds[ctx.guild.id].song_queue.queue) > 0:
             _t = ""
-            for x in range(0, 9, 1):
+            for num in range(0, 9, 1):
                 try:
 
                     if (
-                        self.guilds[ctx.guild.id].song_queue.queue[x]
+                        self.guilds[ctx.guild.id].song_queue.queue[num]
                         is not None
                     ):
 
-                        _t += f"`({x+1})` `{self.guilds[ctx.guild.id].song_queue.queue[x].title}`\n"
+                        _t += (
+                            f"`({num+1})` "
+                            f"`{self.guilds[ctx.guild.id].song_queue.queue[num].title}`\n"
+                        )
 
                     elif (
-                        self.guilds[ctx.guild.id].song_queue.queue[x].link
+                        self.guilds[ctx.guild.id].song_queue.queue[num].link
                         is not None
                     ):
 
-                        _t += f"`({x+1})` `{self.guilds[ctx.guild.id].song_queue.queue[x].link}`\n"
+                        _t += (
+                            f"`({num+1})` "
+                            f"`{self.guilds[ctx.guild.id].song_queue.queue[num].link}`\n"
+                        )
                     else:
                         break
                 except (IndexError, KeyError, AttributeError, TypeError):

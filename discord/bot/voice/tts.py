@@ -1,3 +1,7 @@
+"""
+TTS
+"""
+# pylint: skip-file
 from typing import Dict
 from urllib.parse import quote
 
@@ -16,7 +20,10 @@ def check_tts_requirements(ctx, *args, **kwargs):
 
 class TTS(commands.Cog):
     def __init__(self, bot, parent):
-        self.tts_base_url = "https://translate.google.com/translate_tts?ie=UTF-8&tl=de-DE&client=tw-ob&q="
+        self.tts_base_url = (
+            "https://translate.google.com/translate_tts?"
+            "ie=UTF-8&tl=de-DE&client=tw-ob&q="
+        )
         self.bot = bot
         self.parent = parent
         self.guilds: Dict[int, Guild] = self.parent.guilds

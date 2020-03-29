@@ -6,13 +6,13 @@ from typing import TYPE_CHECKING, Optional
 from bot.type.queue import Queue
 
 if TYPE_CHECKING:
-    from bot.node_controller.NodeVoiceClient import NodeVoiceClient
+    from bot.node_controller.node_voice_client import NodeVoiceClient
     from bot.now_playing_message import NowPlayingMessage
-    from discord.channel import VoiceChannel
     from bot.type.song import Song
+    from discord.channel import VoiceChannel
 
 
-class Guild(object):
+class Guild:
     """
     Guild
     """

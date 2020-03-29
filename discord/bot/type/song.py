@@ -1,9 +1,16 @@
+"""
+Song
+"""
 import json
 
 from bot.type.variable_store import strip_youtube_title
 
 
 class Song:
+    """
+    Song
+    """
+
     def __init__(
         self,
         song=None,
@@ -22,11 +29,11 @@ class Song:
         song_name=None,
         artist=None,
         guild_id=None,
-    ):
+    ) -> None:
         if song:
             self.title = song.title
             self.term = song.term
-            self.id = song.id
+            self.id = song.id  # pylint: disable=invalid-name
             self.link = song.link
             self.stream = song.stream
             self.duration = song.duration
@@ -61,6 +68,10 @@ class Song:
 
     @property
     def image(self):
+        """
+        Return AlbumArt
+        @return:
+        """
         if self.image_url is not None and self.image_url != "":
             return self.image_url
         if self.thumbnail is not None and self.thumbnail != "":
@@ -68,17 +79,28 @@ class Song:
         return None
 
     @staticmethod
-    def from_dict(d: dict):
+    def from_dict(_dict: dict):
+        """
+        Create a song from a dict
+        @param _dict:
+        @return:
+        """
         song = Song()
-        for a in d.keys():
-            if a == "title":
-                setattr(song, a, strip_youtube_title(d[a]))
+        for attribute in _dict.keys():
+            if attribute == "title":
+                setattr(song, attribute, strip_youtube_title(_dict[attribute]))
             else:
-                setattr(song, a, d.get(a, None))
+                setattr(song, attribute, _dict.get(attribute, None))
         return song
 
     @staticmethod
-    def copy_song(_from, _to):
+    def copy_song(_from, _to) -> "Song":
+        """
+        Copy contents from one song object to another
+        @param _from:
+        @param _to:
+        @return:
+        """
         _from: Song
         _to: Song
         for attribute in _from.__dict__.keys():
@@ -87,17 +109,11 @@ class Song:
                     setattr(_to, attribute, getattr(_from, attribute))
         return _to
 
-    def to_string(self):
-        x = {}
-        for attr in self.__dict__:
-            if type(self.__dict__.get(attr)) in (
-                str,
-                int,
-                list,
-                None,
-            ):  # pylint: disable=unidiomatic-typecheck
-                x[attr] = self.__dict__.get(attr)
-        return json.dumps(x)
-
     def __str__(self):
-        return self.to_string()
+        _temp_dict = {}
+        for attr in self.__dict__:
+            if type(  # pylint: disable=unidiomatic-typecheck
+                self.__dict__.get(attr)
+            ) in (str, int, list, None):
+                _temp_dict[attr] = self.__dict__.get(attr)
+        return json.dumps(_temp_dict)

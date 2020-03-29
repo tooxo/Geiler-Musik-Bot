@@ -111,14 +111,14 @@ class Spotify:
         )
         header = {"Authorization": "Bearer " + token}
         result = await self._request_get(url, header)
-        js = json.loads(result)
-        if "error" in js:
+        json_result = json.loads(result)
+        if "error" in json_result:
             raise PlaylistExtractionException()
         t_list = []
         more = True
         while more is True:
             try:
-                for track in js["items"]:
+                for track in json_result["items"]:
                     if track["is_local"]:
                         try:
                             t_list.append(
@@ -150,17 +150,19 @@ class Spotify:
                             )
                         )
 
-                if js["next"] is None:
+                if json_result["next"] is None:
                     more = False
                 else:
-                    url = js["next"]
+                    url = json_result["next"]
                     result = await self._request_get(url, header)
-                    js = json.loads(result)
+                    json_result = json.loads(result)
             except KeyError as key_error:
                 self.log.warning(
-                    logging_manager.debug_info(str(key_error) + " " + str(js))
+                    logging_manager.debug_info(
+                        str(key_error) + " " + str(json_result)
+                    )
                 )
-                if "error" in js:
+                if "error" in json_result:
                     self.token = ""
                 more = False
 
@@ -181,16 +183,16 @@ class Spotify:
         url = "https://api.spotify.com/v1/albums/" + album.id + "?limit=50"
         header = {"Authorization": "Bearer " + token}
         result = await self._request_get(url, header)
-        js = json.loads(result)
-        if "error" in js:
+        json_result = json.loads(result)
+        if "error" in json_result:
             raise PlaylistExtractionException()
         track_list = []
-        for item in js["tracks"]["items"]:
+        for item in json_result["tracks"]["items"]:
             track_list.append(
                 Song(
                     title=f"{item['artists'][0]['name']} - {item['name']}",
                     artist=item["artists"][0]["name"],
-                    image_url=js["images"][0]["url"],
+                    image_url=json_result["images"][0]["url"],
                     song_name=item["name"],
                 )
             )
@@ -215,11 +217,11 @@ class Spotify:
         )
         header = {"Authorization": "Bearer " + token}
         result = await self._request_get(url, header)
-        js = json.loads(result)
-        if "error" in js:
+        json_result = json.loads(result)
+        if "error" in json_result:
             raise PlaylistExtractionException()
         track_list = []
-        for item in js["tracks"]:
+        for item in json_result["tracks"]:
             track_list.append(
                 Song(
                     title=f"{item['artists'][0]['name']} - {item['name']}",

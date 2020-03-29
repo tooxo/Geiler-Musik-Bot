@@ -1,20 +1,29 @@
+"""
+LastFM
+"""
 import asyncio
 import os
 
 import aiohttp
 import async_timeout
 
-import logging_manager
-
 
 class LastFM:
-    def __init__(self):
+    """
+    LastFM
+    """
+    def __init__(self) -> None:
         self.api_key = os.environ.get("LASTFM_KEY", "")
         self.session = aiohttp.ClientSession()
         self.cache = dict()
 
     async def get_album_art(self, youtube_title, searched_term):
-
+        """
+        Retrieve AlbumArt from LastFM
+        @param youtube_title:
+        @param searched_term:
+        @return:
+        """
         if youtube_title in self.cache:
             return self.cache[youtube_title]
         if searched_term in self.cache:

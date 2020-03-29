@@ -17,7 +17,7 @@ from discord.opus import Encoder as OpusEncoder
 from discord.player import AudioSource
 
 
-class Buffer(object):
+class Buffer:
     """
     Interface to interact with the pipes used for buffering.
     """
@@ -110,7 +110,7 @@ class Buffer(object):
         return 32000
 
 
-class AvDecoder(object):
+class AvDecoder:
     """
     Helper class for the AvAudioSource
     """
@@ -127,17 +127,18 @@ class AvDecoder(object):
         self.audio: av.container.InputContainer = av.open(
             stream, "r", timeout=8, options=options
         )
-        self.audio_stream: av.audio.stream.AudioStream = self.audio.streams.get(
-            audio=0
-        )[0]
+        # pylint: disable=c-extension-no-member
+        self.audio_stream: av.audio.stream.AudioStream = (
+            self.audio.streams.get(audio=0)[0]
+        )
 
         self.output_buffer: Buffer = Buffer()
         self.output_container: av.container.OutputContainer = av.open(
             self.output_buffer, "w", format="opus"
         )
 
-        self.output_stream: av.audio.stream.AudioStream = self.output_container.add_stream(
-            "libopus", 48000
+        self.output_stream: av.audio.stream.AudioStream = (
+            self.output_container.add_stream("libopus", 48000)
         )
 
         self.thread = threading.Thread(target=self.fill_buffer, args=())
@@ -201,7 +202,13 @@ class AvAudioSource(AudioSource, ABC):
     """
 
     # noinspection PyUnusedLocal
-    def __init__(self, source, volume, *args, **kwargs) -> None:
+    def __init__(
+        self,
+        source: str,
+        volume: float,
+        *args,  # pylint: disable=unused-argument
+        **kwargs  # pylint: disable=unused-argument
+    ) -> None:
         """
 
         :param source: source url

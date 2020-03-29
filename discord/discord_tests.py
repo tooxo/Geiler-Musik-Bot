@@ -1,18 +1,23 @@
 """
 Runs Instrumentation Tests with distest
 """
+# pylint: skip-file
 
 import asyncio
 import sys
 
-from discord import Embed, Message
+from discord import Embed
 from distest import TestCollector, run_dtest_bot
 from distest.exceptions import ResponseDidNotMatchError
 from distest.interface import TestInterface
 
 
 class TestClient:
-    def __init__(self):
+    """
+    TestClient
+    """
+
+    def __init__(self) -> None:
         self.test_collector = TestCollector()
         self.voice_channel = 598919254359932928
         self.voice_client = None
@@ -167,7 +172,15 @@ class TestClient:
 
         @self.test_collector()
         async def spotify_track(interface: TestInterface):
-            spotify_url = "https://open.spotify.com/track/5ZULALImTm80tzUbYQYM9d?si=qP8FvIhZSHGcIGGSe4OP3g"
+            """
+            Extracts a track from Spotify
+            @param interface:
+            @return:
+            """
+            spotify_url = (
+                "https://open.spotify.com/track/"
+                "5ZULALImTm80tzUbYQYM9d?si=qP8FvIhZSHGcIGGSe4OP3g"
+            )
             await interface.connect(self.voice_channel)
             await interface.send_message(content=",p " + spotify_url)
             await asyncio.sleep(10)
@@ -181,7 +194,15 @@ class TestClient:
 
         @self.test_collector()
         async def spotify_playlist(interface: TestInterface):
-            spotify_url = "https://open.spotify.com/playlist/37i9dQZEVXbMDoHDwVN2tF?si=ZphJKc-3T-Ov6zeXGi9lnw"
+            """
+            Extract tracks from a Spotify Playlist
+            @param interface:
+            @return:
+            """
+            spotify_url = (
+                "https://open.spotify.com/playlist/"
+                "37i9dQZEVXbMDoHDwVN2tF?si=ZphJKc-3T-Ov6zeXGi9lnw"
+            )
             await interface.connect(self.voice_channel)
             await interface.assert_reply_equals(
                 ",p " + spotify_url,
@@ -195,7 +216,15 @@ class TestClient:
 
         @self.test_collector()
         async def spotify_artist(interface: TestInterface):
-            spotify_url = "https://open.spotify.com/artist/5K4W6rqBFWDnAN6FQUkS6x?si=YWvqun8PTWmqSPfs7YKtqw"
+            """
+
+            @param interface:
+            @return:
+            """
+            spotify_url = (
+                "https://open.spotify.com/artist/"
+                "5K4W6rqBFWDnAN6FQUkS6x?si=YWvqun8PTWmqSPfs7YKtqw"
+            )
             await interface.connect(self.voice_channel)
             await interface.assert_reply_equals(
                 ",p " + spotify_url,

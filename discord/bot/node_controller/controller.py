@@ -35,14 +35,14 @@ class Controller:
         self.node_cache = {}
 
         self.login_logger = logging.Logger("LOGIN", logging.DEBUG)
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
-        ch.setFormatter(
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(logging.DEBUG)
+        stream_handler.setFormatter(
             logging.Formatter(
                 "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
             )
         )
-        self.login_logger.addHandler(ch)
+        self.login_logger.addHandler(stream_handler)
         self.server = KARPServer(self.host, self.port)
         self.server.logger.setLevel(logging.INFO)
 
@@ -53,10 +53,10 @@ class Controller:
         :param length:
         :return:
         """
-        s = ""
-        for x in range(length):
-            s += random.choice(string.ascii_lowercase)
-        return s
+        partial_string = ""
+        for _ in range(length):
+            partial_string += random.choice(string.ascii_lowercase)
+        return partial_string
 
     async def _on_new_connection(self, client: Client) -> None:
         node: Node = Node(client)
@@ -93,7 +93,11 @@ class Controller:
         if client.id in self.nodes:
             del self.nodes[client.id]
 
-    async def start_server(self):
+    async def start_server(self) -> None:
+        """
+        Start the KARP Server
+        @return:
+        """
         self.server.on_new_connection = self._on_new_connection
         self.server.on_connection_lost = self._on_connection_lost
         self._add_routes()
@@ -107,9 +111,9 @@ class Controller:
             if guild_id:
                 if self.guilds[guild_id].voice_client:
                     # noinspection PyProtectedMember
-                    self.guilds[guild_id].voice_client._is_connected = data.get(
-                        "connected", True
-                    )
+                    self.guilds[  # pylint: disable=protected-access
+                        guild_id
+                    ].voice_client._is_connected = data.get("connected", True)
 
                     await self.guilds[guild_id].voice_client.after()
 
@@ -140,10 +144,14 @@ class Controller:
         raise NoNodeReadyException(Errors.backend_down)
 
 
-class Node:
-    def __init__(self, client: Client):
+class Node:  # pylint: disable=too-few-public-methods
+    """
+    Node
+    """
+
+    def __init__(self, client: Client) -> None:
         self.name = ""
-        self.id = client.id
+        self.id = client.id  # pylint: disable=invalid-name
 
         self.client: Client = client
 

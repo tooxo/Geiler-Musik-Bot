@@ -1,22 +1,39 @@
+"""
+YoutubeType
+"""
 import re
+from typing import Optional
 
 from bot.type.variable_store import VariableStore
 
 
 class YouTubeType:
-    def __init__(self, url):
+    """
+    YouTubeType
+    """
+
+    VIDEO = "YOUTUBE_VIDEO"
+    PLAYLIST = "YOUTUBE_PLAYLIST"
+
+    def __init__(self, url: str) -> None:
         self.url = url
-        self.VIDEO = "YOUTUBE_VIDEO"
-        self.PLAYLIST = "YOUTUBE_PLAYLIST"
 
     @property
-    def valid(self):
-        if re.match(VariableStore.youtube_video_pattern, self.url) is not None:
+    def valid(self) -> bool:
+        """
+        Check if a YouTube url is valid
+        @return:
+        """
+        if re.match(VariableStore.youtube_video_pattern, self.url):
             return True
         return False
 
     @property
-    def id(self):
+    def id(self) -> Optional[str]:  # pylint: disable=invalid-name
+        """
+        Extract the id from the url
+        @return:
+        """
         if not self.valid:
             return None
         return re.search(VariableStore.youtube_video_pattern, self.url).group(

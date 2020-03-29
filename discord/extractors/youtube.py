@@ -1,5 +1,9 @@
+"""
+YouTube
+"""
 import json
 
+from typing import List
 import aiohttp
 
 import logging_manager
@@ -13,16 +17,26 @@ from bot.type.exceptions import (
 from bot.type.song import Song
 from bot.type.variable_store import VariableStore
 
-log = logging_manager.LoggingManager()
+LOG = logging_manager.LoggingManager()
 
 
 class Youtube:
+    """
+    YouTube
+    """
+
     def __init__(self, node_controller: Controller):
-        log.debug("[Startup]: Initializing YouTube Module . . .")
+        LOG.debug("[Startup]: Initializing YouTube Module . . .")
         self.session = aiohttp.ClientSession()
         self.node_controller = node_controller
 
-    async def youtube_term(self, song: (Song, str), service: str):
+    async def youtube_term(self, song: (Song, str), service: str) -> Song:
+        """
+        Extract information from YouTube by Term
+        @param song:
+        @param service: 
+        @return:
+        """
         term = getattr(song, "title", getattr(song, "term", None))
         if not term:
             raise NoResultsFound(Errors.no_results_found)
@@ -47,7 +61,7 @@ class Youtube:
         )
 
         if not response.successful:
-            log.warning(f"[YT-TERM] {url} {response.text}")
+            LOG.warning(f"[YT-TERM] {url} {response.text}")
             raise SongExtractionException()
 
         song_dict: dict = json.loads(response.text)
@@ -56,7 +70,13 @@ class Youtube:
         song: Song = Song.from_dict(song_dict)
         return song
 
-    async def youtube_url(self, url, guild_id: int):
+    async def youtube_url(self, url, guild_id: int) -> Song:
+        """
+        Extract information from YouTube by url
+        @param url:
+        @param guild_id:
+        @return:
+        """
         url = VariableStore.youtube_url_to_id(url)
         node: Node = self.node_controller.get_best_node(guild_id)
 
@@ -65,7 +85,7 @@ class Youtube:
         )
 
         if not response.successful:
-            log.warning(f"[YT-URL] {url} {response.text}")
+            LOG.warning(f"[YT-URL] {url} {response.text}")
             raise SongExtractionException()
 
         song_dict: dict = json.loads(response.text)
@@ -75,7 +95,12 @@ class Youtube:
         song: Song = Song.from_dict(song_dict)
         return song
 
-    async def youtube_playlist(self, url):
+    async def youtube_playlist(self, url: str) -> List[Song]:
+        """
+        Extract information from YouTube by Playlist url
+        @param url:
+        @return:
+        """
         url = VariableStore.youtube_url_to_id(url)
         node: Node = self.node_controller.get_best_node()
 
@@ -87,10 +112,10 @@ class Youtube:
             raise PlaylistExtractionException()
 
         songs = []
-        for t in json.loads(response.text):
-            s = Song()
-            s.title = t["title"]
-            s.link = t["link"]
-            songs.append(s)
+        for track in json.loads(response.text):
+            song = Song()
+            song.title = track["title"]
+            song.link = track["link"]
+            songs.append(song)
 
         return songs

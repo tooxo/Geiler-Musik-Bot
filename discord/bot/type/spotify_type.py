@@ -49,7 +49,7 @@ class SpotifyType:
         return None
 
     @property
-    def id(self) -> Optional[str]:
+    def id(self) -> Optional[str]:  # pylint: disable=invalid-name
         """
         Extract the id from the provided url
         @return:
@@ -62,5 +62,4 @@ class SpotifyType:
             return re.search(VariableStore.spotify_uri_pattern, self.url).group(
                 "id"
             )
-        if self.type is None:
-            return None
+        return None

@@ -1,9 +1,17 @@
+"""
+VariableStore
+"""
 # -*- coding: utf-8 -*-
 
 import re
 
 
-def strip_youtube_title(title):
+def strip_youtube_title(title: str) -> str:
+    """
+    Strip unnecessary information from YouTube titles
+    @param title:
+    @return:
+    """
     title = re.sub(VariableStore.youtube_title_pattern, "", title)
     title = re.sub(VariableStore.space_cut_pattern, "", title)
     title = re.sub(VariableStore.empty_brackets_pattern, "", title)
@@ -13,6 +21,9 @@ def strip_youtube_title(title):
 
 
 class VariableStore:
+    """
+    VariableStore
+    """
     spotify_url_pattern = re.compile(
         r"^(http(s)?://)?"
         r"(open\.|play\.)"
@@ -42,7 +53,8 @@ class VariableStore:
 
     youtube_title_pattern = re.compile(
         r"([\[(]?"
-        r"(((official )?lyric(s)?( video)?)|of(f)?icial (music )?video|(of(f)?icial )?audio|"
+        r"(((official )?lyric(s)?( video)?)|of(f)?icial (music )?video|"
+        r"(of(f)?icial )?audio|"
         r"video oficial| [24]K|((FULL[ -]?)HD)|(MV))"
         r"[\])]?)",
         re.MULTILINE | re.IGNORECASE,
@@ -53,7 +65,8 @@ class VariableStore:
     )
 
     soundcloud_url_pattern = re.compile(
-        r"https?://(?:w\.|www\.|)(?:soundcloud\.com/)(?:|)(((\w|-)[^A-z]{7})|([A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*(?!"
+        r"https?://(?:w\.|www\.|)(?:soundcloud\.com/)(?:|)"
+        r"(((\w|-)[^A-z]{7})|([A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*(?!"
         r"/sets(?:/|$))(?:/[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*){1,2}))",
         re.MULTILINE | re.IGNORECASE,
     )
@@ -69,7 +82,8 @@ class VariableStore:
     """
     youtube_title_pattern = re.compile(
         r"[[(]?"
-        r"(((official )?lyric(s)?( video)?|of(f)?icial (music )?video|video oficial|[24]K|(FULL[ -]?)?HD)|(MV)?)+"
+        r"(((official )?lyric(s)?( video)?|of(f)?icial (music )?video|video 
+        oficial|[24]K|(FULL[ -]?)?HD)|(MV)?)+"
         r"[])]?",
         re.IGNORECASE,
     )
@@ -79,11 +93,16 @@ class VariableStore:
 
     @staticmethod
     def youtube_url_to_id(url):
+        """
+        Extract the Id from the YouTube url
+        @param url:
+        @return:
+        """
         if VariableStore.watch_url_pattern.match(url) is not None:
             return url
-        m = VariableStore.youtube_video_pattern.match(url)
-        if m:
-            if "id2" in m.groupdict() and m.groupdict()["id2"] is not None:
-                return m.group("id2")
-            return m.group("id")
+        match = VariableStore.youtube_video_pattern.match(url)
+        if match:
+            if "id2" in match.groupdict() and match.groupdict()["id2"] is not None:
+                return match.group("id2")
+            return match.group("id")
         return None

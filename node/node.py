@@ -69,16 +69,18 @@ class YouTube:
         :return:
         """
         manifest_pattern = re.compile(
-            r"<Representation id=\"\d+\" codecs=\"\S+\" audioSamplingRate=\"(\d+)\" startWithSAP=\"\d\" "
-            r"bandwidth=\"\d+\">(<AudioChannelConfiguration[^/]+/>)?<BaseURL>(\S+)</BaseURL>"
+            r"<Representation id=\"\d+\" codecs=\"\S+\" "
+            r"audioSamplingRate=\"(\d+)\" startWithSAP=\"\d\" "
+            r"bandwidth=\"\d+\">(<AudioChannelConfiguration"
+            r"[^/]+/>)?<BaseURL>(\S+)</BaseURL>"
         )
         print("extracting from manifest:", manifest_url)
         async with aiohttp.request("GET", manifest_url) as res:
             text = (await res.read()).decode()
-            it = re.finditer(manifest_pattern, text)
+            iterator = re.finditer(manifest_pattern, text)
             return_stream_url = ""
             return_sample_rate = 0
-            for match in it:
+            for match in iterator:
                 if int(match.group(1)) >= return_sample_rate:
                     return_stream_url = match.group(3)
                     return_sample_rate = int(match.group(1))
@@ -92,14 +94,26 @@ class YouTube:
         :return:
         """
         if formats.get_by_itag(250):
-            f = formats.get_by_itag(250)
-            return f.url, f.audio_codec, f.abr[:-4]
+            extracted_format = formats.get_by_itag(250)
+            return (
+                extracted_format.url,
+                extracted_format.audio_codec,
+                extracted_format.abr[:-4],
+            )
         if formats.get_by_itag(251):
-            f = formats.get_by_itag(251)
-            return f.url, f.audio_codec, f.abr[:-4]
+            extracted_format = formats.get_by_itag(251)
+            return (
+                extracted_format.url,
+                extracted_format.audio_codec,
+                extracted_format.abr[:-4],
+            )
         if formats.get_by_itag(249):
-            f = formats.get_by_itag(249)
-            return f.url, f.audio_codec, f.abr[:-4]
+            extracted_format = formats.get_by_itag(249)
+            return (
+                extracted_format.url,
+                extracted_format.audio_codec,
+                extracted_format.abr[:-4],
+            )
         return (
             formats.filter(only_audio=True).first().url,
             formats.filter(only_audio=True).first().audio_codec,
@@ -119,14 +133,15 @@ class YouTube:
             if self.research_cache.get(video_id, None) is not None:
                 return self.research_cache.get(video_id)
             ydl = await pytube.YouTube.create(url)
-            yt_s, c, abr = self.get_format(ydl.streams)
-            # preferring format 250: 78k bitrate (discord default = 64, max = 96) + already opus formatted
+            yt_s, codec_name, abr = self.get_format(ydl.streams)
+            # preferring format 250: 78k bitrate
+            # (discord default = 64, max = 96) + already opus formatted
             song = {
                 "link": url,
                 "id": ydl.video_id,
                 "title": ydl.title,
                 "stream": yt_s,
-                "codec": c,
+                "codec": codec_name,
                 "abr": abr,
                 "duration": ydl.length,
                 "thumbnail": ydl.thumbnail_url,
@@ -169,8 +184,11 @@ class YouTube:
         if term in self.search_cache:
             return self.search_cache[term]
         query = quote(term)
-        url = f"https://www.youtube.com/results?search_query={query}%2C+video&pbj=1"
-        for x in range(0, 2, 1):
+        url = (
+            f"https://www.youtube.com/results?search_query="
+            f"{query}%2C+video&pbj=1"
+        )
+        for _ in range(0, 2, 1):
             url_list = []
             async with aiohttp.request(
                 "GET",
@@ -256,15 +274,20 @@ class YouTube:
         """
         if term in self.music_search_cache:
             return self.music_search_cache[term]
-        url = "https://music.youtube.com/youtubei/v1/search?alt=json&key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30"
-        for x in range(1, 2, 1):
+        url = (
+            "https://music.youtube.com/youtubei/v1/search"
+            "?alt=json&key=AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30"
+        )
+        for _ in range(1, 2, 1):
             async with aiohttp.request(
                 "POST",
                 url=url,
                 headers={
-                    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
                     "Chrome/80.0.3987.87 Safari/537.36",
-                    "Referer": f"https://music.youtube.com/search?q={quote(term)}",
+                    "Referer": f"https://music.youtube.com/search"
+                    f"?q={quote(term)}",
                     "Content-Type": "application/json",
                 },
                 data=self._create_music_payload(query=term).encode(),
@@ -312,10 +335,12 @@ class SoundCloud:
 
     COMMON_HEADERS = {
         "Host": "api-v2.soundcloud.com",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/70.0.3538.27 Safari/537.36",
         "Accept-Charset": "utf-8",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept": "text/html,application/xhtml+xml,application/"
+        "xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-us,en;q=0.5",
         "Connection": "close",
     }
@@ -338,10 +363,14 @@ class SoundCloud:
 
     @staticmethod
     def _decide_on_format(formats: dict):
-        for f in formats.keys():
-            if "opus" in f:
-                f: str
-                return formats[f], f.split("_")[1], f.split("_")[2]
+        for format_name in formats.keys():
+            if "opus" in format_name:
+                format_name: str
+                return (
+                    formats[format_name],
+                    format_name.split("_")[1],
+                    format_name.split("_")[2],
+                )
         return (
             formats[0],
             list(formats.keys())[0].split("_")[1],
@@ -511,15 +540,15 @@ class Node:
             sys.exit(1)
         file = open(filename, "r")
         try:
-            y = safe_load(file)
+            loaded_yaml = safe_load(file)
         except YAMLError as ex:
             print(ex)
             sys.exit(1)
 
-        self.parent_host = y.get("parent_host", "")
-        self.parent_port = y.get("parent_port", "")
+        self.parent_host = loaded_yaml.get("parent_host", "")
+        self.parent_port = loaded_yaml.get("parent_port", "")
 
-        self.api_key = y.get("API_KEY", "API_KEY")
+        self.api_key = loaded_yaml.get("API_KEY", "API_KEY")
 
         self.youtube = YouTube()
         self.soundcloud = SoundCloud()
@@ -543,7 +572,7 @@ class Node:
 
         # noinspection PyUnusedLocal
         @self.client.add_route(route="identify")
-        def _identify(request: Request):
+        def _identify(request: Request):  # pylint: disable=unused-argument
             return json.dumps({"API_KEY": self.api_key})
 
         @self.client.add_route(route="accepted")

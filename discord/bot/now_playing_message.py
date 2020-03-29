@@ -16,12 +16,14 @@ if typing.TYPE_CHECKING:
     from bot.type.song import Song
 
 
-class NowPlayingMessage(object):
+class NowPlayingMessage:
     """
     NowPlayingMessage
     """
 
-    REACTION_PAUSE: str = "\N{BLACK RIGHT-POINTING TRIANGLE WITH DOUBLE VERTICAL BAR}"
+    REACTION_PAUSE: str = (
+        "\N{BLACK RIGHT-POINTING TRIANGLE WITH DOUBLE VERTICAL BAR}"
+    )
     REACTION_NEXT: str = "\N{BLACK RIGHT-POINTING DOUBLE TRIANGLE}"
 
     def __init__(self, ctx: commands.Context, parent: "DiscordBot") -> None:
@@ -54,13 +56,14 @@ class NowPlayingMessage(object):
                 discord.Forbidden,
                 discord.HTTPException,
                 AttributeError,
-            ) as e:
+            ):
                 return False
         return False
 
     def calculate_recurrences(self) -> bool:
         """
-        calculates if the message will update more than 75 times to stop on long songs
+        calculates if the message will update more than 75 times to
+        stop on long songs
         :return: bool if too big
         """
         if hasattr(self._song, "duration"):
@@ -138,6 +141,7 @@ class NowPlayingMessage(object):
                         self._stop = True
             except AttributeError:
                 return False
+            return True
 
         if self.message:
             try:
@@ -168,7 +172,7 @@ class NowPlayingMessage(object):
             return
         try:
             voice_client = self.parent.guilds[self.ctx.guild.id].voice_client
-            if not (voice_client.is_paused()):
+            if not voice_client.is_paused():
                 now_time = round(self.bytes_read / 192000)
                 finish_second = int(
                     self.parent.guilds[self.ctx.guild.id].now_playing.duration
@@ -223,8 +227,10 @@ class NowPlayingMessage(object):
             AttributeError,
             discord.HTTPException,
             RecursionError,
-        ) as e:
-            self.parent.log.warning(logging_manager.debug_info(e))
+        ) as thrown_exception:
+            self.parent.log.warning(
+                logging_manager.debug_info(thrown_exception)
+            )
             return
         await asyncio.sleep(5)
         if self._stop is False:
@@ -276,6 +282,7 @@ class NowPlayingMessage(object):
         This gets called after a song is finished.
         :return:
         """
+        # noinspection PyBroadException
         try:
             self._stop = True
             self._song = None
@@ -286,5 +293,5 @@ class NowPlayingMessage(object):
                 self._remove_reaction_manager.cancel()
             if len(self.parent.guilds[self.ctx.guild.id].song_queue.queue) == 0:
                 await self._delete_message()
-        except Exception as e:
+        except Exception:
             print(traceback.format_exc())

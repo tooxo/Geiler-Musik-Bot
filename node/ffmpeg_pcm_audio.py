@@ -1,3 +1,6 @@
+"""
+FFmpegPCMAudio
+"""
 import audioop
 
 from discord import FFmpegPCMAudio
