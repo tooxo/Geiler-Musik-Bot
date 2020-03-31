@@ -6,7 +6,7 @@ import json
 import logging
 import re
 import traceback
-from typing import Dict, Optional, Tuple, Type
+from typing import Dict, Optional, Tuple, Type, Union
 from urllib.parse import parse_qs
 
 from karp.client import KARPClient
@@ -22,8 +22,7 @@ class Guild:
     Guild
     """
 
-    def __init__(self, voice_client: discord.VoiceClient):
-        self.voice_client: discord.voice_client = voice_client
+    def __init__(self) -> None:
         self.updater: Optional[asyncio.Future] = None
 
 
@@ -121,8 +120,12 @@ class DiscordHandler:
         :param guild_id: guild_id
         :return:
         """
-        voice_client: discord.VoiceClient = self.guilds[guild_id].voice_client
-        source: ffmpeg_pcm_audio.FFmpegPCMAudioB = voice_client.source
+        voice_client: discord.VoiceClient = self.bot.get_guild(
+            guild_id
+        ).voice_client
+        source: Union[
+            ffmpeg_pcm_audio.FFmpegPCMAudioB, av_audio_source.AvAudioSource
+        ] = voice_client.source
         while voice_client.is_playing() or voice_client.is_paused():
             await asyncio.sleep(2)
             if not voice_client.is_paused():
@@ -163,7 +166,9 @@ class DiscordHandler:
             print("play_error", traceback.format_exc(error))
         document = {
             "guild_id": guild_id,
-            "connected": self.guilds[guild_id].voice_client.is_connected(),
+            "connected": self.bot.get_guild(
+                guild_id
+            ).voice_client.is_connected(),
         }
         asyncio.new_event_loop().run_until_complete(
             self.client.request(
@@ -203,8 +208,8 @@ class DiscordHandler:
         if not data["reconnect"]:
             return
 
-        voice_channel = await channel.connect()
-        self.guilds[channel.guild.id] = Guild(voice_channel)
+        await channel.connect()
+        self.guilds[channel.guild.id] = Guild()
 
     async def disconnect(self, data) -> None:
         """
@@ -214,7 +219,7 @@ class DiscordHandler:
         """
         # guild_id
         data = json.loads(data)
-        await self.guilds[data["guild_id"]].voice_client.disconnect()
+        await self.bot.get_guild(data["guild_id"]).voice_client.disconnect()
 
     async def play(self, data) -> None:
         """
@@ -225,7 +230,7 @@ class DiscordHandler:
         # guild_id, stream, volume, codec
         data = json.loads(data)
         new_stream, before_args, player = self.decide_on_stream_and_player(data)
-        self.guilds[data["guild_id"]].voice_client.play(
+        self.bot.get_guild(data["guild_id"]).voice_client.play(
             source=player(
                 source=new_stream,
                 volume=data["volume"],
@@ -246,20 +251,17 @@ class DiscordHandler:
         # guild_id, stream, volume, cipher, seconds, direction
         data = json.loads(data)
 
-        if isinstance(
-            self.guilds[data["guild_id"]].voice_client.source,
-            av_audio_source.AvAudioSource,
-        ):
+        voice_client: discord.VoiceClient = self.bot.get_guild(
+            data["guild_id"]
+        ).voice_client
+
+        if isinstance(voice_client.source, av_audio_source.AvAudioSource):
             if data["direction"] == "back":
                 data["seconds"] *= -1
-            self.guilds[data["guild_id"]].voice_client.source.seek(
-                data["seconds"]
-            )
+            voice_client.source.seek(data["seconds"])
             document = {
                 "guild_id": data["guild_id"],
-                "bytes_read": self.guilds[
-                    data["guild_id"]
-                ].voice_client.source.bytes_read,
+                "bytes_read": voice_client.source.bytes_read,
             }
             await self.client.request(
                 "discord_bytes", json.dumps(document), response=False
@@ -274,7 +276,7 @@ class DiscordHandler:
 
             # current state in seconds
             current_state = (
-                self.guilds[data["guild_id"]].voice_client.source.bytes_read
+                voice_client.source.bytes_read
                 * 0.02
                 / discord.opus.Encoder.FRAME_SIZE
             )
@@ -290,7 +292,7 @@ class DiscordHandler:
                             int(float(parse_qs(data["stream"])["dur"][0]))
                             < new_state
                         ):
-                            self.guilds[data["guild_id"]].voice_client.stop()
+                            voice_client.stop()
                             return
                     except KeyError:
                         pass
@@ -298,17 +300,17 @@ class DiscordHandler:
             # this overrides the after, because it would start the
             # next song while seeking
             # noinspection PyProtectedMember
-            self.guilds[  # pylint: disable=protected-access
-                data["guild_id"]
-            ].voice_client._player.after = None
-            self.guilds[data["guild_id"]].voice_client.stop()
+            voice_client._player.after = (  # pylint: disable=protected-access
+                None
+            )
+            voice_client.stop()
 
             # kills the updater function, because it would not update
             # anything anymore
             self.guilds[data["guild_id"]].updater.cancel()
 
             # restart the song at a new position
-            self.guilds[data["guild_id"]].voice_client.play(
+            voice_client.play(
                 source=ffmpeg_pcm_audio.FFmpegPCMAudioB(
                     new_stream,
                     volume=data["volume"],
@@ -320,7 +322,7 @@ class DiscordHandler:
             )
 
             # set the bytes_read to the new state
-            self.guilds[data["guild_id"]].voice_client.source.bytes_read = int(
+            voice_client.source.bytes_read = int(
                 new_state * 50 * discord.opus.Encoder.FRAME_SIZE
             )
 
@@ -337,11 +339,11 @@ class DiscordHandler:
         """
         # guild_id
         data = json.loads(data)
-        if (
-            self.guilds[data["guild_id"]].voice_client.is_playing()
-            or self.guilds[data["guild_id"]].voice_client.is_paused()
-        ):
-            self.guilds[data["guild_id"]].voice_client.stop()
+        voice_client: discord.VoiceClient = self.bot.get_guild(
+            data["guild_id"]
+        ).voice_client
+        if voice_client.is_playing() or voice_client.is_paused():
+            voice_client.stop()
 
     def volume(self, data) -> None:
         """
@@ -351,7 +353,7 @@ class DiscordHandler:
         """
         # guild_id, volume
         data = json.loads(data)
-        self.guilds[data["guild_id"]].voice_client.source.set_volume(
+        self.bot.get_guild(data["guild_id"]).voice_client.source.set_volume(
             data["volume"]
         )
 
@@ -363,7 +365,7 @@ class DiscordHandler:
         """
         # guild_id
         data = json.loads(data)
-        self.guilds[data["guild_id"]].voice_client.pause()
+        self.bot.get_guild(data["guild_id"]).voice_client.pause()
 
     def resume(self, data) -> None:
         """
@@ -373,4 +375,4 @@ class DiscordHandler:
         """
         # guild_id
         data = json.loads(data)
-        self.guilds[data["guild_id"]].voice_client.resume()
+        self.bot.get_guild(data["guild_id"]).voice_client.resume()
