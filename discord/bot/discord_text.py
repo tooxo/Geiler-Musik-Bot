@@ -2,9 +2,8 @@
 Text
 """
 import discord
-from discord.ext import commands
-
 import logging_manager
+from discord.ext import commands
 
 
 class TextResponse(commands.Cog, name="Support"):

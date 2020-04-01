@@ -5,11 +5,10 @@ TTS (not yet implemented)
 from typing import Dict
 from urllib.parse import quote
 
-from discord.ext import commands
-
 from bot.type.guild import Guild
 from bot.type.queue import Queue
 from bot.type.song import Song
+from discord.ext import commands
 
 
 def check_tts_requirements(ctx, *args, **kwargs):

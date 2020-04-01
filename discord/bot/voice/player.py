@@ -8,9 +8,6 @@ import traceback
 from typing import TYPE_CHECKING, Dict, List, Optional, Type
 
 import discord
-from discord.ext import commands
-from discord.ext.commands import Cog
-
 import logging_manager
 from bot.node_controller.controller import NoNodeReadyException
 from bot.node_controller.node_voice_client import NodeVoiceChannel
@@ -30,6 +27,8 @@ from bot.type.url import Url
 from bot.type.variable_store import VariableStore
 from bot.type.youtube_type import YouTubeType
 from bot.voice.checks import Checks
+from discord.ext import commands
+from discord.ext.commands import Cog
 
 if TYPE_CHECKING:
     from bot.discord_music import (  # pylint: disable=ungrouped-imports

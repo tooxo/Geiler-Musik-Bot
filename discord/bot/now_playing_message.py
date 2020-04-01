@@ -8,9 +8,8 @@ import typing
 from os import environ
 
 import discord
-from discord.ext import commands
-
 import logging_manager
+from discord.ext import commands
 
 if typing.TYPE_CHECKING:
     from bot.discord_music import DiscordBot
