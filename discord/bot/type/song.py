@@ -64,8 +64,6 @@ class Song:
             self.artist = artist
             self.guild_id = guild_id
 
-        self.cipher = ""
-
     @property
     def image(self):
         """

@@ -1,5 +1,5 @@
 """
-TTS
+TTS (not yet implemented)
 """
 # pylint: skip-file
 from typing import Dict
@@ -51,7 +51,6 @@ class TTS(commands.Cog):
                     {
                         "guild_id": ctx.guild.id,
                         "stream": f"{self.tts_base_url}{quoted}",
-                        "cipher": "",
                     }
                 )
                 self.tts_queue.put_nowait(song)

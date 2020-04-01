@@ -248,7 +248,7 @@ class DiscordHandler:
         :param data:
         :return:
         """
-        # guild_id, stream, volume, cipher, seconds, direction
+        # guild_id, stream, volume, seconds, direction
         data = json.loads(data)
 
         voice_client: discord.VoiceClient = self.bot.get_guild(
