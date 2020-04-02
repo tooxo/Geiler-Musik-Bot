@@ -130,8 +130,8 @@ class YouTube:
         # noinspection PyBroadException
         try:
             start = time.time()
-            if self.research_cache.get(video_id, None) is not None:
-                return self.research_cache.get(video_id)
+            # if self.research_cache.get(video_id, None) is not None:
+            #    return self.research_cache.get(video_id)
             ydl = await pytube.YouTube.create(url)
             yt_s, codec_name, abr = self.get_format(ydl.streams)
             # preferring format 250: 78k bitrate
@@ -151,6 +151,12 @@ class YouTube:
             if "manifest" in song["stream"]:
                 # pytube doesn't handle manifest extraction, so I need to do it.
                 song["stream"] = self.extract_manifest(song["stream"])
+            async with aiohttp.request(
+                "HEAD", song["stream"], allow_redirects=False
+            ) as async_request:
+                song["stream"] = async_request.headers.get(
+                    "Location", song["stream"]
+                )
             song["loadtime"] = int(time.time() - start)
             self.research_cache[song["id"]] = song
             del ydl
