@@ -267,7 +267,7 @@ class NodeVoiceChannel(discord.VoiceChannel):
             "reconnect": True,
         }
         await self.node.client.request(
-            "discord_connect", json.dumps(document), response=False
+            "discord_connect", json.dumps(document), response=True
         )
         return NodeVoiceClient(
             self.id, self.guild.id, self.node, self.node_controller
