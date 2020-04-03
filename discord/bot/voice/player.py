@@ -91,7 +91,7 @@ class Player(Cog):
                             )
                         else:
                             self.parent.log.warning(
-                                "Incompatible Song Type: " + _type
+                                f"Incompatible Song Type: {_type}"
                             )
                             return
                     else:

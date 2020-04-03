@@ -8,6 +8,7 @@ import threading
 import time
 import traceback
 from abc import ABC
+from typing import Generator
 
 import av
 import opuslib
@@ -38,10 +39,11 @@ class Buffer:
         """
         try:
             if not (self.complete and self.closed):
-                written_bytes = self.writer.write(data)
-                self.available += written_bytes
-                self.writer.flush()
-                return written_bytes
+                if not self.writer.closed:
+                    written_bytes = self.writer.write(data)
+                    self.available += written_bytes
+                    self.writer.flush()
+                    return written_bytes
         except BrokenPipeError:
             pass
         return 0
@@ -74,7 +76,7 @@ class Buffer:
         Empty the buffer
         :return:
         """
-        self.reader.flush()
+        self.reader.read(self.available)
         self.available = 0
 
     @property
@@ -127,9 +129,10 @@ class AvDecoder:
         self.audio: av.container.InputContainer = av.open(
             stream, "r", timeout=8, options=options
         )
+
         # pylint: disable=c-extension-no-member
         self.audio_stream: av.audio.stream.AudioStream = (
-            self.audio.streams.get(audio=0)[0]
+            self.audio.streams.audio[0]
         )
 
         self.output_buffer: Buffer = Buffer()
@@ -150,21 +153,22 @@ class AvDecoder:
         :return: nothing
         """
         position = 0
-        packets = self.audio.demux(self.audio_stream)
+        packets: Generator[av.Packet, None, None] = self.audio.demux(
+            self.audio_stream
+        )
         for packet in packets:
-            packet: av.Packet
-            if not packet.pts:
-                break
             while not self.output_buffer.free:
                 if self.output_buffer.closed:
                     break
                 time.sleep(0.01)
             if self.output_buffer.closed:
                 break
+            if not packet.pts:
+                continue
             packet.pts = position
             packet.dts = position
             position += packet.duration
-            self.output_container.mux_one(packet)
+            self.output_container.mux(packet)
             del packet
         del packets
         self.output_buffer.complete = True
@@ -188,12 +192,11 @@ class AvDecoder:
         Closes all the streams
         :return:
         """
-        self.audio.close()  # close the audio stream
         # noinspection PyProtectedMember
+        self.audio.close()  # close the audio stream
         self.output_container.close()  # close the output stream
         self.output_buffer.__del__()  # delete the buffers contents from memory
         gc.collect()  # run the garbage collector
-        del self
 
 
 class AvAudioSource(AudioSource, ABC):

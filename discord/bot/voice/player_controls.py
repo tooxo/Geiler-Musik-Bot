@@ -165,7 +165,7 @@ class PlayerControls(Cog, name="Player Controls"):
                     )
             else:
                 await self.parent.send_error_message(
-                    ctx, "Nothing is playing right now!", delete_after=10
+                    ctx, "Nothing is playing.", delete_after=10
                 )
 
         else:

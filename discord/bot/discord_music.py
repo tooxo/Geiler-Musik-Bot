@@ -60,17 +60,12 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         restart_key = self.generate_key(64)
         asyncio.create_task(self.mongo.set_restart_key(restart_key))
 
-        # Fix for OpusNotLoaded Error.
-        if not discord.opus.is_loaded():
-            # this is the default opus installation on ubuntu / debian
-            discord.opus.load_opus("/usr/lib/x86_64-linux-gnu/libopus.so")
-
         self.control_check = Checks(self.bot, self)
 
         self.dbl_key = environ.get("DBL_KEY", "")
 
-        # disconnects all pending clients
-        self._disconnect()
+        # add all servers to the guilds dict
+        self._index()
 
         # start server count
         self._run_dbl_stats()
@@ -221,36 +216,13 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         except (discord.Forbidden, discord.HTTPException, discord.NotFound):
             raise commands.CommandError("Message forbidden.")
 
-    def _disconnect(self) -> None:
+    def _index(self) -> None:
         for _guild in self.bot.guilds:
+            _guild: discord.Guild
             self.guilds[_guild.id] = Guild()
             asyncio.ensure_future(
                 self.guilds[_guild.id].inflate_from_mongo(self.mongo, _guild.id)
             )
-            try:
-                if _guild.me.voice is not None:
-                    if hasattr(_guild.me.voice, "channel"):
-
-                        async def _reconnect(_guild) -> None:
-                            """
-                            Reconnects disconnected clients after restart
-                            :param _guild: guild
-                            :return:
-                            """
-                            self.log.debug(
-                                "[Disconnect] Disconnecting " + str(_guild)
-                            )
-                            _voice = _guild.me.voice.channel
-                            _temporary_voice_client = await _voice.connect(
-                                timeout=5, reconnect=False
-                            )
-                            await _temporary_voice_client.disconnect(force=True)
-
-                        asyncio.run_coroutine_threadsafe(
-                            _reconnect(_guild), self.bot.loop
-                        )
-            except AttributeError:
-                self.log.warning(f"Failed disconnect for ID: {_guild.id}")
 
     def _run_dbl_stats(self) -> None:
         if self.dbl_key != "":
@@ -438,7 +410,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         if self.guilds[ctx.guild.id].now_playing is None:
             embed = discord.Embed(
                 title="Information",
-                description="Nothing is playing right now.",
+                description="Nothing is playing.",
                 color=0x00FFCC,
                 url="https://d.chulte.de",
             )

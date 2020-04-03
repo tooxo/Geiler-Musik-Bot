@@ -287,10 +287,12 @@ class NowPlayingMessage:
             self._stop = True
             self._song = None
             self.bytes_read = 0
-            if not self._add_reaction_manager.cancelled():
-                self._add_reaction_manager.cancel()
-            if not self._remove_reaction_manager.cancelled():
-                self._remove_reaction_manager.cancel()
+            if self._add_reaction_manager:
+                if not self._add_reaction_manager.cancelled():
+                    self._add_reaction_manager.cancel()
+            if self._remove_reaction_manager:
+                if not self._remove_reaction_manager.cancelled():
+                    self._remove_reaction_manager.cancel()
             if len(self.parent.guilds[self.ctx.guild.id].song_queue.queue) == 0:
                 await self._delete_message()
         except Exception:

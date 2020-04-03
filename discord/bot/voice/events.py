@@ -61,12 +61,10 @@ class Events(Cog):
                         and not self.bot.get_guild(guild_id).voice_client
                     ):
                         self.guilds[guild_id].voice_channel = None
-                        if hasattr(self.guilds[guild_id], "voice_client"):
+                        if self.guilds[guild_id].voice_client:
                             await self.guilds[guild_id].voice_client.after()
                         self.guilds[guild_id].voice_client = None
-                        if hasattr(
-                            self.guilds[guild_id], "now_playing_message"
-                        ):
+                        if self.guilds[guild_id].now_playing_message:
                             await self.guilds[
                                 guild_id
                             ].now_playing_message.after_song()

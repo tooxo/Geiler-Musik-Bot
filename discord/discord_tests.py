@@ -28,9 +28,7 @@ class TestClient:
         async def __start_music(interface: TestInterface):
             self.voice_client = await interface.connect(self.voice_channel)
             await asyncio.sleep(1)
-            await interface.assert_reply_equals(
-                ",play despacito luis fonsi", "Loading ..."
-            )
+            await interface.send_message(",p despacito luis fonsi")
             await asyncio.sleep(10)
 
         @self.test_collector()
@@ -57,19 +55,15 @@ class TestClient:
                 ",skip", "Skipped! :track_next:"
             )
             await asyncio.sleep(1)
-            await interface.assert_reply_equals(
-                ",skip", "Nothing is playing right now!"
-            )
+            await interface.assert_reply_equals(",skip", "Nothing is playing.")
             await asyncio.sleep(1)
 
         @self.test_collector()
         async def test_pause_b(interface: TestInterface):
-            await interface.assert_reply_equals(
-                ",pause", "Nothing is playing right now!"
-            )
+            await interface.assert_reply_equals(",pause", "Nothing is playing.")
             await asyncio.sleep(1)
             await interface.assert_reply_equals(
-                ",unpause", "Nothing is playing right now!"
+                ",unpause", "Nothing is playing."
             )
             await asyncio.sleep(1)
 

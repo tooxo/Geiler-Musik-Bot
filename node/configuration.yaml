@@ -1,5 +1,6 @@
 # host / ip address of the parent controller
 parent_host: "discord"
+#parent_host: "localhost"
 
 # port of the parent controller host
 # default: 9988

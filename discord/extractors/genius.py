@@ -8,7 +8,6 @@ from typing import Tuple
 
 import aiohttp
 import async_timeout
-from bs4 import BeautifulSoup
 
 import logging_manager
 from bot.type.errors import Errors
@@ -22,6 +21,17 @@ class Genius:
     """
     Genius
     """
+
+    PATTERN_RAW = re.compile(r"<div class=\"lyrics\">(.*)<!--/sse-->", re.S)
+    PATTERN = re.compile(r"<[^>]*>", re.S)
+    TITLE_PATTERN = re.compile(
+        r"<h1[^>]*header_with_cover_art-primary_info-title[^>]*>(.+)</h1>", re.S
+    )
+    ARTIST_PATTERN = re.compile(
+        r"<a[^>]*header_with_cover_art-primary_info-primary_artist"
+        r"[^>]*>([^<]*)</a>",
+        re.S,
+    )
 
     @staticmethod
     async def search_genius(track_name: str, artist: str):
@@ -68,24 +78,16 @@ class Genius:
                         "Genius search failed with: " + url
                     )
                     raise BasicError(Errors.default)
-                soup = BeautifulSoup(await resp.text(), "html.parser")
-                div = soup.find("div", {"class", "lyrics"})
-                artist = soup.find(
-                    "a",
-                    {
-                        "class": "header_with_cover_art-primary_"
-                        "info-primary_artist"
-                    },
-                ).text
-                title = soup.find(
-                    "h1", {"class": "header_with_cover_art-primary_info-title"}
-                ).text
-                text = div.text
-                text = re.sub(r"<.+>", "", text)
-                return (
-                    LyricsCleanup.clean_up(lyrics=text),
-                    artist + " - " + title,
-                )
+                text = (await resp.read()).decode("UTF-8")
+                matcher = Genius.PATTERN_RAW.search(text)
+                raw_lyrics = matcher.group(1)
+                parsed_lyrics = Genius.PATTERN.sub("", raw_lyrics)
+                artist = Genius.ARTIST_PATTERN.search(text).group(1)
+                title = Genius.TITLE_PATTERN.search(text).group(1)
+            return (
+                LyricsCleanup.clean_up(lyrics=parsed_lyrics),
+                artist + " - " + title,
+            )
 
 
 class LyricsCleanup:
@@ -124,8 +126,10 @@ class LyricsCleanup:
         """
         start_of_line = r"^[ ]+"
         end_of_line = r"[ ]+$"
-        lyrics = re.sub(pattern=start_of_line, string=lyrics, repl="")
-        lyrics = re.sub(pattern=end_of_line, string=lyrics, repl="")
+        lyrics = re.sub(
+            pattern=start_of_line, string=lyrics, repl="", flags=re.M
+        )
+        lyrics = re.sub(pattern=end_of_line, string=lyrics, repl="", flags=re.M)
         return lyrics
 
     @staticmethod

@@ -22,10 +22,10 @@ class NodeVoiceClient:
         self,
         channel_id: int,
         guild_id: int,
-        node: Node,
+        node: Optional[Node],
         node_controller: Controller,
     ):
-        self.node: Node = node
+        self.node: Optional[Node] = node
         self.channel_id: int = channel_id
         self.guild_id: int = guild_id
 
@@ -57,6 +57,7 @@ class NodeVoiceClient:
         @param disconnect_extra:
         @return:
         """
+
         if self.node not in self.node_controller.nodes.values():
             bot: commands.Bot = self.node_controller.parent.bot
             voice_channel: Optional[discord.VoiceChannel] = None
@@ -83,8 +84,18 @@ class NodeVoiceClient:
 
             # connect to the channel now :D
             await self.node.client.request(
-                "discord_connect", json.dumps(document), response=False
+                "discord_connect",
+                json.dumps(document),
+                response=True,
+                timeout=10,
             )
+
+            # put channel and client into the guilds container
+            self.node_controller.guilds[
+                self.guild_id
+            ].voice_channel = voice_channel
+            self.node_controller.guilds[self.guild_id].voice_client = self
+
             if strict:
                 await self.after()
                 return
@@ -92,10 +103,7 @@ class NodeVoiceClient:
         await self.node.client.request(route, message, response=False)
 
     def is_playing(self) -> bool:
-        """
-        Checks if the bot is currently playing
-        @return:
-        """
+        """Checks if the bot is currently playing"""
         return self._is_playing
 
     def is_paused(self) -> bool:
@@ -236,6 +244,9 @@ class NodeVoiceClient:
                 )
             )
 
+    def __str__(self) -> str:
+        return str(self.__dict__)
+
 
 class NodeVoiceChannel(discord.VoiceChannel):
     """
@@ -253,7 +264,7 @@ class NodeVoiceChannel(discord.VoiceChannel):
         self,
         *,
         timeout: int = 60,  # pylint: disable=unused-argument
-        reconnect: bool = True  # pylint: disable=unused-argument
+        reconnect: bool = True,  # pylint: disable=unused-argument
     ) -> NodeVoiceClient:
         """
         Connect the bot to a channel
@@ -261,14 +272,37 @@ class NodeVoiceChannel(discord.VoiceChannel):
         @param reconnect:
         @return:
         """
+
+        _guild = self.node_controller.parent.bot.get_guild(self.guild.id)
+        _voice_channel: Optional[discord.VoiceChannel] = None
+        _prev_npm = self.node_controller.parent.guilds[
+            self.guild.id
+        ].now_playing_message
+        for channel in _guild.voice_channels:
+            if self.node_controller.parent.bot.user in channel.members:
+                _voice_channel = channel
+
         document = {
             "guild_id": self.guild.id,
-            "voice_channel_id": self.id,
+            "voice_channel_id": _voice_channel.id
+            if _voice_channel
+            else self.id,
             "reconnect": True,
         }
         await self.node.client.request(
             "discord_connect", json.dumps(document), response=True
         )
+
+        # put channel and client into the guilds container
+        if _voice_channel:
+            self.node_controller.guilds[
+                self.guild.id
+            ].voice_channel = _voice_channel
+            self.node_controller.guilds[self.guild.id].voice_client = self
+            self.node_controller.guilds[
+                self.guild.id
+            ].now_playing_message = _prev_npm
+
         return NodeVoiceClient(
             self.id, self.guild.id, self.node, self.node_controller
         )

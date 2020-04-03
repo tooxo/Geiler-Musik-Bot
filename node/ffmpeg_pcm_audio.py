@@ -6,7 +6,6 @@ import audioop
 from discord import FFmpegPCMAudio
 from discord.opus import Encoder as OpusEncoder
 
-
 # used in soundcloud only
 class FFmpegPCMAudioB(FFmpegPCMAudio):
     """
