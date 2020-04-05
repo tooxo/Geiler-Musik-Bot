@@ -7,6 +7,7 @@ from typing import Dict
 
 import async_timeout
 
+from bot.now_playing_message import NowPlayingMessage
 from bot.type.guild import Guild
 from bot.type.queue import Queue
 from discord import Member, VoiceState
@@ -71,6 +72,16 @@ class Events(Cog):
                             self.guilds[guild_id].now_playing_message = None
                         self.guilds[guild_id].song_queue = Queue()
                         return
+                    if (
+                        not before.channel
+                        and self.bot.get_guild(guild_id).voice_client
+                    ):
+                        if not self.guilds[guild_id].now_playing_message:
+                            self.guilds[
+                                guild_id
+                            ].now_playing_message = NowPlayingMessage(
+                                self.parent
+                            )
                     if after.channel:
                         # Keep track of channel movements.
                         self.guilds[guild_id].voice_channel = after.channel

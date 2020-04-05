@@ -561,6 +561,11 @@ class Node:
         self.discord = None
 
         self.client = KARPClient(self.parent_host, self.parent_port)
+        self.client.on_disconnect = self._on_disconnect
+
+    @staticmethod
+    def _on_disconnect() -> None:
+        sys.exit(0)
 
     async def login(self) -> None:
         """
@@ -568,7 +573,10 @@ class Node:
         :return:
         """
         self._add_authentication_routes()
-        await self.client.open()
+        future = await self.client.open()
+
+        # add empty function to prevent the traceback from showing on exit
+        future.add_done_callback(print)
 
     def _add_authentication_routes(self) -> None:
         """

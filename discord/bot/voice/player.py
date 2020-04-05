@@ -414,7 +414,7 @@ class Player(Cog):
                     ).connect()
                     self.guilds[
                         ctx.guild.id
-                    ].now_playing_message = NowPlayingMessage(ctx, self.parent)
+                    ].now_playing_message = NowPlayingMessage(self.parent)
             except (
                 TimeoutError,
                 discord.HTTPException,
@@ -568,7 +568,9 @@ class Player(Cog):
         if self.guilds[guild_id].announce:
             if self.guilds[guild_id].now_playing_message:
                 tasks.append(
-                    self.guilds[guild_id].now_playing_message.after_song()
+                    self.guilds[guild_id].now_playing_message.after_song(
+                        ctx=ctx
+                    )
                 )
         tasks.append(_player_wrapper(ctx))
         for task in tasks:
@@ -617,7 +619,9 @@ class Player(Cog):
                             self.song_conclusion, ctx
                         )
             if self.guilds[ctx.guild.id].announce:
-                await self.guilds[ctx.guild.id].now_playing_message.new_song()
+                await self.guilds[ctx.guild.id].now_playing_message.new_song(
+                    ctx=ctx
+                )
         except (Exception, discord.ClientException) as discord_exception:
             self.parent.log.debug(
                 logging_manager.debug_info(

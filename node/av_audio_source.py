@@ -1,7 +1,6 @@
 """
 AvAudioSource
 """
-import audioop
 import gc
 import os
 import threading
@@ -11,7 +10,6 @@ from abc import ABC
 from typing import Generator
 
 import av
-import opuslib
 
 from discord.oggparse import OggStream
 from discord.opus import Encoder as OpusEncoder
@@ -109,7 +107,8 @@ class Buffer:
         equal to 3 seconds of voice
         :return: maximal size
         """
-        return 32000
+        # return 32000
+        return 8000
 
 
 class AvDecoder:
@@ -118,7 +117,7 @@ class AvDecoder:
     """
 
     # noinspection PyUnresolvedReferences
-    def __init__(self, stream: str):
+    def __init__(self, stream: str, volume: float):
         options: dict = dict(
             reconnect_streamed="1",
             reconnect="1",
@@ -130,10 +129,14 @@ class AvDecoder:
             stream, "r", timeout=8, options=options
         )
 
+        self.volume = volume
+
         # pylint: disable=c-extension-no-member
         self.audio_stream: av.audio.stream.AudioStream = (
             self.audio.streams.audio[0]
         )
+
+        self._re_encode: bool = self.audio_stream.codec_context.name != "opus"
 
         self.output_buffer: Buffer = Buffer()
         self.output_container: av.container.OutputContainer = av.open(
@@ -152,24 +155,40 @@ class AvDecoder:
         Thread to fill the buffer
         :return: nothing
         """
-        position = 0
         packets: Generator[av.Packet, None, None] = self.audio.demux(
             self.audio_stream
         )
-        for packet in packets:
+        frames: Generator[av.AudioFrame, None, None] = self.audio.decode(
+            self.audio_stream
+        )
+        while not self.output_buffer.closed:
             while not self.output_buffer.free:
                 if self.output_buffer.closed:
                     break
                 time.sleep(0.01)
             if self.output_buffer.closed:
                 break
-            if not packet.pts:
-                continue
-            packet.pts = position
-            packet.dts = position
-            position += packet.duration
-            self.output_container.mux(packet)
-            del packet
+            if self.volume != 1 or self._re_encode:
+                frame = next(frames)
+                frame.pts = None
+
+                new_frame: av.AudioFrame = av.AudioFrame.from_ndarray(
+                    array=frame.to_ndarray() * self.volume,
+                    format=frame.format.name,
+                    layout=frame.layout.name,
+                )
+                new_frame.rate = frame.rate
+
+                for packet in self.output_stream.encode(new_frame):
+                    self.output_container.mux(packet)
+                    del packet
+                del frame
+            else:
+                packet = next(packets)
+                if not packet.pts:
+                    continue
+                self.output_container.mux(packet)
+                del packet
         del packets
         self.output_buffer.complete = True
 
@@ -193,9 +212,9 @@ class AvDecoder:
         :return:
         """
         # noinspection PyProtectedMember
-        self.audio.close()  # close the audio stream
         self.output_container.close()  # close the output stream
         self.output_buffer.__del__()  # delete the buffers contents from memory
+        self.audio.close()  # close the audio stream
         gc.collect()  # run the garbage collector
 
 
@@ -222,17 +241,10 @@ class AvAudioSource(AudioSource, ABC):
         self.source = source
         self.volume = volume
 
-        self.decoder = AvDecoder(self.source)
+        self.decoder = AvDecoder(self.source, volume)
         self.stream = OggStream(self.decoder.output_buffer)
         self.iter = self.stream.iter_packets()
         self.bytes_read = 0
-
-        self.opus_decoder = opuslib.Decoder(
-            OpusEncoder.SAMPLING_RATE, OpusEncoder.CHANNELS
-        )
-        self.opus_encoder = opuslib.Encoder(
-            OpusEncoder.SAMPLING_RATE, OpusEncoder.CHANNELS, "audio"
-        )
 
     def read(self) -> bytes:
         """
@@ -242,20 +254,8 @@ class AvAudioSource(AudioSource, ABC):
         self.bytes_read += OpusEncoder.FRAME_SIZE
         chunk = next(self.iter, b"")
         if chunk == b"":
-            # without this, the music won't ever stop :o
+            # dk why this is needed but okay
             return chunk
-        try:
-            if self.volume != 1.0:
-                # shitty solution, but there is no better way.
-                decoded = self.opus_decoder.decode(
-                    chunk, OpusEncoder.SAMPLES_PER_FRAME, False
-                )
-                decoded = audioop.mul(decoded, 1, self.volume)
-                chunk = self.opus_encoder.encode(
-                    decoded, OpusEncoder.SAMPLES_PER_FRAME
-                )
-        except opuslib.OpusError:
-            pass
         return chunk
 
     def is_opus(self) -> bool:  # pylint: disable=no-self-use
@@ -278,6 +278,7 @@ class AvAudioSource(AudioSource, ABC):
         :return:
         """
         self.volume = volume
+        self.decoder.volume = volume
 
     def seek(self, seconds: int):
         """

@@ -8,23 +8,23 @@
 
 > Playing Songs
 
-| Feature                | Covered with Test | Test Name |
-| ---------------------- | ----------------- | --------- |
-| youtube url            | True             | youtube_url       |
-| youtube playlist       | True             | youtube_playlist       |
-| spotify track          | True             | spotify_track       |
-| spotify album          | True             | spotify_album       |
-| spotify artist         | True             | spotify_artist       |
-| spotify playlist       | True             | spotify_playlist       |
-| term search            | True             | youtube_term       |
-| user is not in channel | True             | NaN       |
-| queue a song           | True             | queue       |
+| Feature                | Covered with Test | Test Name        |
+| ---------------------- | ----------------- | ---------------- |
+| youtube url            | True              | youtube_url      |
+| youtube playlist       | True              | youtube_playlist |
+| spotify track          | True              | spotify_track    |
+| spotify album          | True              | spotify_album    |
+| spotify artist         | True              | spotify_artist   |
+| spotify playlist       | True              | spotify_playlist |
+| term search            | True              | youtube_term     |
+| user is not in channel | True              | NaN              |
+| queue a song           | True              | queue            |
 
 > Pause a song
 
 | Feature                       | Covered with Test | Test Name    |
 | ----------------------------- | ----------------- | ------------ |
-| Pause                         | True              | test_pause   |
+| pause                         | True              | test_pause   |
 | pause when nothing is playing | True              | test_pause_b |
 | pause when already paused     | True              | test_pause   |
 
@@ -32,7 +32,7 @@
 
 | Feature                        | Covered with Test | Test Name    |
 | ------------------------------ | ----------------- | ------------ |
-| Resume                         | True              | test_unpause |
+| resume                         | True              | test_unpause |
 | resume when nothing is playing | True              | test_resume  |
 | resume when nothing is playing | True              | test_pause_b |
 
@@ -40,9 +40,9 @@
 
 | Feature                      | Covered with Test | Test Name |
 | ---------------------------- | ----------------- | --------- |
-| Skip                         | True              | test_skip |
-| Skip multiple                | False             | NaN       |
-| Skip when nothing is running | True              | test_skip |
+| skip                         | True              | test_skip |
+| skip multiple                | False             | NaN       |
+| skip when nothing is running | True              | test_skip |
 
 > Special Play
 
@@ -66,10 +66,10 @@
 
 > Queue
 
-| Feature          | Covered with Test | Test Name |
-| ---------------- | ----------------- | --------- |
-| show queue       | True             | test_queue_full       |
-| show empty queue | True             | test_queue_empty       |
+| Feature          | Covered with Test | Test Name        |
+| ---------------- | ----------------- | ---------------- |
+| show queue       | True              | test_queue_full  |
+| show empty queue | True              | test_queue_empty |
 
 > Clear queue
 
@@ -80,10 +80,10 @@
 
 > Shuffle Queue
 
-| Feature            | Covered with Test | Test Name |
-| ------------------ | ----------------- | --------- |
-| Shuffle            | True             | test_shuffle       |
-| Shuffle when empty | True             | test_shuffle_empty       |
+| Feature            | Covered with Test | Test Name          |
+| ------------------ | ----------------- | ------------------ |
+| Shuffle            | True              | test_shuffle       |
+| Shuffle when empty | True              | test_shuffle_empty |
 
 > Other
 
@@ -99,7 +99,7 @@
 
 | Feature                    | Covered with Test | Test Name |
 | -------------------------- | ----------------- | --------- |
-| Spotify URL Verification   | True              | tba       |
-| Spotify URI Verification   | True              | tba       |
-| YouTube URL Verification   | True              | tba       |
-| YouTube Title Verification | True              | tba       |
+| Spotify URL Verification   | True              | unit      |
+| Spotify URI Verification   | True              | unit      |
+| YouTube URL Verification   | True              | unit      |
+| YouTube Title Verification | True              | unit      |

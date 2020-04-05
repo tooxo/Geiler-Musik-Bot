@@ -26,8 +26,7 @@ class NowPlayingMessage:
     )
     REACTION_NEXT: str = "\N{BLACK RIGHT-POINTING DOUBLE TRIANGLE}"
 
-    def __init__(self, ctx: commands.Context, parent: "DiscordBot") -> None:
-        self.ctx: commands.Context = ctx
+    def __init__(self, parent: "DiscordBot") -> None:
         self.parent: "DiscordBot" = parent
         self.message: typing.Optional[discord.Message] = None
         self.no_embed_mode = environ.get("USE_EMBEDS", "True") == "False"
@@ -40,6 +39,7 @@ class NowPlayingMessage:
 
         self._add_reaction_manager: typing.Optional[asyncio.Future] = None
         self._remove_reaction_manager: typing.Optional[asyncio.Future] = None
+        self.ctx: typing.Optional[commands.Context] = None
 
     async def _validate_message(self) -> bool:
         """
@@ -79,10 +79,12 @@ class NowPlayingMessage:
             except (discord.NotFound, discord.Forbidden, discord.HTTPException):
                 pass
 
-    def _same_channel_check(self, user: discord.Member) -> bool:
+    def _same_channel_check(
+        self, user: discord.Member, ctx: commands.Context
+    ) -> bool:
         try:
             return (
-                self.parent.guilds[self.ctx.guild.id].voice_client.channel_id
+                self.parent.guilds[ctx.guild.id].voice_client.channel_id
                 == user.voice.channel.id
             )
         except AttributeError:
@@ -92,7 +94,7 @@ class NowPlayingMessage:
     def _run_coroutine(coroutine: typing.Coroutine) -> typing.Any:
         asyncio.run_coroutine_threadsafe(coroutine, asyncio.get_event_loop())
 
-    async def _add_reactions(self) -> bool:
+    async def _add_reactions(self, ctx: commands.Context) -> bool:
         def _remove_check(reaction: discord.Reaction, user: discord.Member):
             if not self.message:
                 return False
@@ -100,11 +102,9 @@ class NowPlayingMessage:
                 if (
                     reaction.message.id == self.message.id
                     and self.parent.bot.user.id != user.id
-                    and self._same_channel_check(user=user)
+                    and self._same_channel_check(user=user, ctx=ctx)
                 ):
-                    voice_client = self.parent.guilds[
-                        self.ctx.guild.id
-                    ].voice_client
+                    voice_client = self.parent.guilds[ctx.guild.id].voice_client
                     if reaction.emoji == self.REACTION_PAUSE:
                         if voice_client.is_paused():
                             self._run_coroutine(voice_client.resume())
@@ -126,11 +126,9 @@ class NowPlayingMessage:
                 if (
                     reaction.message.id == self.message.id
                     and self.parent.bot.user.id != user.id
-                    and self._same_channel_check(user=user)
+                    and self._same_channel_check(user=user, ctx=ctx)
                 ):
-                    voice_client = self.parent.guilds[
-                        self.ctx.guild.id
-                    ].voice_client
+                    voice_client = self.parent.guilds[ctx.guild.id].voice_client
                     if reaction.emoji == self.REACTION_PAUSE:
                         if voice_client.is_paused():
                             self._run_coroutine(voice_client.resume())
@@ -167,15 +165,15 @@ class NowPlayingMessage:
         )
         return True
 
-    async def _update(self) -> None:
+    async def _update(self, ctx: commands.Context) -> None:
         if self._stop is True:
             return
         try:
-            voice_client = self.parent.guilds[self.ctx.guild.id].voice_client
+            voice_client = self.parent.guilds[ctx.guild.id].voice_client
             if not voice_client.is_paused():
                 now_time = round(self.bytes_read / 192000)
                 finish_second = int(
-                    self.parent.guilds[self.ctx.guild.id].now_playing.duration
+                    self.parent.guilds[ctx.guild.id].now_playing.duration
                 )
                 description = (
                     "`"
@@ -185,7 +183,7 @@ class NowPlayingMessage:
                         "%H:%M:%S",
                         time.gmtime(
                             self.parent.guilds[
-                                self.ctx.guild.id
+                                ctx.guild.id
                             ].now_playing.duration
                         ),
                     )
@@ -199,10 +197,10 @@ class NowPlayingMessage:
                 count = percentage / 4
                 hashes = ""
                 while count > 0:
-                    hashes += self.parent.guilds[self.ctx.guild.id].full
+                    hashes += self.parent.guilds[ctx.guild.id].full
                     count -= 1
                 while len(hashes) < 25:
-                    hashes += self.parent.guilds[self.ctx.guild.id].empty
+                    hashes += self.parent.guilds[ctx.guild.id].empty
                 hashes += " " + str(percentage) + "%"
 
                 embed2 = discord.Embed(
@@ -221,7 +219,7 @@ class NowPlayingMessage:
                 if self._stop is False:
                     while voice_client.is_paused():
                         await asyncio.sleep(0.1)
-                    await self._update()
+                    await self._update(ctx=ctx)
         except (
             TypeError,
             AttributeError,
@@ -234,14 +232,20 @@ class NowPlayingMessage:
             return
         await asyncio.sleep(5)
         if self._stop is False:
-            await self._update()
+            await self._update(ctx=ctx)
 
-    async def new_song(self) -> None:
+    async def new_song(
+        self, ctx: typing.Optional[commands.Context] = None
+    ) -> None:
         """
         This gets called, when a new song gets started.
         :return:
         """
-        self._song = self.parent.guilds[self.ctx.guild.id].now_playing
+        if ctx:
+            self.ctx = ctx
+        else:
+            ctx = self.ctx
+        self._song = self.parent.guilds[ctx.guild.id].now_playing
         self._stop = False
         if (
             not self._song.title or self._song.title == "YouTube"
@@ -256,8 +260,7 @@ class NowPlayingMessage:
         embed.set_author(name="Currently Playing:")
         if self.calculate_recurrences():
             embed.add_field(
-                name=self.parent.guilds[self.ctx.guild.id].empty * 25,
-                value=" 0%",
+                name=self.parent.guilds[ctx.guild.id].empty * 25, value=" 0%"
             )
         if await self._validate_message():
             if self.no_embed_mode:
@@ -267,22 +270,26 @@ class NowPlayingMessage:
         else:
             await self._delete_message()
             if self.no_embed_mode:
-                self.message: discord.Message = await self.ctx.send(
-                    content=title
-                )
+                self.message: discord.Message = await ctx.send(content=title)
             else:
-                self.message: discord.Message = await self.ctx.send(embed=embed)
+                self.message: discord.Message = await ctx.send(embed=embed)
         if not self.no_embed_mode:
             if self.calculate_recurrences():
-                asyncio.ensure_future(self._update())
-            await self._add_reactions()
+                asyncio.ensure_future(self._update(ctx=ctx))
+            await self._add_reactions(ctx=ctx)
 
-    async def after_song(self) -> None:
+    async def after_song(
+        self, ctx: typing.Optional[commands.Context] = None
+    ) -> None:
         """
         This gets called after a song is finished.
         :return:
         """
         # noinspection PyBroadException
+        if ctx:
+            self.ctx = ctx
+        else:
+            ctx = self.ctx
         try:
             self._stop = True
             self._song = None
@@ -293,7 +300,7 @@ class NowPlayingMessage:
             if self._remove_reaction_manager:
                 if not self._remove_reaction_manager.cancelled():
                     self._remove_reaction_manager.cancel()
-            if len(self.parent.guilds[self.ctx.guild.id].song_queue.queue) == 0:
+            if len(self.parent.guilds[ctx.guild.id].song_queue.queue) == 0:
                 await self._delete_message()
         except Exception:
             print(traceback.format_exc())

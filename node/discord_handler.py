@@ -6,14 +6,12 @@ import json
 import logging
 import re
 import traceback
-from typing import Dict, Optional, Tuple, Type, Union
-from urllib.parse import parse_qs
+from typing import Dict, Optional, Union
 
 from karp.client import KARPClient
 
 import av_audio_source
 import discord
-import ffmpeg_pcm_audio
 from discord.ext import commands
 
 
@@ -96,26 +94,6 @@ class DiscordHandler:
         pattern = r"[MN][A-Za-z\d]{23}\.[\w-]{6}\.[\w-]{27}"
         return re.match(pattern, token) is not None
 
-    @staticmethod
-    def decide_on_stream_and_player(
-        data: dict
-    ) -> Tuple[str, str, Type[discord.AudioSource]]:
-        """
-        Decide on stream and player
-        :param data:
-        :return:
-        """
-
-        if data["codec"] == "opus":
-            # this is to prevent a segmentation fault caused by playing the
-            # same song twice in a row
-            return data["stream"], "", av_audio_source.AvAudioSource
-        return (
-            data["stream"],
-            "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 3",
-            ffmpeg_pcm_audio.FFmpegPCMAudioB,
-        )
-
     async def update_state(self, guild_id: int) -> None:
         """
         Update the main client with the current bytes read
@@ -125,9 +103,7 @@ class DiscordHandler:
         voice_client: discord.VoiceClient = self.bot.get_guild(
             guild_id
         ).voice_client
-        source: Union[
-            ffmpeg_pcm_audio.FFmpegPCMAudioB, av_audio_source.AvAudioSource
-        ] = voice_client.source
+        source: av_audio_source.AvAudioSource = voice_client.source
         while voice_client.is_playing() or voice_client.is_paused():
             await asyncio.sleep(2)
             if not voice_client.is_paused():
@@ -232,7 +208,11 @@ class DiscordHandler:
         """
         # guild_id, stream, volume, codec
         data = json.loads(data)
-        new_stream, before_args, player = self.decide_on_stream_and_player(data)
+        new_stream, before_args, player = (
+            data["stream"],
+            "",
+            av_audio_source.AvAudioSource,
+        )
         self.bot.get_guild(data["guild_id"]).voice_client.play(
             source=player(
                 source=new_stream,
@@ -270,73 +250,7 @@ class DiscordHandler:
                 "discord_bytes", json.dumps(document), response=False
             )
         else:
-            # really really shitty solution for seeking
-            new_stream, before_args, player = self.decide_on_stream_and_player(
-                parsed_data
-            )
-            if parsed_data["seconds"] == 0:
-                return
-
-            # current state in seconds
-            current_state = (
-                voice_client.source.bytes_read
-                * 0.02
-                / discord.opus.Encoder.FRAME_SIZE
-            )
-            if parsed_data["direction"] == "back":
-                new_state = current_state - parsed_data["seconds"]
-                if new_state <= 0:
-                    new_state = 0
-            else:
-                new_state = current_state + int(parsed_data["seconds"])
-                if parsed_data["stream"] != "":
-                    try:
-                        if (
-                            int(
-                                float(parse_qs(parsed_data["stream"])["dur"][0])
-                            )
-                            < new_state
-                        ):
-                            voice_client.stop()
-                            return
-                    except KeyError:
-                        pass
-
-            # this overrides the after, because it would start the
-            # next song while seeking
-            # noinspection PyProtectedMember
-            voice_client._player.after = (  # pylint: disable=protected-access
-                None
-            )
-            voice_client.stop()
-
-            # kills the updater function, because it would not update
-            # anything anymore
-            self.guilds[parsed_data["guild_id"]].updater.cancel()
-
-            # restart the song at a new position
-            voice_client.play(
-                source=ffmpeg_pcm_audio.FFmpegPCMAudioB(
-                    new_stream,
-                    volume=parsed_data["volume"],
-                    # -ss <n> = skip to second n
-                    before_options=f"{before_args} -ss {new_state}",
-                ),
-                # set the after again
-                after=lambda err: self.after(err, parsed_data["guild_id"]),
-            )
-
-            # set the bytes_read to the new state
-            voice_client.source.bytes_read = int(
-                new_state * 50 * discord.opus.Encoder.FRAME_SIZE
-            )
-
-            # restart the updater again
-            self.guilds[
-                parsed_data["guild_id"]
-            ].updater = asyncio.ensure_future(
-                self.update_state(parsed_data["guild_id"])
-            )
+            raise NotImplementedError
 
     def skip(self, data) -> None:
         """

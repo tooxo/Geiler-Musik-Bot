@@ -7,3 +7,4 @@ pynacl
 aiohttp
 karp
 git+git://github.com/tooxo/pytube.git
+numpy

@@ -311,6 +311,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                         content=message,
                         delete_after=delete_after,
                         use_embed=True,
+                        color=0xFF0000,
                     )
                 )[-1]
             return (
