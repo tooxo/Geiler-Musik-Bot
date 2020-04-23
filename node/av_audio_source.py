@@ -42,7 +42,7 @@ class Buffer:
                     self.available += written_bytes
                     self.writer.flush()
                     return written_bytes
-        except BrokenPipeError:
+        except (BrokenPipeError, ValueError):
             pass
         return 0
 
@@ -172,6 +172,7 @@ class AvDecoder:
                 frame = next(frames)
                 frame.pts = None
 
+                # noinspection PyArgumentList
                 new_frame: av.AudioFrame = av.AudioFrame.from_ndarray(
                     array=frame.to_ndarray() * self.volume,
                     format=frame.format.name,

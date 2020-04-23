@@ -144,9 +144,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                             )
                             and not new_chunk
                         ):
-                            new_chunk += (
-                                "> \N{MONGOLIAN VOWEL SEPARATOR}\n"
-                            )  # the good ol' mongolian vowel separator
+                            new_chunk += "> \N{MONGOLIAN VOWEL SEPARATOR}\n"  # the good ol' mongolian vowel separator
                     else:
                         new_chunk += "> " + line + "\n"
                     if (len(partial) + len(new_chunk)) >= 2000:

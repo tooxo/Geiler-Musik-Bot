@@ -162,9 +162,10 @@ class YouTube:
             del ydl
             return song
         except NotAvailableException:
-            raise NotAvailableException(Errors.no_results_found)
+            pass
         except Exception:
             traceback.print_exc()
+        raise NotAvailableException(Errors.no_results_found)
 
     @staticmethod
     async def extract_playlist(playlist_id: str) -> List[dict]:
@@ -309,6 +310,7 @@ class YouTube:
                     + f"https://youtube.com/watch?v={video_id}"
                 )
                 return f"https://youtube.com/watch?v={video_id}"
+        raise NotAvailableException("no videos found")
 
     async def search(self, input_json: str) -> str:
         """
@@ -316,7 +318,7 @@ class YouTube:
         :param input_json: data
         :return: Search result url
         """
-        input_json = json.loads(input_json)
+        input_json: dict = json.loads(input_json)
         if input_json.get("service", "basic") == "music":
             return await self.search_youtube_music(input_json["term"])
         return await self.search_youtube_basic(input_json["term"])
@@ -371,7 +373,6 @@ class SoundCloud:
     def _decide_on_format(formats: dict):
         for format_name in formats.keys():
             if "opus" in format_name:
-                format_name: str
                 return (
                     formats[format_name],
                     format_name.split("_")[1],
@@ -398,7 +399,6 @@ class SoundCloud:
                 self.URL_RESOLVE.format(url, await self._get_api_key()),
                 headers=self.COMMON_HEADERS,
             ) as res:
-                res: aiohttp.ClientResponse
                 data = json.loads((await res.read()).decode())
 
             codec_url = ""
@@ -458,7 +458,6 @@ class SoundCloud:
                 url=self.URL_RESOLVE.format(url, await self._get_api_key()),
                 headers=self.COMMON_HEADERS,
             ) as res:
-                res: aiohttp.ClientResponse
                 data = json.loads(await res.read())
 
             tracks = []
