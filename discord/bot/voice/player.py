@@ -31,9 +31,9 @@ from discord.ext import commands
 from discord.ext.commands import Cog
 
 if TYPE_CHECKING:
-    from bot.discord_music import (  # pylint: disable=ungrouped-imports
+    from bot.discord_music import (
         DiscordBot,
-    )
+    )  # pylint: disable=ungrouped-imports
 
 
 class Player(Cog):
@@ -588,7 +588,6 @@ class Player(Cog):
         @return:
         """
         try:
-            self.guilds[ctx.guild.id].now_playing = small_dict
             self.guilds[ctx.guild.id].queue_lock = False
             if self.guilds[ctx.guild.id].voice_client is None:
                 return
@@ -611,14 +610,15 @@ class Player(Cog):
                         small_dict.guild_id = ctx.guild.id
                         await self.guilds[ctx.guild.id].voice_client.play(
                             small_dict,
-                            # after=lambda error: self.song_conclusion(
-                            #    ctx, error=error
-                            # ),
                         )
                         self.guilds[ctx.guild.id].voice_client.set_after(
                             self.song_conclusion, ctx
                         )
+            self.guilds[ctx.guild.id].now_playing = small_dict
             if self.guilds[ctx.guild.id].announce:
+                if not self.guilds[ctx.guild.id].now_playing_message:
+                    self.guilds[ctx.guild.id].now_playing_message = \
+                        NowPlayingMessage(self.parent)
                 await self.guilds[ctx.guild.id].now_playing_message.new_song(
                     ctx=ctx
                 )

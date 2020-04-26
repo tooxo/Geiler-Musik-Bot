@@ -39,7 +39,10 @@ class Checks:
         @return:
         """
         if ctx.me.voice is not None:
-            if ctx.guild.me.voice.channel != ctx.author.voice.channel:
+            try:
+                if ctx.guild.me.voice.channel != ctx.author.voice.channel:
+                    raise NotSameChannel()
+            except AttributeError:
                 raise NotSameChannel()
         return True
 

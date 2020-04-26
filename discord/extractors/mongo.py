@@ -3,7 +3,7 @@ Mongo
 """
 import os
 import time
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -31,7 +31,9 @@ class Mongo:
             self.connection_time_collection = self.database.connectiontime
             self.most_played_collection = self.database.most_played_collection
 
-    async def append_response_time(self, response_time: int) -> None:
+    async def append_response_time(
+        self, response_time: Union[int, str]
+    ) -> None:
         """
         Append Response Time to Mongo
         @param response_time:
@@ -39,6 +41,11 @@ class Mongo:
         """
         if self.mongo_enabled is False:
             return
+        if isinstance(response_time, str):
+            try:
+                response_time = int(response_time)
+            except ValueError:
+                return
         current_time = time.time()
         every = self.connection_time_collection.find()
         async for item in every:

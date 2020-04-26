@@ -108,7 +108,8 @@ async def on_command_error(
     elif isinstance(error, NoNodeReadyException):
         await DiscordBot.send_error_message(
             ctx=ctx,
-            message="Our backend seems to be down right now, try again in a few minutes.",
+            message="Our backend seems to be down right now, "
+                    "try again in a few minutes.",
         )
     elif isinstance(error, discord.ext.commands.MissingRequiredArgument):
         pass

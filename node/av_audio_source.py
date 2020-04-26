@@ -10,8 +10,8 @@ from abc import ABC
 from typing import Generator
 
 import av
-
 from discord.oggparse import OggStream
+
 from discord.opus import Encoder as OpusEncoder
 from discord.player import AudioSource
 
@@ -147,7 +147,7 @@ class AvDecoder:
             self.output_container.add_stream("libopus", 48000)
         )
 
-        self.thread = threading.Thread(target=self.fill_buffer, args=())
+        self.thread = threading.Thread(target=self.fill_buffer)
         self.thread.start()
 
     def fill_buffer(self) -> None:
@@ -169,7 +169,10 @@ class AvDecoder:
             if self.output_buffer.closed:
                 break
             if self.volume != 1 or self._re_encode:
-                frame = next(frames)
+                try:
+                    frame = next(frames)
+                except StopIteration:
+                    break
                 frame.pts = None
 
                 # noinspection PyArgumentList
@@ -185,7 +188,10 @@ class AvDecoder:
                     del packet
                 del frame
             else:
-                packet = next(packets)
+                try:
+                    packet = next(packets)
+                except StopIteration:
+                    break
                 if not packet.pts:
                     continue
                 self.output_container.mux(packet)
