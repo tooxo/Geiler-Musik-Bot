@@ -79,13 +79,13 @@ class NowPlayingMessage:
             except (discord.NotFound, discord.Forbidden, discord.HTTPException):
                 pass
 
-    def _same_channel_check(
-        self, user: discord.Member, ctx: commands.Context
-    ) -> bool:
+    def _same_channel_check(self, user_id: int, guild_id: int) -> bool:
         try:
             return (
-                self.parent.guilds[ctx.guild.id].voice_client.channel_id
-                == user.voice.channel.id
+                self.parent.guilds[guild_id].voice_client.channel_id
+                == self.parent.bot.get_guild(guild_id)
+                .get_member(user_id)
+                .voice.channel.id
             )
         except AttributeError:
             return False
@@ -95,51 +95,29 @@ class NowPlayingMessage:
         asyncio.run_coroutine_threadsafe(coroutine, asyncio.get_event_loop())
 
     async def _add_reactions(self, ctx: commands.Context) -> bool:
-        def _remove_check(reaction: discord.Reaction, user: discord.Member):
+        def _check(payload: discord.RawReactionActionEvent) -> bool:
             if not self.message:
                 return False
             try:
                 if (
-                    reaction.message.id == self.message.id
-                    and self.parent.bot.user.id != user.id
-                    and self._same_channel_check(user=user, ctx=ctx)
+                    payload.message_id == self.message.id
+                    and self.parent.bot.user.id != payload.user_id
+                    and self._same_channel_check(
+                        user_id=payload.user_id, guild_id=payload.guild_id
+                    )
                 ):
                     voice_client = self.parent.guilds[ctx.guild.id].voice_client
-                    if reaction.emoji == self.REACTION_PAUSE:
+                    if payload.emoji.name == self.REACTION_PAUSE:
                         if voice_client.is_paused():
                             self._run_coroutine(voice_client.resume())
                         else:
                             self._run_coroutine(voice_client.pause())
-                    if reaction.emoji == self.REACTION_NEXT:
+                    if payload.emoji.name == self.REACTION_NEXT:
                         self._run_coroutine(voice_client.stop())
                         self._stop = True
             except AttributeError:
-                return False
+                traceback.print_exc()
             return False
-
-        def _add_check(
-            reaction: discord.Reaction, user: discord.Member
-        ) -> bool:
-            if not self.message:
-                return False
-            try:
-                if (
-                    reaction.message.id == self.message.id
-                    and self.parent.bot.user.id != user.id
-                    and self._same_channel_check(user=user, ctx=ctx)
-                ):
-                    voice_client = self.parent.guilds[ctx.guild.id].voice_client
-                    if reaction.emoji == self.REACTION_PAUSE:
-                        if voice_client.is_paused():
-                            self._run_coroutine(voice_client.resume())
-                        else:
-                            self._run_coroutine(voice_client.pause())
-                    if reaction.emoji == self.REACTION_NEXT:
-                        self._run_coroutine(voice_client.stop())
-                        self._stop = True
-            except AttributeError:
-                return False
-            return True
 
         if self.message:
             try:
@@ -155,14 +133,15 @@ class NowPlayingMessage:
 
         self._add_reaction_manager = asyncio.ensure_future(
             self.parent.bot.wait_for(
-                "reaction_add", timeout=None, check=_add_check
+                "raw_reaction_add", timeout=None, check=_check
             )
         )
         self._remove_reaction_manager = asyncio.ensure_future(
             self.parent.bot.wait_for(
-                "reaction_remove", timeout=None, check=_remove_check
+                "raw_reaction_remove", timeout=None, check=_check
             )
         )
+
         return True
 
     async def _update(self, ctx: commands.Context) -> None:
