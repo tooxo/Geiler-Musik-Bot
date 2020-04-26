@@ -617,8 +617,9 @@ class Player(Cog):
             self.guilds[ctx.guild.id].now_playing = small_dict
             if self.guilds[ctx.guild.id].announce:
                 if not self.guilds[ctx.guild.id].now_playing_message:
-                    self.guilds[ctx.guild.id].now_playing_message = \
-                        NowPlayingMessage(self.parent)
+                    self.guilds[
+                        ctx.guild.id
+                    ].now_playing_message = NowPlayingMessage(self.parent)
                 await self.guilds[ctx.guild.id].now_playing_message.new_song(
                     ctx=ctx
                 )

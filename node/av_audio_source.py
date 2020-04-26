@@ -10,8 +10,8 @@ from abc import ABC
 from typing import Generator
 
 import av
-from discord.oggparse import OggStream
 
+from discord.oggparse import OggStream
 from discord.opus import Encoder as OpusEncoder
 from discord.player import AudioSource
 

@@ -4,9 +4,10 @@ Server
 import hashlib
 import os
 
+from pymongo import MongoClient
+
 import bjoern
 from flask import Flask, Response, redirect, request
-from pymongo import MongoClient
 
 HOST = "0.0.0.0"
 PORT = 80

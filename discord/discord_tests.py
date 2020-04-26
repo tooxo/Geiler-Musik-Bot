@@ -6,11 +6,10 @@ Runs Instrumentation Tests with distest
 import asyncio
 import sys
 
+from discord import Embed
 from distest import TestCollector, run_dtest_bot
 from distest.exceptions import ResponseDidNotMatchError
 from distest.interface import TestInterface
-
-from discord import Embed
 
 
 class TestClient:
