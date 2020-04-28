@@ -68,7 +68,7 @@ RUN cp /opt/ffmpeg/lib/* /lib/
 
 ENV PKG_CONFIG_PATH=/lib
 
-RUN pip wheel av
+RUN pip wheel av --no-binary :all:
 
 # Cleanup.
 RUN rm -rf /tmp/*

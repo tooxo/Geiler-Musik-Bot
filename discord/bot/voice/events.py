@@ -68,7 +68,7 @@ class Events(Cog):
                         if self.guilds[guild_id].now_playing_message:
                             await self.guilds[
                                 guild_id
-                            ].now_playing_message.after_song()
+                            ].now_playing_message.after_song(guild_id=guild_id)
                             self.guilds[guild_id].now_playing_message = None
                         self.guilds[guild_id].song_queue = Queue()
                         return

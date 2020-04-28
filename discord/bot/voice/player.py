@@ -32,9 +32,7 @@ from discord.ext.commands import Cog
 
 if TYPE_CHECKING:
     # pylint: disable=ungrouped-imports
-    from bot.discord_music import (
-        DiscordBot,
-    )
+    from bot.discord_music import DiscordBot
 
 
 class Player(Cog):
@@ -556,7 +554,10 @@ class Player(Cog):
         :return: nothing
         """
         guild_id = ctx.guild.id
-        if len(self.guilds[guild_id].song_queue.queue) == 0:
+        if (
+            len(self.guilds[guild_id].song_queue.queue) == 0
+            or not self.guilds[guild_id].voice_client
+        ):
             self.guilds[guild_id].now_playing = None
         # catch all one after another to make most of them succeed
 

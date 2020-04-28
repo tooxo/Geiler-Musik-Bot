@@ -258,7 +258,8 @@ class NowPlayingMessage:
             await self._add_reactions(ctx=ctx)
 
     async def after_song(
-        self, ctx: typing.Optional[commands.Context] = None
+        self, ctx: typing.Optional[commands.Context] = None,
+            guild_id: typing.Optional[int] = None
     ) -> None:
         """
         This gets called after a song is finished.
@@ -267,8 +268,7 @@ class NowPlayingMessage:
         # noinspection PyBroadException
         if ctx:
             self.ctx = ctx
-        else:
-            ctx = self.ctx
+            guild_id = ctx.guild.id
         try:
             self._stop = True
             self._song = None
@@ -280,9 +280,9 @@ class NowPlayingMessage:
                 if not self._remove_reaction_manager.cancelled():
                     self._remove_reaction_manager.cancel()
             if (
-                len(self.parent.guilds[ctx.guild.id].song_queue.queue) == 0
+                len(self.parent.guilds[guild_id].song_queue.queue) == 0
                 or not self.parent.guilds[
-                    ctx.guild.id
+                    guild_id
                 ].voice_client
             ):
                 await self._delete_message()

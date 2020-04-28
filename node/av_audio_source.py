@@ -147,6 +147,8 @@ class AvDecoder:
             self.output_container.add_stream("libopus", 48000)
         )
 
+        self.stopped = False
+
         self.thread = threading.Thread(target=self.fill_buffer)
         self.thread.start()
 
@@ -161,9 +163,9 @@ class AvDecoder:
         frames: Generator[av.AudioFrame, None, None] = self.audio.decode(
             self.audio_stream
         )
-        while not self.output_buffer.closed:
+        while not self.output_buffer.closed and not self.stopped:
             while not self.output_buffer.free:
-                if self.output_buffer.closed:
+                if self.output_buffer.closed or self.stopped:
                     break
                 time.sleep(0.01)
             if self.output_buffer.closed:
@@ -184,9 +186,8 @@ class AvDecoder:
                 new_frame.rate = frame.rate
 
                 for packet in self.output_stream.encode(new_frame):
-                    self.output_container.mux(packet)
-                    del packet
-                del frame
+                    if not self.output_buffer.closed:
+                        self.output_container.mux(packet)
             else:
                 try:
                     packet = next(packets)
@@ -194,10 +195,15 @@ class AvDecoder:
                     break
                 if not packet.pts:
                     continue
-                self.output_container.mux(packet)
-                del packet
-        del packets
+                if not self.output_buffer.closed:
+                    self.output_container.mux(packet)
         self.output_buffer.complete = True
+
+        # this should prevent any hard memory leaks
+        self.audio.close()
+        self.output_buffer.__del__()
+        self.output_container.close()
+        gc.collect()
 
     def seek(self, seconds: int) -> None:
         """
@@ -218,12 +224,7 @@ class AvDecoder:
         Closes all the streams
         :return:
         """
-        # noinspection PyProtectedMember
-        self.output_container.close()  # close the output stream
-        self.output_buffer.__del__()  # delete the buffers contents from memory
-        self.audio.close()  # close the audio stream
-        gc.collect()  # run the garbage collector
-
+        self.stopped = True
 
 class AvAudioSource(AudioSource, ABC):
     """
