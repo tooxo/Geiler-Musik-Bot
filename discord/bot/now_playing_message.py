@@ -279,7 +279,12 @@ class NowPlayingMessage:
             if self._remove_reaction_manager:
                 if not self._remove_reaction_manager.cancelled():
                     self._remove_reaction_manager.cancel()
-            if len(self.parent.guilds[ctx.guild.id].song_queue.queue) == 0:
+            if (
+                len(self.parent.guilds[ctx.guild.id].song_queue.queue) == 0
+                or not self.parent.guilds[
+                    ctx.guild.id
+                ].voice_client
+            ):
                 await self._delete_message()
         except Exception:
             print(traceback.format_exc())

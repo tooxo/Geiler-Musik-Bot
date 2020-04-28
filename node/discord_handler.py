@@ -144,9 +144,9 @@ class DiscordHandler:
             print("play_error", traceback.format_exc(error))
         document = {
             "guild_id": guild_id,
-            "connected": self.bot.get_guild(
-                guild_id
-            ).voice_client.is_connected(),
+            "connected": True
+            if self.bot.get_guild(guild_id).voice_client
+            else False,
         }
         asyncio.new_event_loop().run_until_complete(
             self.client.request(
