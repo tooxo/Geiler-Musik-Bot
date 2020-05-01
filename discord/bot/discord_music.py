@@ -254,6 +254,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
 
             self.bot.loop.create_task(_update_stats(dbl_client))
 
+    # DEPRECATED, NOT USED
     async def clear_presence(self, ctx: discord.ext.commands.Context):
         """
         Stops message updating after a song finished

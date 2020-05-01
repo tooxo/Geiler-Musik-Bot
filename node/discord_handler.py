@@ -217,7 +217,6 @@ class DiscordHandler:
             source=player(
                 source=new_stream,
                 volume=data["volume"],
-                before_options=before_args,
             ),
             after=lambda err: self.after(err, data["guild_id"]),
         )

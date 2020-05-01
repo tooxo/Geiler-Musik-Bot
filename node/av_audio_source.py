@@ -18,7 +18,7 @@ from discord.player import AudioSource
 
 class Buffer:
     """
-    Interface to interact with the pipes used for buffering.
+    Interface to interact with os pipes used for buffering.
     """
 
     def __init__(self) -> None:
@@ -26,7 +26,7 @@ class Buffer:
         self.reader = os.fdopen(self.read_fd, "rb")
         self.writer = os.fdopen(self.write_fd, "wb")
 
-        self.available = 0
+        self.available = 0  # bytes available in the buffer
         self.complete = False
 
     def write(self, data: bytes) -> int:
@@ -74,6 +74,7 @@ class Buffer:
         Empty the buffer
         :return:
         """
+        # reads all of the buffer contents without saving
         self.reader.read(self.available)
         self.available = 0
 
@@ -107,7 +108,9 @@ class Buffer:
         equal to 3 seconds of voice
         :return: maximal size
         """
-        # return 32000
+        # the maximum available size is 64000, but a lower number reduces
+        # the response time of volume commands
+        # this value is to be determined in the future FIXME?
         return 8000
 
 
@@ -163,40 +166,56 @@ class AvDecoder:
         frames: Generator[av.AudioFrame, None, None] = self.audio.decode(
             self.audio_stream
         )
-        while not self.output_buffer.closed and not self.stopped:
-            while not self.output_buffer.free:
-                if self.output_buffer.closed or self.stopped:
-                    break
+        while not self.stopped:
+            while not self.output_buffer.free and not self.stopped:
                 time.sleep(0.01)
-            if self.output_buffer.closed:
-                break
+            # if the volume needs to be changed or the original codec
+            # isn't opus, we need to re-encode the sound stream into
+            # opus
             if self.volume != 1 or self._re_encode:
                 try:
                     frame = next(frames)
-                except StopIteration:
+                except (StopIteration, av.error.ExitError):
                     break
                 frame.pts = None
 
+                if self.volume == 1:
+                    # this prevents a new frame from getting created
+                    # when the volume is not changed
+                    # should use less resources
+                    for packet in self.output_stream.encode(frame):
+                        self.output_container.mux(packet)
+                    continue
+
+                # creates a copy of the audio data and multiplies it by
+                # the selected volume
                 # noinspection PyArgumentList
                 new_frame: av.AudioFrame = av.AudioFrame.from_ndarray(
                     array=frame.to_ndarray() * self.volume,
                     format=frame.format.name,
                     layout=frame.layout.name,
                 )
+                # reapply "lost" rate
                 new_frame.rate = frame.rate
 
                 for packet in self.output_stream.encode(new_frame):
-                    if not self.output_buffer.closed:
-                        self.output_container.mux(packet)
+                    self.output_container.mux(packet)
+            # if it is already encoded as it is, we can simply copy
+            # the stream to output
             else:
                 try:
                     packet = next(packets)
-                except StopIteration:
+                except (StopIteration, av.error.ExitError):
                     break
                 if not packet.pts:
                     continue
-                if not self.output_buffer.closed:
-                    self.output_container.mux(packet)
+                self.output_container.mux(packet)
+
+        # fix for "1 frames left in the queue on closing"
+        # muxes a few dummy frames, until the queue is empty
+        for _p in self.output_stream.encode(None):
+            self.output_container.mux(_p)
+
         self.output_buffer.complete = True
 
         # this should prevent any hard memory leaks
@@ -214,9 +233,12 @@ class AvDecoder:
         time_base: int = round(seconds / self.audio_stream.time_base)
         # noinspection PyBroadException
         try:
+
             self.audio.seek(offset=time_base, stream=self.audio_stream)
             self.output_buffer.flush()
         except BaseException:
+            # exception probably not needed, because seek either works
+            # or ends in a segv
             traceback.print_exc()
 
     def cleanup(self) -> None:
@@ -224,7 +246,9 @@ class AvDecoder:
         Closes all the streams
         :return:
         """
+        # asks all streams politely to close
         self.stopped = True
+
 
 class AvAudioSource(AudioSource, ABC):
     """
@@ -232,19 +256,11 @@ class AvAudioSource(AudioSource, ABC):
     """
 
     # noinspection PyUnusedLocal
-    def __init__(
-        self,
-        source: str,
-        volume: float,
-        *args,  # pylint: disable=unused-argument
-        **kwargs  # pylint: disable=unused-argument
-    ) -> None:
+    def __init__(self, source: str, volume: float,) -> None:
         """
-
-        :param source: source url
+        Wrapper around AvDecoder for discord.py
+        :param source: source stream url
         :param volume: volume
-        :param args: not used
-        :param kwargs: not used
         """
         self.source = source
         self.volume = volume
