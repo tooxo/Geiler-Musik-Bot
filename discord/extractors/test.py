@@ -1,3 +1,5 @@
+# pylint: skip-file
+
 import functools
 import time
 import unittest
