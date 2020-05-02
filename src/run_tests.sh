@@ -7,5 +7,5 @@
 # pip3 install .
 # cd ./../bot || exit 1
 # pip3 install pynacl
-cd ./discord || exit 1
+cd ./src || exit 1
 python3 -u discord_tests.py "$TARGET_NAME" "$TESTER_TOKEN" --channel "$CHANNEL" --run all || exit 1
