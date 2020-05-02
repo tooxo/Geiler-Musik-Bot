@@ -15,8 +15,8 @@ class Watch2Gether:
     Watch2Gether
     """
 
-    def __init__(self) -> None:
-        self.session = aiohttp.ClientSession()
+    def __init__(self, loop=None) -> None:
+        self.session = aiohttp.ClientSession(loop=loop)
         self.base_url = "https://www.watch2gether.com/rooms/create"
         self.pattern = re.compile(
             r"<html><body>You are being <a href=\"(.+)\">redirected</a>\."
@@ -46,3 +46,10 @@ class Watch2Gether:
             pass
 
         raise BasicError(Errors.default)
+
+    async def close(self):
+        """
+        Close ClientSession
+        @return:
+        """
+        await self.session.close()

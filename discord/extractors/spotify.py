@@ -24,27 +24,27 @@ class Spotify:
     Spotify
     """
 
-    def __init__(self) -> None:
+    def __init__(self, loop=None) -> None:
         self.log = logging_manager.LoggingManager()
         self.log.debug("[Startup]: Initializing Spotify Module . . .")
-        self.session = aiohttp.ClientSession()
+        self.session = aiohttp.ClientSession(loop=loop)
         self.token = ""
         self.client_id = os.environ["SPOTIFY_ID"]
         self.client_secret = os.environ["SPOTIFY_SECRET"]
 
     async def _request_post(self, url, header=None, body=None) -> str:
-        with async_timeout.timeout(3):
+        with async_timeout.timeout(5):
             async with self.session.post(
                 url, headers=header, data=body
             ) as response:
                 return await response.text()
 
     async def _request_get(self, url, header) -> str:
-        with async_timeout.timeout(3):
+        with async_timeout.timeout(5):
             async with self.session.get(url, headers=header) as response:
                 return await response.text()
 
-    def _invalidate_token(self) -> None:
+    def _invalidate_token(self) -> None:  # pragma: no cover
         self.log.info("Spotify Token Invalidated.")
         self.token = ""
 
@@ -131,7 +131,8 @@ class Spotify:
                                     artist=track["track"]["artists"][0]["name"],
                                 )
                             )
-                        except (IndexError, KeyError):
+
+                        except (IndexError, KeyError):  # pragma: no cover
                             # Probably invalid local file
                             continue
                     else:
@@ -233,3 +234,10 @@ class Spotify:
         if not track_list:
             raise PlaylistExtractionException
         return track_list
+
+    async def close(self):
+        """
+        Close ClientSession
+        @return:
+        """
+        await self.session.close()

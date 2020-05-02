@@ -144,9 +144,7 @@ class DiscordHandler:
             print("play_error", traceback.format_exc(error))
         document = {
             "guild_id": guild_id,
-            "connected": True
-            if self.bot.get_guild(guild_id).voice_client
-            else False,
+            "connected": bool(self.bot.get_guild(guild_id).voice_client),
         }
         asyncio.new_event_loop().run_until_complete(
             self.client.request(
@@ -214,10 +212,7 @@ class DiscordHandler:
             av_audio_source.AvAudioSource,
         )
         self.bot.get_guild(data["guild_id"]).voice_client.play(
-            source=player(
-                source=new_stream,
-                volume=data["volume"],
-            ),
+            source=player(source=new_stream, volume=data["volume"],),
             after=lambda err: self.after(err, data["guild_id"]),
         )
         self.guilds[data["guild_id"]].updater = asyncio.ensure_future(

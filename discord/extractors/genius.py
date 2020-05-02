@@ -55,7 +55,7 @@ class Genius:
                 try:
                     for cat in response["response"]["sections"]:
                         for item in cat["hits"]:
-                            if not item["index"] == "song":
+                            if item["index"] != "song":
                                 continue
                             if item["result"]["url"].endswith("lyrics"):
                                 return item["result"]["url"]

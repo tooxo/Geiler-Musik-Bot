@@ -29,39 +29,48 @@ class Test(unittest.TestCase):
     spotify_urls = [
         ("https://www.google.com", False),
         (
-            "http://open.spotify.com/user/tootallnate/playlist/0Lt5S4hGarhtZmtz7BNTeX",
+            "http://open.spotify.com/user/tootallnate/playlist/"
+            "0Lt5S4hGarhtZmtz7BNTeX",
             True,
         ),
         (
-            "https://open.spotify.com/playlist/2ZKAnbi8ZG7mmiI0dJKrOg?si=jRVkuCJUREeljEOqUBqpLQ",
+            "https://open.spotify.com/playlist/2ZKAnbi8ZG7mmiI0dJKrOg"
+            "?si=jRVkuCJUREeljEOqUBqpLQ",
             True,
         ),
         (
-            "https://open.spotify.com/playl ist/2ZKAnbi8ZG7mmiI0dJKrOg?si=jRVkuCJUREeljEOqUBqpLQ",
+            "https://open.spotify.com/playl ist/2ZKAnbi8ZG7mmiI0dJKrOg"
+            "?si=jRVkuCJUREeljEOqUBqpLQ",
             False,
         ),
         (
-            "https://open.spotify.com/track/384TqRlwlMfeUAODhXfF3O?si=PvtDF281TjWX0f6YvkhXOg",
+            "https://open.spotify.com/track/384TqRlwlMfeUAODhXfF3O"
+            "?si=PvtDF281TjWX0f6YvkhXOg",
             True,
         ),
         (
-            "https://open.spotify.com/track/60eOMEt3WNVX1m1jmApmnX?si=6CP45EzJTGyBkKLRmhHmfw",
+            "https://open.spotify.com/track/60eOMEt3WNVX1m1jmApmnX"
+            "?si=6CP45EzJTGyBkKLRmhHmfw",
             True,
         ),
         (
-            "https://open.spotify.com/album/4VzzEviJGYUtAeSsJlI9QB?si=hGIGlO4KSSyt8eO-QJ2VIw",
+            "https://open.spotify.com/album/4VzzEviJGYUtAeSsJlI9QB"
+            "?si=hGIGlO4KSSyt8eO-QJ2VIw",
             True,
         ),
         (
-            "https://open.spotify.com/artist/4kI8Ie27vjvonwaB2ePh8T?si=jyC9eGIiQbupvk0E2EE-vA",
+            "https://open.spotify.com/artist/4kI8Ie27vjvonwaB2ePh8T"
+            "?si=jyC9eGIiQbupvk0E2EE-vA",
             True,
         ),
         (
-            "https://open.spotify.com/artist/4kI8Ie27v%vonwaB2ePh8T?si=jyC9eGIiQbupvk0E2EE-vA",
+            "https://open.spotify.com/artist/4kI8Ie27v%vonwaB2ePh8T"
+            "?si=jyC9eGIiQbupvk0E2EE-vA",
             False,
         ),
         (
-            "https://open.spotify.com/artist/4kI8Ie27vjvonwaB2ePh8T?si=jyC9eGIiQbupvk0E2EE-vAa",
+            "https://open.spotify.com/artist/4kI8Ie27vjvonwaB2ePh8T"
+            "?si=jyC9eGIiQbupvk0E2EE-vAa",
             True,
         ),
         (
@@ -69,7 +78,8 @@ class Test(unittest.TestCase):
             False,
         ),
         (
-            "https://open.spotify.com/artist/4kI8Ie27vjvonwaB2ePh8T?si=IVfCdRMFSauVtOIN9gEPnA",
+            "https://open.spotify.com/artist/"
+            "4kI8Ie27vjvonwaB2ePh8T?si=IVfCdRMFSauVtOIN9gEPnA",
             True,
         ),
         ("spotify:track:6QgjcU0zLnzq5OrUoSZ3OKa", False),
@@ -77,7 +87,8 @@ class Test(unittest.TestCase):
         ("spotify:ticktack:6QgjcU0zLnzq5OrUoSZ3OK", False),
         ("aspotifys:track:6QgjcU0zLnzq5OrUoSZ3OK", False),
         (
-            "https://open.spotify.com/playlist/7EmgNt7woAMyHa1Y7rPR6k?si=5htvOsARRN2rN2zWUFPr7Q+",
+            "https://open.spotify.com/playlist/"
+            "7EmgNt7woAMyHa1Y7rPR6k?si=5htvOsARRN2rN2zWUFPr7Q+",
             True,
         ),
     ]
@@ -89,19 +100,23 @@ class Test(unittest.TestCase):
         ("https://www.youtube.com/watch?test=12&v=zrFI2gJSuwA", True),
         ("https://www.youtube.com/watch?v=zrFI2gJSuA", False),
         (
-            "https://www.youtube.com/playlist?list=PLMC9KNkIncKtPzgY-5rmhvj7fax8fdxoj",
+            "https://www.youtube.com/playlist?"
+            "list=PLMC9KNkIncKtPzgY-5rmhvj7fax8fdxoj",
             True,
         ),
         (
-            "https://www.youtube.com/plablist?list=PLMC9KNkIncKtPzgY-5rmhvj7fax8fdxoj",
+            "https://www.youtube.com/plablist?"
+            "list=PLMC9KNkIncKtPzgY-5rmhvj7fax8fdxoj",
             False,
         ),
         (
-            "ahttps://www.youtube.com/playlist?list=PLMC9KNkIncKtPzgY-5rmhvj7fax8fdxojo",
+            "ahttps://www.youtube.com/playlist?"
+            "list=PLMC9KNkIncKtPzgY-5rmhvj7fax8fdxojo",
             False,
         ),
         (
-            "https://www.youtube.com/playlist?list=PLMC9KNk       IncKtPzgY-5rmhvj7fax8fdxoj",
+            "https://www.youtube.com/playlist?list=PLMC9KNk    "
+            "   IncKtPzgY-5rmhvj7fax8fdxoj",
             False,
         ),
         ("https://youtu.be/k2qgadSvNyU", True),
@@ -275,7 +290,8 @@ class Test(unittest.TestCase):
         """
         self.assertEqual(
             Url.determine_spotify_type(
-                "https://open.spotify.com/track/0hKF8N8aflF1uDzEEnPr2j?si=4sDh4YQfSRmMqOS4ZEidhQ"
+                "https://open.spotify.com/track/0hKF8N8aflF1uDzEEnPr2j"
+                "?si=4sDh4YQfSRmMqOS4ZEidhQ"
             ),
             Url.spotify_track,
         )
@@ -295,13 +311,15 @@ class Test(unittest.TestCase):
         )
         self.assertEqual(
             Url.determine_spotify_type(
-                "https://open.spotify.com/artist/5Jj4mqGYiplyowPLKkJLHt?si=_Ci2-YN8T2K-Z9Wvo_tMCQ"
+                "https://open.spotify.com/artist/5Jj4mqGYiplyowPLKkJLHt"
+                "?si=_Ci2-YN8T2K-Z9Wvo_tMCQ"
             ),
             Url.spotify_artist,
         )
         self.assertEqual(
             Url.determine_spotify_type(
-                "https://open.spotify.com/playlist/37i9dQZEVXbMDoHDwVN2tF?si=9G4YpeGWRTu_0apMZTwwXA"
+                "https://open.spotify.com/playlist/37i9dQZEVXbMDoHDwVN2tF"
+                "?si=9G4YpeGWRTu_0apMZTwwXA"
             ),
             Url.spotify_playlist,
         )
@@ -360,7 +378,8 @@ class Test(unittest.TestCase):
     def test_youtube_valid(self):
         self.assertEqual(
             YouTubeType(
-                "https://www.youtube.com/watch?v=Nj2U6rhnucI&list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG"
+                "https://www.youtube.com/watch?v=Nj2U6rhnucI&list="
+                "PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG"
             ).valid,
             True,
         )
@@ -451,12 +470,14 @@ class Test(unittest.TestCase):
                 "No Results found.",
                 "An Error has occurred.",
                 "An Error has occurred while checking Info.",
-                "There was an error pulling the Playlist, 0 Songs were added. This may be caused by the playlist being private or deleted.",
+                "There was an error pulling the Playlist, 0 Songs were added. "
+                "This may be caused by the playlist being private or deleted.",
                 "Can't reach YouTube. Server Error on their side maybe?",
                 "This YouTube Url is invalid.",
                 "The requested song is not available.",
                 "error_please_retry",
-                "Our backend seems to be down right now, try again in a few minutes.",
+                "Our backend seems to be down right now, try again in a few "
+                "minutes.",
             ],
         )
 

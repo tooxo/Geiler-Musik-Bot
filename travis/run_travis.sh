@@ -1,6 +1,6 @@
 #!/bin/sh
 
-coverage run --source=.,discord -m unittest discover -s discord/ && coverage report
+PYTHONWARNINGS="ignore" coverage run --source=.,discord -m unittest discover -s discord/ && coverage report
 coveralls
 
 docker-compose build
