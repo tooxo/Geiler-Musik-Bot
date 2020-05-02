@@ -258,8 +258,9 @@ class NowPlayingMessage:
             await self._add_reactions(ctx=ctx)
 
     async def after_song(
-        self, ctx: typing.Optional[commands.Context] = None,
-            guild_id: typing.Optional[int] = None
+        self,
+        ctx: typing.Optional[commands.Context] = None,
+        guild_id: typing.Optional[int] = None,
     ) -> None:
         """
         This gets called after a song is finished.
@@ -281,9 +282,7 @@ class NowPlayingMessage:
                     self._remove_reaction_manager.cancel()
             if (
                 len(self.parent.guilds[guild_id].song_queue.queue) == 0
-                or not self.parent.guilds[
-                    guild_id
-                ].voice_client
+                or not self.parent.guilds[guild_id].voice_client
             ):
                 await self._delete_message()
         except Exception:

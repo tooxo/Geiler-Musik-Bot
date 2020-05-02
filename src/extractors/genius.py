@@ -77,6 +77,7 @@ class Genius:
                     logging_manager.LoggingManager().info(
                         "Genius search failed with: " + url
                     )
+                    resp.close()
                     raise BasicError(Errors.default)
                 text = (await resp.read()).decode("UTF-8")
                 matcher = Genius.PATTERN_RAW.search(text)

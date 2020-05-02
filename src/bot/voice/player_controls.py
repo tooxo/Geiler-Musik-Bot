@@ -16,9 +16,7 @@ from discord.ext.commands import Cog
 
 if TYPE_CHECKING:
     # pylint: disable=ungrouped-imports
-    from bot.discord_music import (
-        DiscordBot,
-    )
+    from bot.discord_music import DiscordBot
 
 
 class PlayerControls(Cog, name="Player Controls"):

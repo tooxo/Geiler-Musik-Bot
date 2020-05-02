@@ -129,7 +129,8 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                         _line_container.append(_line[:1997])
                         _line = _line[
                             1997:
-                        ]  # 1997, because the ">" the " " and the "\n" need to be substracted.
+                        ]  # 1997, because the ">" the " " and
+                        # the "\n" need to be subtracted.
                 else:
                     _line_container = [_line]
 

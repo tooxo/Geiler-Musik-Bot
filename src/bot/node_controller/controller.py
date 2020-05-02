@@ -44,7 +44,7 @@ class Controller:
         )
         self.login_logger.addHandler(stream_handler)
         self.server = KARPServer(self.host, self.port)
-        self.server.logger.setLevel(logging.INFO)
+        self.server.logger.setLevel(logging.DEBUG)
 
     @staticmethod
     def random_string(length: int = 16) -> str:
@@ -61,19 +61,21 @@ class Controller:
     async def _on_new_connection(self, client: Client) -> None:
         node: Node = Node(client)
         try:
-
             response: Response = await node.client.request(
                 "identify", "", True, 10
             )
             if not response.successful:
+                print("not successful")
                 raise asyncio.TimeoutError()
             try:
                 content: dict = json.loads(response.text)
                 api_key = content["API_KEY"]
             except (json.JSONDecodeError, TypeError, KeyError):
+                print("invalid json")
                 raise asyncio.TimeoutError()
 
             if api_key != self.key:
+                self.login_logger.warning("Invalid API Key")
                 raise asyncio.TimeoutError()
 
             response: Response = await node.client.request(
@@ -83,6 +85,7 @@ class Controller:
                 60,
             )
         except asyncio.TimeoutError:
+            print("else")
             node.client.writer.close()
             return
         if response.text == "1":

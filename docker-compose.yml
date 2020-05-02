@@ -2,11 +2,11 @@ version: '2.4'
 services:
     discord:
         build:
-            context: discord/
+            context: src/
             dockerfile: Dockerfile
         restart: always
         working_dir: /usr/src/app/
-        command: python -u discord/discord_main.py
+        command: python -u src/discord_main.py
         volumes:
             - .:/usr/src/app/
         env_file:
