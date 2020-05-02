@@ -5,7 +5,7 @@ sudo add-apt-repository -y ppa:projectatomic/ppa
 sudo add-apt-repository -y ppa:deadsnakes/ppa
 sudo apt-get update
 sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce podman slirp4netns
-pip install pytest python-coveralls docker-compose podman-compose pyyaml==3.13
+pip install pytest python-coveralls docker-compose podman-compose pyyaml==3.13 coverage
 pip install https://github.com/containers/podman-compose/archive/devel.tar.gz -U
 docker-compose version
 podman-compose version

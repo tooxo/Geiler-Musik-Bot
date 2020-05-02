@@ -8,11 +8,12 @@ from os import environ
 from typing import TYPE_CHECKING, Dict
 
 import discord
+from discord.ext import commands
+from discord.ext.commands import Cog
+
 from bot.type.guild import Guild
 from bot.type.queue import Queue
 from bot.voice.checks import Checks
-from discord.ext import commands
-from discord.ext.commands import Cog
 
 if TYPE_CHECKING:
     # pylint: disable=ungrouped-imports

@@ -9,6 +9,9 @@ import typing
 from typing import Type
 
 import discord
+from discord.ext import commands
+from discord.ext.commands.bot import BotBase
+
 import logging_manager
 from bot.discord_music import DiscordBot
 from bot.discord_text import TextResponse
@@ -20,8 +23,6 @@ from bot.type.exceptions import (
     NotSameChannel,
     UserNotConnected,
 )
-from discord.ext import commands
-from discord.ext.commands.bot import BotBase
 
 if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
 

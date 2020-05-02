@@ -8,9 +8,10 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 import discord
+from discord.ext import commands
+
 from bot.node_controller.controller import Controller, Node
 from bot.type.song import Song
-from discord.ext import commands
 
 
 class NodeVoiceClient:

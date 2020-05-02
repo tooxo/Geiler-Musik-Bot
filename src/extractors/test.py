@@ -1,9 +1,10 @@
 # pylint: skip-file
 
+import asyncio
 import functools
 import time
 import unittest
-import asyncio
+
 from bot.type.exceptions import (
     BasicError,
     NoResultsFound,

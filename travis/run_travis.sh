@@ -12,7 +12,7 @@ coveralls
 docker-compose up -d
 sleep 20s
 docker-compose logs
-bash ./discord/run_tests.sh
+bash ./src/run_tests.sh
 docker-compose stop
 
 docker-compose rm -f

@@ -1,4 +1,6 @@
+# pylint: skip-file
 import unittest
+
 import av_audio_source
 
 

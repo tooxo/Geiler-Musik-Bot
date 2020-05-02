@@ -8,18 +8,16 @@ import asyncio
 import re
 import unittest
 
-# noinspection PyUnresolvedReferences
-from bot.type.exceptions import *
-
-from bot.type.spotify_type import SpotifyType
-from bot.type.youtube_type import YouTubeType
-from bot.type.variable_store import VariableStore, strip_youtube_title
-from bot.type.url import Url
-from bot.type.soundcloud_type import SoundCloudType
-from bot.type.song import Song
-from bot.type.queue import Queue
 from bot.type.errors import Errors
+from bot.type.exceptions import *
 from bot.type.guild import Guild
+from bot.type.queue import Queue
+from bot.type.song import Song
+from bot.type.soundcloud_type import SoundCloudType
+from bot.type.spotify_type import SpotifyType
+from bot.type.url import Url
+from bot.type.variable_store import VariableStore, strip_youtube_title
+from bot.type.youtube_type import YouTubeType
 
 
 class Test(unittest.TestCase):
@@ -492,7 +490,7 @@ class Test(unittest.TestCase):
             r"{'voice_client': None, 'voice_channel': None, 'song_queue': "
             r"<Queue at \S{14} maxsize=0>, 'now_playing_message': None, "
             r"'now_playing': None, 'volume': 0.5, 'full': '█', 'empty': '░', "
-            r"'search_service': 'basic', 'announce': True, 'queue_lock': False}"
+            r"'search_service': 'basic', 'announce': True, 'queue_lock': False}",
         )
 
 

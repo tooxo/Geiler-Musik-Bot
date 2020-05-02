@@ -8,11 +8,11 @@ import re
 import traceback
 from typing import Dict, Optional, Union
 
+import discord
+from discord.ext import commands
 from karp.client import KARPClient
 
 import av_audio_source
-import discord
-from discord.ext import commands
 
 
 class Guild:

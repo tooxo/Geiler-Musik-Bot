@@ -6,12 +6,12 @@ import time
 from typing import Dict
 
 import async_timeout
+from discord import Member, VoiceState
+from discord.ext.commands import Bot, Cog
 
 from bot.now_playing_message import NowPlayingMessage
 from bot.type.guild import Guild
 from bot.type.queue import Queue
-from discord import Member, VoiceState
-from discord.ext.commands import Bot, Cog
 
 
 class Events(Cog):
