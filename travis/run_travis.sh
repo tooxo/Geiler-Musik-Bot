@@ -1,6 +1,8 @@
 #!/bin/sh
-pytest discord/test.py
+
+coverage run --source=.,discord -m unittest discover -s discord/ && coverage report
 coveralls
+
 docker-compose build
 docker-compose up -d
 sleep 20s

@@ -28,14 +28,3 @@ class YouTubeType:
             return True
         return False
 
-    @property
-    def id(self) -> Optional[str]:  # pylint: disable=invalid-name
-        """
-        Extract the id from the url
-        @return:
-        """
-        if not self.valid:
-            return None
-        return re.search(VariableStore.youtube_video_pattern, self.url).group(
-            "id"
-        )
