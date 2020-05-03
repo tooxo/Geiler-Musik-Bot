@@ -335,7 +335,7 @@ class SoundCloud:
         self.api_key = ""
 
     URL_RESOLVE = "https://api.soundcloud.com/resolve?url={}&client_id={}"
-    URL_TRACKS = "https://api.soundcloud.com/tracks/{}?client_id={}"
+    URL_MISSING = "https://api-v2.soundcloud.com/tracks?ids={}&client_id={}"
 
     SCRIPT_REGEX = re.compile(
         r"(https://a-v2\.sndcdn\.com/assets/48-[\da-z]{8}-[\da-z].js)"
@@ -466,6 +466,7 @@ class SoundCloud:
                 data = json.loads(await res.read())
 
             tracks = []
+            missing = []
             for track in data["tracks"]:
                 try:
                     tracks.append(
@@ -475,20 +476,31 @@ class SoundCloud:
                         }
                     )
                 except KeyError:
-                    async with aiohttp.request(
-                        "GET",
-                        url=self.URL_TRACKS.format(
-                            track["id"], await self._get_api_key()
-                        ),
-                        headers=self.COMMON_HEADERS,
-                    ) as _res:
-                        data = json.loads(await _res.read())
+                    missing.append(str(track["id"]))
+
+            missing_requests = []
+            while missing:
+                missing_requests.append(quote(",").join(missing[:50]))
+                missing = missing[50:]
+
+            for missing_request in missing_requests:
+                async with aiohttp.request(
+                    "GET",
+                    url=self.URL_MISSING.format(
+                        missing_request, await self._get_api_key()
+                    ),
+                    headers=self.COMMON_HEADERS,
+                ) as _res:
+                    t = await _res.read()
+                    _data = json.loads(t)
+                    for _track in _data:
                         tracks.append(
                             {
-                                "title": data["title"],
-                                "link": data["permalink_url"],
+                                "title": _track["title"],
+                                "link": _track["permalink_url"],
                             }
                         )
+
             return tracks
         except (KeyError, AttributeError, TimeoutError, UnicodeDecodeError):
             traceback.print_exc()

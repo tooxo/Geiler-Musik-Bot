@@ -212,12 +212,11 @@ class NodeSoundCloudTest(unittest.TestCase):
             len(
                 asyncio.run(
                     s.playlist(
-                        "https://soundcloud.com/user-577202417-134766123/sets"
-                        "/top-50-all-music-genres"
+                        "https://soundcloud.com/user-319085523/sets/charts"
                     )
                 )
             ),
-            50,
+            271,
         )
 
 
