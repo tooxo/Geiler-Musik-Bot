@@ -360,9 +360,11 @@ class TestClient:
             await interface.assert_reply_equals(
                 ",service 2", 'Set search provider to "YouTube Music"'
             )
+            await asyncio.sleep(1)
             await interface.assert_reply_equals(
                 ",service 3", 'Set search provider to "SoundCloud"'
             )
+            await asyncio.sleep(1)
             await interface.assert_reply_equals(
                 ",service 1", 'Set search provider to "YouTube Search"'
             )
@@ -375,6 +377,70 @@ class TestClient:
             await interface.assert_reply_equals(
                 ",announce", "Enabled song announcements."
             )
+
+        @self.test_collector()
+        async def rename(interface: TestInterface):
+            await interface.assert_reply_equals(
+                ",rename Music-Bot", "Rename to **Music-Bot** successful."
+            )
+            await asyncio.sleep(1)
+            await interface.assert_reply_equals(
+                ",rename mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm",
+                "Name too long. 32 chars is the limit.",
+            )
+
+        @self.test_collector()
+        async def lyrics(interface: TestInterface):
+            await interface.assert_reply_equals(
+                ",lyrics doja cat say so", "**Doja Cat - Say So**"
+            )
+
+        @self.test_collector()
+        async def volume(interface: TestInterface):
+            await interface.connect(self.voice_channel)
+            await interface.send_message(",connect")
+            await interface.assert_reply_equals(
+                ",volume .5", "The Volume was set to: 0.5"
+            )
+            await interface.assert_reply_equals(
+                ",volume", "The current volume is: 0.5."
+            )
+            await interface.assert_reply_equals(
+                ",volume k", "You need to enter a number."
+            )
+            await interface.assert_reply_equals(
+                ",volume -1", "The number needs to be between 0.0 and 2.0."
+            )
+            await interface.assert_reply_equals(
+                ",volume 1", "The Volume was set to: 1.0"
+            )
+            await interface.send_message(",exit")
+            await interface.disconnect()
+
+        @self.test_collector()
+        async def now_playing(interface: TestInterface):
+            await interface.assert_reply_equals(
+                ",np", "Nobody is streaming right now."
+            )
+
+        @self.test_collector()
+        async def album_art(interface: TestInterface):
+            await interface.assert_reply_equals(
+                ",albumart", "Nothing is playing."
+            )
+            await interface.connect(self.voice_channel)
+            await interface.wait_for_reply(",play despacito luis fonsi")
+            await interface.assert_reply_equals(
+                ",albumart",
+                "https://i.ytimg.com/vi/kJQP7kiw5Fk/maxresdefault.jpg",
+            )
+            await asyncio.sleep(1)
+            await interface.send_message(",exit")
+            await interface.disconnect()
+
+        @self.test_collector()
+        async def w2g(interface: TestInterface):
+            await interface.assert_reply_contains(",w2g", "watch2gether.com")
 
     def end(self):
         @self.test_collector()

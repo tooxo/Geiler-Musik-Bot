@@ -641,29 +641,38 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             if server.now_playing is not None:
                 songs.append(server.now_playing)
         if len(songs) == 0:
-            embed = discord.Embed(
-                title="Nobody is streaming right now.",
-                url="https://d.chulte.de",
-                color=0x00FFCC,
-            )
-            await ctx.send(embed=embed)
+            await self.send_error_message(ctx, "Nobody is streaming right now.")
             return
 
         song: Song = random.choice(songs)
 
-        if len(songs) == 1:
-            embed = discord.Embed(
-                title="`>` `" + song.title + "`",
-                description="There is currently 1 Server playing!",
-            )
+        if environ.get("USE_EMBEDS", "True") == "True":
+            if len(songs) == 1:
+                embed = discord.Embed(
+                    title="`>` `" + song.title + "`",
+                    description="There is currently 1 Server playing!",
+                )
+            else:
+                embed = discord.Embed(
+                    title="`>` `" + song.title + "`",
+                    description="There are currently "
+                    + str(len(songs))
+                    + " Servers playing!",
+                )
+            await ctx.send(embed=embed)
         else:
-            embed = discord.Embed(
-                title="`>` `" + song.title + "`",
-                description="There are currently "
-                + str(len(songs))
-                + " Servers playing!",
-            )
-        await ctx.send(embed=embed)
+            if len(songs) == 1:
+                await self.send_embed_message(
+                    ctx,
+                    f"`>` `{song.title}`\n"
+                    f"There is currently 1 Server playing!",
+                )
+            else:
+                await self.send_embed_message(
+                    ctx,
+                    f"`>` `{song.title}`"
+                    f"There are currently {str(len(songs))} Servers playing!",
+                )
 
     @commands.check(Checks.song_playing_check)
     @commands.command(aliases=["a", "art"])
@@ -673,11 +682,16 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         :param ctx:
         :return:
         """
-        embed: discord.Embed = discord.Embed(
-            title=self.guilds[ctx.guild.id].now_playing.title
-        )
-        embed.set_image(url=self.guilds[ctx.guild.id].now_playing.image)
-        await ctx.send(embed=embed)
+        if environ.get("USE_EMBEDS", "True") == "True":
+            embed: discord.Embed = discord.Embed(
+                title=self.guilds[ctx.guild.id].now_playing.title
+            )
+            embed.set_image(url=self.guilds[ctx.guild.id].now_playing.image)
+            await ctx.send(embed=embed)
+        else:
+            await self.send_embed_message(
+                ctx, self.guilds[ctx.guild.id].now_playing.image
+            )
 
     @commands.command(aliases=["lyric", "songtext", "text"])
     async def lyrics(self, ctx: commands.Context, *, song_name: str = None):
