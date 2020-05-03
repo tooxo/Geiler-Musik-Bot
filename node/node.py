@@ -16,6 +16,7 @@ import pytube
 from expiringdict import ExpiringDict
 from karp.client import KARPClient
 from karp.request import Request
+from pytube.exceptions import RegexMatchError
 from yaml import YAMLError, safe_load
 
 from discord_handler import DiscordHandler
@@ -161,7 +162,7 @@ class YouTube:
             self.research_cache[song["id"]] = song
             del ydl
             return song
-        except NotAvailableException:
+        except (NotAvailableException, RegexMatchError):
             pass
         except Exception:
             traceback.print_exc()
@@ -334,6 +335,7 @@ class SoundCloud:
         self.api_key = ""
 
     URL_RESOLVE = "https://api.soundcloud.com/resolve?url={}&client_id={}"
+    URL_TRACKS = "https://api.soundcloud.com/tracks/{}?client_id={}"
 
     SCRIPT_REGEX = re.compile(
         r"(https://a-v2\.sndcdn\.com/assets/48-[\da-z]{8}-[\da-z].js)"
@@ -392,6 +394,7 @@ class SoundCloud:
         """
         if url in self.cache:
             return self.cache.get(url, {})
+        # noinspection PyBroadException
         try:
             _time = time.time()
             async with aiohttp.request(
@@ -443,8 +446,10 @@ class SoundCloud:
             self.cache[url] = song
             return song
         except (json.JSONDecodeError, KeyError, AttributeError, ValueError):
+            pass
+        except Exception:
             traceback.print_exc()
-            raise Exception(Errors.default)
+        raise NotAvailableException(Errors.default)
 
     async def playlist(self, url: str) -> Union[List[dict], str]:
         """
@@ -462,9 +467,28 @@ class SoundCloud:
 
             tracks = []
             for track in data["tracks"]:
-                tracks.append(
-                    {"title": track["title"], "link": track["permalink_url"]}
-                )
+                try:
+                    tracks.append(
+                        {
+                            "title": track["title"],
+                            "link": track["permalink_url"],
+                        }
+                    )
+                except KeyError:
+                    async with aiohttp.request(
+                        "GET",
+                        url=self.URL_TRACKS.format(
+                            track["id"], await self._get_api_key()
+                        ),
+                        headers=self.COMMON_HEADERS,
+                    ) as _res:
+                        data = json.loads(await _res.read())
+                        tracks.append(
+                            {
+                                "title": data["title"],
+                                "link": data["permalink_url"],
+                            }
+                        )
             return tracks
         except (KeyError, AttributeError, TimeoutError, UnicodeDecodeError):
             traceback.print_exc()
@@ -482,51 +506,57 @@ class SoundCloud:
             f"https://api-v2.soundcloud.com/search?q={quote(search_term)}"
             f"&client_id={await self._get_api_key()}"
         )
+        # noinspection PyBroadException
+        try:
+            async with aiohttp.request("GET", search_url) as req:
+                response: dict = json.loads(await req.read())
+                result = response["collection"][0]
 
-        async with aiohttp.request("GET", search_url) as req:
-            response: dict = json.loads(await req.read())
-            result = response["collection"][0]
+            codec_url = ""
+            codec = ""
+            abr = 70
 
-        codec_url = ""
-        codec = ""
-        abr = 70
+            for transcoding in result["media"]["transcodings"]:
+                if "opus" in transcoding["preset"]:
+                    codec_url = transcoding["url"]
+                    codec = "opus"
 
-        for transcoding in result["media"]["transcodings"]:
-            if "opus" in transcoding["preset"]:
-                codec_url = transcoding["url"]
-                codec = "opus"
+            if not codec_url:
+                codec_url = result["media"]["transcodings"][0]["url"]
+                codec = "mp3"
 
-        if not codec_url:
-            codec_url = result["media"]["transcodings"][0]["url"]
-            codec = "mp3"
+            async with aiohttp.request(
+                "GET",
+                f"{codec_url}?client_id={await self._get_api_key()}",
+                headers=self.COMMON_HEADERS,
+            ) as res:
+                url = json.loads(await res.read())["url"]
 
-        async with aiohttp.request(
-            "GET",
-            f"{codec_url}?client_id={await self._get_api_key()}",
-            headers=self.COMMON_HEADERS,
-        ) as res:
-            url = json.loads(await res.read())["url"]
+            if "playlist.m3u8" in url:
+                async with aiohttp.request("GET", url) as res:
+                    last_entry = re.findall(
+                        self.PLAYLIST_PATTERN, (await res.read()).decode()
+                    )[-1]
+                    url = re.sub(r"/[\d]+/", "/0/", last_entry)
 
-        if "playlist.m3u8" in url:
-            async with aiohttp.request("GET", url) as res:
-                last_entry = re.findall(
-                    self.PLAYLIST_PATTERN, (await res.read()).decode()
-                )[-1]
-                url = re.sub(r"/[\d]+/", "/0/", last_entry)
+            song = {
+                "title": result.get("title", "_"),
+                "link": result.get("permalink_url", ""),
+                "duration": round(result.get("duration", 0) / 1000),
+                "thumbnail": result.get("artwork_url", ""),
+                "loadtime": time.time() - _time,
+                "term": result.get("title", "_"),
+                "stream": url,
+                "codec": codec,
+                "abr": abr,
+            }
 
-        song = {
-            "title": result.get("title", "_"),
-            "link": result.get("permalink_url", ""),
-            "duration": round(result.get("duration", 0) / 1000),
-            "thumbnail": result.get("artwork_url", ""),
-            "loadtime": time.time() - _time,
-            "term": result.get("title", "_"),
-            "stream": url,
-            "codec": codec,
-            "abr": abr,
-        }
-
-        return song
+            return song
+        except IndexError:
+            pass
+        except Exception:
+            traceback.print_exc()
+        raise NotAvailableException("no results found")
 
 
 class Node:
