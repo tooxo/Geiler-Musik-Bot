@@ -46,8 +46,10 @@ LOG.debug("PID " + str(os.getpid()))
 CLIENT = commands.Bot(command_prefix=PREFIX)
 
 if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
+    # pylint: disable=missing-function-docstring
+    # pylint: disable=unused-argument
     @CLIENT.command()
-    async def stop_the_bot(ctx: commands.Context):
+    async def stop_the_bot(ctx: commands.Context,):
         sys.exit(0)
 
 
