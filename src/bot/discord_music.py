@@ -553,7 +553,9 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         )
 
     @commands.command(hidden=True)
-    async def restart(self, ctx, restart_string=None) -> None:
+    async def restart(  # pragma: no cover
+        self, ctx, restart_string=None
+    ) -> None:  # pragma: no cover
         """
         Hidden DEBUG Command
         @param ctx:
@@ -580,7 +582,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
 
     # noinspection PyUnusedLocal
     @commands.command(hidden=True)
-    async def eval(self, ctx, *, code: str = None) -> None:
+    async def eval(self, ctx, *, code: str = None) -> None:  # pragma: no cover
         """
         Hidden DEBUG Method
         @param ctx:
@@ -605,7 +607,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         )
 
     @commands.command(hidden=True)
-    async def exec(self, ctx, *, code: str = None) -> None:
+    async def exec(self, ctx, *, code: str = None) -> None:  # pragma: no cover
         """
         Hidden DEBUG Method
         @param ctx:

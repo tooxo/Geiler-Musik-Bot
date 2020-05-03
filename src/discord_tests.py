@@ -368,6 +368,39 @@ class TestClient:
             await interface.assert_reply_equals(
                 ",service 1", 'Set search provider to "YouTube Search"'
             )
+            await asyncio.sleep(1)
+            message = await interface.wait_for_reply(",service")
+            await asyncio.sleep(3)
+            await message.add_reaction(
+                "\N{Digit Three}\N{Combining Enclosing Keycap}"
+            )
+            new_message = await interface.wait_for_message()
+            await interface.assert_message_equals(
+                new_message,
+                'Set search provider to "SoundCloud"'
+            )
+            await asyncio.sleep(1)
+            message = await interface.wait_for_reply(",service")
+            await asyncio.sleep(3)
+            await message.add_reaction(
+                "\N{Digit Two}\N{Combining Enclosing Keycap}"
+            )
+            new_message = await interface.wait_for_message()
+            await interface.assert_message_equals(
+                new_message,
+                'Set search provider to "YouTube Music"'
+            )
+            await asyncio.sleep(1)
+            message = await interface.wait_for_reply(",service")
+            await asyncio.sleep(3)
+            await message.add_reaction(
+                "\N{Digit One}\N{Combining Enclosing Keycap}"
+            )
+            new_message = await interface.wait_for_message()
+            await interface.assert_message_equals(
+                new_message,
+                'Set search provider to "YouTube Search"'
+            )
 
         @self.test_collector()
         async def toggle_announce(interface: TestInterface):
@@ -392,13 +425,14 @@ class TestClient:
         @self.test_collector()
         async def lyrics(interface: TestInterface):
             await interface.assert_reply_equals(
-                ",lyrics doja cat say so", "**Doja Cat - Say So**"
+                ",lyrics doja cat say so", "> **Doja Cat - Say So**"
             )
 
         @self.test_collector()
         async def volume(interface: TestInterface):
             await interface.connect(self.voice_channel)
-            await interface.send_message(",connect")
+            await interface.wait_for_reply(",connect")
+            await asyncio.sleep(1)
             await interface.assert_reply_equals(
                 ",volume .5", "The Volume was set to: 0.5"
             )
@@ -414,7 +448,7 @@ class TestClient:
             await interface.assert_reply_equals(
                 ",volume 1", "The Volume was set to: 1.0"
             )
-            await interface.send_message(",exit")
+            await interface.wait_for_reply(",exit")
             await interface.disconnect()
 
         @self.test_collector()
