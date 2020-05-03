@@ -5,6 +5,7 @@ import re
 import traceback
 import urllib.parse
 from typing import Tuple
+from html import unescape
 
 import aiohttp
 import async_timeout
@@ -140,8 +141,10 @@ class LyricsCleanup:
         :param lyrics:
         :return:
         """
-        return LyricsCleanup.remove_start_and_end_spaces(
-            LyricsCleanup.remove_double_spaces(
-                LyricsCleanup.remove_html_tags(lyrics=lyrics)
+        return unescape(
+            LyricsCleanup.remove_start_and_end_spaces(
+                LyricsCleanup.remove_double_spaces(
+                    LyricsCleanup.remove_html_tags(lyrics=lyrics)
+                )
             )
         )

@@ -162,7 +162,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                 messages.append(
                     await ctx.send(content=partial, delete_after=delete_after)
                 )
-            if new_chunk:
+            if new_chunk and not partial.endswith(new_chunk):
                 messages.append(
                     await ctx.send(content=new_chunk, delete_after=delete_after)
                 )
@@ -353,6 +353,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                 await self.send_error_message(
                     ctx, "Name too long. 32 chars is the limit."
                 )
+                return
             bot_user = ctx.guild.me
             await bot_user.edit(nick=name)
             await self.send_embed_message(
@@ -402,62 +403,69 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         await self.send_embed_message(ctx, "The Volume was set to: " + str(var))
 
     @commands.command(aliases=["i", "information"])
-    async def info(self, ctx) -> None:
+    async def info(self, ctx: commands.Context) -> None:
         """
         Shows song info.
         :param ctx:
         :return:
         """
-        self.guilds = self.guilds
+        use_embeds = environ.get("USE_EMBEDS", "True") == "True"
         if self.guilds[ctx.guild.id].now_playing is None:
-            embed = discord.Embed(
-                title="Information",
-                description="Nothing is playing.",
-                color=0x00FFCC,
-                url="https://d.chulte.de",
-            )
-            await ctx.send(embed=embed)
+            await self.send_error_message(ctx, "Nothing is playing.")
             return
         try:
-            embed = discord.Embed(
-                title="Information", color=0x00FFCC, url="https://d.chulte.de"
-            )
             song: Song = self.guilds[ctx.guild.id].now_playing
-            embed.add_field(
-                name="Basic Information",
-                inline=False,
-                value=(
-                    f"**Name**: `{song.title}`\n"
-                    + f"**Url**: `{song.link}`\n"
-                    + f"**Duration**: "
+            if not use_embeds:
+                await self._send_message(
+                    use_citation=True,
+                    content=f"**Basic Information**\n"
+                    f"Name: `{song.title}`\n"
+                    f"Url: `{song.link}`\n"
+                    f"Duration: "
                     f"`{datetime.timedelta(seconds=song.duration)}`\n"
-                    + f"**User**: `{song.user}`\n"
-                    + f"**Term**: `{song.term}`\n"
-                ),
-            )
-            embed.add_field(
-                name="Stream Information",
-                inline=False,
-                value=(
-                    f"**Successful**: `{True}`\n"
-                    + f"**Codec**: `{song.codec}\n`"
-                    + f"**Bitrate**: `{song.abr} kb/s`"
-                ),
-            )
-            if self.guilds[ctx.guild.id].now_playing.image is not None:
-                embed.set_thumbnail(
-                    url=self.guilds[ctx.guild.id].now_playing.image
+                    f"User: `{song.user}`\n"
+                    f"Term: `{song.term}`\n\n"
+                    f"**Stream Information**\n"
+                    f"Successful: `{True}`\n"
+                    f"Codec: `{song.codec}`\n"
+                    f"Bitrate: `{song.abr} kb/s`",
+                    ctx=ctx,
                 )
-            await ctx.send(embed=embed)
+            else:
+                embed = discord.Embed(
+                    title="Information",
+                    color=0x00FFCC,
+                    url="https://d.chulte.de",
+                )
+                embed.add_field(
+                    name="Basic Information",
+                    inline=False,
+                    value=(
+                        f"**Name**: `{song.title}`\n"
+                        + f"**Url**: `{song.link}`\n"
+                        + f"**Duration**: "
+                        f"`{datetime.timedelta(seconds=song.duration)}`\n"
+                        + f"**User**: `{song.user}`\n"
+                        + f"**Term**: `{song.term}`\n"
+                    ),
+                )
+                embed.add_field(
+                    name="Stream Information",
+                    inline=False,
+                    value=(
+                        f"**Successful**: `{True}`\n"
+                        + f"**Codec**: `{song.codec}\n`"
+                        + f"**Bitrate**: `{song.abr} kb/s`"
+                    ),
+                )
+                if self.guilds[ctx.guild.id].now_playing.image is not None:
+                    embed.set_thumbnail(
+                        url=self.guilds[ctx.guild.id].now_playing.image
+                    )
+                await ctx.send(embed=embed)
         except (KeyError, TypeError) as raised_exception:
             self.log.warning(logging_manager.debug_info(str(raised_exception)))
-            embed = discord.Embed(
-                title="Error",
-                description=Errors.info_check,
-                url="https://d.chulte.de",
-                color=0x00FFCC,
-            )
-            await ctx.send(embed=embed)
+            await self.send_error_message(ctx, Errors.info_check)
 
     @commands.command(aliases=[])
     async def chars(self, ctx, first=None, last=None) -> None:
@@ -705,12 +713,36 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         )
 
     @commands.command(aliases=["search"])
-    async def service(self, ctx: commands.Context) -> None:
+    async def service(self, ctx: commands.Context, new_num: str = None) -> None:
         """
         Select the provider used for search.
-        :param ctx:
-        :return:
+        @param ctx:
+        @param new_num:
+        @return:
         """
+
+        async def _set_service(
+            _type: str, name: str, _message: discord.Message = None
+        ) -> None:
+            await self.mongo.set_service(ctx.guild.id, _type)
+            await self.send_embed_message(
+                ctx, f'Set search provider to "{name}"'
+            )
+            if _message:
+                await self.delete_message(_message)
+
+        if new_num and new_num in ["1", "2", "3"]:
+            if new_num == "1":
+                self.guilds[ctx.guild.id].search_service = "basic"
+                await _set_service("basic", "YouTube Search")
+            elif new_num == "2":
+                self.guilds[ctx.guild.id].search_service = "music"
+                await _set_service("music", "YouTube Music")
+            elif new_num == "3":
+                self.guilds[ctx.guild.id].search_service = "soundcloud"
+                await _set_service("soundcloud", "SoundCloud")
+            return
+
         embed = discord.Embed(title="Select Search Provider")
         if self.guilds[ctx.guild.id].service == "music":
             embed.add_field(
@@ -742,13 +774,6 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         )
 
         def _check(reaction: discord.Reaction, user: discord.Member):
-            async def _set_service(_type: str, name: str) -> None:
-                await self.mongo.set_service(ctx.guild.id, _type)
-                await self.send_embed_message(
-                    ctx, f'Set search provider to "{name}"'
-                )
-                await self.delete_message(message)
-
             if reaction.message.id == message.id:
                 if user.id != self.bot.user.id:
                     if (
@@ -757,7 +782,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     ):
                         self.guilds[ctx.guild.id].search_service = "basic"
                         asyncio.ensure_future(
-                            _set_service("basic", "YouTube Search")
+                            _set_service("basic", "YouTube Search", message)
                         )
                         return True
                     if (
@@ -766,7 +791,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     ):
                         self.guilds[ctx.guild.id].search_service = "music"
                         asyncio.ensure_future(
-                            _set_service("music", "YouTube Music")
+                            _set_service("music", "YouTube Music", message)
                         )
                         return True
                     if (
@@ -775,7 +800,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     ):
                         self.guilds[ctx.guild.id].search_service = "soundcloud"
                         asyncio.ensure_future(
-                            _set_service("soundcloud", "SoundCloud")
+                            _set_service("soundcloud", "SoundCloud", message)
                         )
                         return True
             return False

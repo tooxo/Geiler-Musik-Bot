@@ -277,6 +277,27 @@ class TestClient:
             await interface.send_message(",exit")
             await interface.disconnect()
 
+        @self.test_collector()
+        async def sc_track(interface: TestInterface):
+            await interface.connect(self.voice_channel)
+            await interface.assert_reply_equals(
+                ",p https://soundcloud.com/roddyricch/the-box", "`The Box`"
+            )
+            await asyncio.sleep(1)
+            await interface.send_message(",exit")
+            await interface.disconnect()
+
+        @self.test_collector()
+        async def sc_playlist(interface: TestInterface):
+            await interface.connect(self.voice_channel)
+            await interface.assert_reply_equals(
+                ",p https://soundcloud.com/kieramaeee/sets/charts",
+                ":asterisk: Added 216 Tracks to Queue. :asterisk:",
+            )
+            await asyncio.sleep(1)
+            await interface.send_message(",exit")
+            await interface.disconnect()
+
     def queue_tests(self):
         @self.test_collector()
         async def queue_empty(interface: TestInterface):
@@ -333,6 +354,28 @@ class TestClient:
             await interface.send_message(",exit")
             await interface.disconnect()
 
+    def other_tests(self):
+        @self.test_collector()
+        async def service(interface: TestInterface):
+            await interface.assert_reply_equals(
+                ",service 2", 'Set search provider to "YouTube Music"'
+            )
+            await interface.assert_reply_equals(
+                ",service 3", 'Set search provider to "SoundCloud"'
+            )
+            await interface.assert_reply_equals(
+                ",service 1", 'Set search provider to "YouTube Search"'
+            )
+
+        @self.test_collector()
+        async def toggle_announce(interface: TestInterface):
+            await interface.assert_reply_equals(
+                ",announce", "Disabled song announcements."
+            )
+            await interface.assert_reply_equals(
+                ",announce", "Enabled song announcements."
+            )
+
     def end(self):
         @self.test_collector()
         async def stop(interface: TestInterface):
@@ -344,6 +387,7 @@ class TestClient:
         self.extractor_tests()
         self.queue_tests()
         self.shuffle_test()
+        self.other_tests()
         self.end()
         return run_dtest_bot(sys.argv, self.test_collector)
 
