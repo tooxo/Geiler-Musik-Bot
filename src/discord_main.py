@@ -4,6 +4,7 @@ Main
 import logging
 import os
 import subprocess
+import sys
 import traceback
 import typing
 from typing import Type
@@ -43,6 +44,11 @@ LOG.debug("PID " + str(os.getpid()))
 
 # client = commands.AutoShardedBot(command_prefix=prefix, shard_count=2)
 CLIENT = commands.Bot(command_prefix=PREFIX)
+
+if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
+    @CLIENT.command()
+    async def stop_the_bot(ctx: commands.Context):
+        sys.exit(0)
 
 
 def add_cog(cog_type: Type[typing.Callable]):
@@ -142,7 +148,6 @@ for mod in (
 ):
     if mod:
         VERSIONS[mod.split("==")[0]] = mod.split("==")[1]
-
 
 DISCORD_VERSION = VERSIONS["discord.py"]
 

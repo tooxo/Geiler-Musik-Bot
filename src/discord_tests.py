@@ -333,12 +333,18 @@ class TestClient:
             await interface.send_message(",exit")
             await interface.disconnect()
 
+    def end(self):
+        @self.test_collector()
+        async def stop(interface: TestInterface):
+            await interface.send_message(",stop_the_bot")
+
     def start(self):
         self.add_tests()
         self.music_manipulation_tests()
         self.extractor_tests()
         self.queue_tests()
         self.shuffle_test()
+        self.end()
         return run_dtest_bot(sys.argv, self.test_collector)
 
 
