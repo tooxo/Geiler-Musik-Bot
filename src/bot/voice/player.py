@@ -197,17 +197,11 @@ class Player(Cog):
     ) -> List[Song]:
         soundcloud_type = Url.determine_soundcloud_type(url)
         if soundcloud_type == Url.soundcloud_track:
-            try:
-                song: Song = await self.parent.soundcloud.soundcloud_track(url)
-                if song.title is None:
-                    await self.parent.send_error_message(
-                        ctx=ctx, message=Errors.default
-                    )
-            except BasicError as basic_error:
+            song: Song = await self.parent.soundcloud.soundcloud_track(url)
+            if song.title is None:
                 await self.parent.send_error_message(
-                    ctx=ctx, message=str(basic_error)
+                    ctx=ctx, message=Errors.default
                 )
-                return []
             song.user = ctx.message.author
             return [song]
         if soundcloud_type == Url.soundcloud_set:

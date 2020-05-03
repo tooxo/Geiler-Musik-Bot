@@ -50,7 +50,7 @@ class SoundCloud:
         )
 
         if not response.successful:
-            self.log.warning(f"[YT-TERM] {term} {response.text}")
+            self.log.warning(f"[SC-TERM] {term} {response.text}")
             raise SongExtractionException()
 
         song_dict: dict = json.loads(response.text)
