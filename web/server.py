@@ -2,7 +2,9 @@
 Server
 """
 import hashlib
+import json
 import os
+from operator import itemgetter
 
 from pymongo import MongoClient
 
@@ -115,7 +117,7 @@ def chartjs() -> Response:
     @return:
     """
     return redirect(
-        "https://github.com/chartjs/Chart.js/releases/download/v2.8.0/Chart.bundle.js",
+        "https://github.com/chartjs/Chart.js/releases/download/v2.9.3/Chart.bundle.js",
         302,
     )
 
@@ -137,15 +139,17 @@ def mongo_most() -> Response:
 
     @return:
     """
+    limit = request.args.get("limit", 0)
+
     collection = DB.most_played_collection
     alfal = collection.find()
     _list = []
     for item in alfal:
-        i = dict()
-        i["name"] = item["name"]
-        i["value"] = item["val"]
-        _list.append(i)
-    return Response(str(_list))
+        _list.append({"name": item["name"], "value": item["val"]})
+    _list = sorted(_list, key=lambda i: i["value"], reverse=True)
+    if limit:
+        return Response(json.dumps(_list[: int(limit)]))
+    return Response(json.dumps(_list))
 
 
 @APP.route("/http/mongo_response")

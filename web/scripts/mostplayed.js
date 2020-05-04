@@ -1,17 +1,10 @@
 $.ajax({
     type: 'GET',
-    url: 'http/mongo_most',
+    url: 'http/mongo_most?limit=30',
     success: function (msg) {
         msg = msg.split("'").join('"');
         let mm = JSON.parse(msg);
 
-        mm = mm.sort(function (a, b) {
-            const keyA = a.value,
-                keyB = b.value;
-            if (keyA < keyB) return 1;
-            if (keyA > keyB) return -1;
-            return 0;
-        });
         let label = [];
         let values = [];
         for (let x = 0; x <= 10; x++) {
