@@ -24,13 +24,24 @@ class Genius:
     """
 
     PATTERN_RAW = re.compile(r"<div class=\"lyrics\">(.*)<!--/sse-->", re.S)
+    PATTERN_RAW_2 = re.compile(
+        r'<div class="Lyrics__Container-sc-1ynbvzw-2 \S+">(.*)</div>', re.S
+    )
     PATTERN = re.compile(r"<[^>]*>", re.S)
     TITLE_PATTERN = re.compile(
         r"<h1[^>]*header_with_cover_art-primary_info-title[^>]*>(.+)</h1>", re.S
     )
+    TITLE_PATTERN_2 = re.compile(
+        r'<h1 class="SongHeader__Title-sc-1b7aqpg-7 \S+">([^<]+)</h1>', re.S
+    )
     ARTIST_PATTERN = re.compile(
         r"<a[^>]*header_with_cover_art-primary_info-primary_artist"
         r"[^>]*>([^<]*)</a>",
+        re.S,
+    )
+    ARTIST_PATTERN_2 = re.compile(
+        r'<a[^>]+class="Link-h3isu4-0 dpVWpH '
+        r'SongHeader__Artist-sc-1b7aqpg-8 \S+"[^>]+>([^<]+)</a>',
         re.S,
     )
 
@@ -81,11 +92,22 @@ class Genius:
                     resp.close()
                     raise BasicError(Errors.default)
                 text = (await resp.read()).decode("UTF-8")
-                matcher = Genius.PATTERN_RAW.search(text)
-                raw_lyrics = matcher.group(1)
-                parsed_lyrics = Genius.PATTERN.sub("", raw_lyrics)
-                artist = Genius.ARTIST_PATTERN.search(text).group(1)
-                title = Genius.TITLE_PATTERN.search(text).group(1)
+                if "LyricsPlaceholder__Message" in text:
+                    parsed_lyrics = "This song is an instrumental"
+                else:
+                    matcher = Genius.PATTERN_RAW.search(text)
+                    if not matcher:
+                        matcher = Genius.PATTERN_RAW_2.search(text)
+                    raw_lyrics = matcher.group(1)
+                    parsed_lyrics = Genius.PATTERN.sub("", raw_lyrics)
+                artist_matcher = Genius.ARTIST_PATTERN.search(text)
+                if not artist_matcher:
+                    artist_matcher = Genius.ARTIST_PATTERN_2.search(text)
+                artist = artist_matcher.group(1)
+                title_matcher = Genius.TITLE_PATTERN.search(text)
+                if not title_matcher:
+                    title_matcher = Genius.TITLE_PATTERN_2.search(text)
+                title = title_matcher.group(1)
             return (
                 LyricsCleanup.clean_up(lyrics=parsed_lyrics),
                 artist + " - " + title,

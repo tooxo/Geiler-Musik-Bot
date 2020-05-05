@@ -100,7 +100,7 @@ class TestClient:
             await interface.connect(self.voice_channel)
             await interface.assert_reply_equals(
                 ",play despacito luis fonsi",
-                ":asterisk: Added **despacito luis fonsi** to Queue.",
+                "`Luis Fonsi - Despacito ft. Daddy Yankee`",
             )
             await asyncio.sleep(1)
             await interface.assert_reply_equals(
@@ -108,7 +108,7 @@ class TestClient:
             )
             await asyncio.sleep(1)
             await interface.assert_reply_equals(
-                ",seek -50", "Seeked 50 seconds backwards."
+                ",seek -50", "**Seeked 50 seconds backwards.**"
             )
             await asyncio.sleep(1)
             await interface.send_message(",exit")

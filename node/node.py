@@ -216,6 +216,8 @@ class YouTube:
                 ]["primaryContents"]["sectionListRenderer"]["contents"]
 
                 for item in data:
+                    if "itemSectionRenderer" not in item:
+                        continue  # its not a search result
                     for sub in item["itemSectionRenderer"]["contents"]:
                         if "videoRenderer" in sub:
                             url_list.append(sub["videoRenderer"]["videoId"])
