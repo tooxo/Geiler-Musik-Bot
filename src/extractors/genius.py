@@ -66,7 +66,13 @@ class Genius:
                 response = await resp.json()
                 try:
                     for cat in response["response"]["sections"]:
-                        for item in cat["hits"]:
+                        for item in sorted(
+                            cat["hits"],
+                            key=lambda i: i["result"]["stats"].get(
+                                "pageviews", 0
+                            ),
+                            reverse=True,
+                        ):
                             if item["index"] != "song":
                                 continue
                             if item["result"]["url"].endswith("lyrics"):

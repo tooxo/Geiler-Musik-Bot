@@ -493,8 +493,8 @@ class SoundCloud:
                     ),
                     headers=self.COMMON_HEADERS,
                 ) as _res:
-                    t = await _res.read()
-                    _data = json.loads(t)
+                    _text_response = await _res.read()
+                    _data = json.loads(_text_response)
                     for _track in _data:
                         tracks.append(
                             {
