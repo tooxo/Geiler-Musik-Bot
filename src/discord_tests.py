@@ -73,6 +73,47 @@ class TestClient:
             await self.voice_client.disconnect()
             await asyncio.sleep(5)
 
+        @self.test_collector()
+        async def test_prev(interface: TestInterface):
+            await interface.connect(self.voice_channel)
+            await interface.assert_reply_equals(
+                ",play dance monkey - tones & i", "`TONES AND I - DANCE MONKEY`"
+            )
+            await interface.assert_reply_equals(
+                ",play despacito luis fonsi",
+                ":asterisk: Added **despacito luis fonsi** to Queue.",
+            )
+            await asyncio.sleep(1)
+            await interface.assert_reply_equals(
+                ",skip", "Skipped! :track_next:"
+            )
+            await asyncio.sleep(1)
+            await interface.assert_reply_equals(
+                ",prev", "`TONES AND I - DANCE MONKEY`"
+            )
+            await asyncio.sleep(1)
+            await interface.send_message(",exit")
+            await interface.disconnect()
+
+        @self.test_collector()
+        async def test_seek(interface: TestInterface):
+            await interface.connect(self.voice_channel)
+            await interface.assert_reply_equals(
+                ",play despacito luis fonsi",
+                ":asterisk: Added **despacito luis fonsi** to Queue.",
+            )
+            await asyncio.sleep(1)
+            await interface.assert_reply_equals(
+                ",seek 50", "**Seeked 50 seconds forward.**"
+            )
+            await asyncio.sleep(1)
+            await interface.assert_reply_equals(
+                ",seek -50", "Seeked 50 seconds backwards."
+            )
+            await asyncio.sleep(1)
+            await interface.send_message(",exit")
+            await interface.disconnect()
+
     def add_tests(self):
         @self.test_collector()
         async def test_nobody_in_channel(interface: TestInterface):
@@ -376,8 +417,7 @@ class TestClient:
             )
             new_message = await interface.wait_for_message()
             await interface.assert_message_equals(
-                new_message,
-                'Set search provider to "SoundCloud"'
+                new_message, 'Set search provider to "SoundCloud"'
             )
             await asyncio.sleep(1)
             message = await interface.wait_for_reply(",service")
@@ -387,8 +427,7 @@ class TestClient:
             )
             new_message = await interface.wait_for_message()
             await interface.assert_message_equals(
-                new_message,
-                'Set search provider to "YouTube Music"'
+                new_message, 'Set search provider to "YouTube Music"'
             )
             await asyncio.sleep(1)
             message = await interface.wait_for_reply(",service")
@@ -398,8 +437,7 @@ class TestClient:
             )
             new_message = await interface.wait_for_message()
             await interface.assert_message_equals(
-                new_message,
-                'Set search provider to "YouTube Search"'
+                new_message, 'Set search provider to "YouTube Search"'
             )
 
         @self.test_collector()

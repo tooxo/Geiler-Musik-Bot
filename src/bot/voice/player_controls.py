@@ -234,7 +234,9 @@ class PlayerControls(Cog, name="Player Controls"):
                     seconds_to_seek=parsed,
                 )
                 return await self.parent.send_embed_message(
-                    ctx, f"**Seeked {parsed} seconds forward.**"
+                    ctx,
+                    f"**Seeked {abs(parsed)} seconds "
+                    f"{'forward' if parsed>=0 else 'backwards'}.**",
                 )
             return await self.parent.send_error_message(
                 ctx, "Can't do this while paused."
