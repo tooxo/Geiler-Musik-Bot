@@ -23,9 +23,12 @@ class Genius:
     Genius
     """
 
-    PATTERN_RAW = re.compile(r"<div class=\"lyrics\">(.*)<!--/sse-->", re.S)
+    PATTERN_RAW = re.compile(
+        r'<div class="lyrics">[^!]+<!--sse-->([^^]+)<!--/sse-->', re.S
+    )
     PATTERN_RAW_2 = re.compile(
-        r'<div class="Lyrics__Container-sc-1ynbvzw-2 \S+">(.*)</div>', re.S
+        r'<div class="Lyrics__Container-sc-1ynbvzw-2 \S+">(.+)'
+        r'<div class="RightSidebar',
     )
     PATTERN = re.compile(r"<[^>]*>", re.S)
     TITLE_PATTERN = re.compile(
@@ -53,7 +56,7 @@ class Genius:
         @param artist:
         @return:
         """
-        base_url = "https://genius.com/api/search/multi?q="
+        base_url = "https://genius.com/api/search/song?q="
         url = base_url + urllib.parse.quote(
             re.sub(r"\(.+\)", string=track_name, repl="")
             + " "
@@ -73,13 +76,10 @@ class Genius:
                             ),
                             reverse=True,
                         ):
-                            if item["index"] != "song":
-                                continue
                             if item["result"]["url"].endswith("lyrics"):
                                 return item["result"]["url"]
                 except (IndexError, ValueError, TypeError):
                     traceback.print_exc()
-                    raise NoResultsFound(Errors.no_results_found)
                 raise NoResultsFound(Errors.no_results_found)
 
     @staticmethod
@@ -175,4 +175,4 @@ class LyricsCleanup:
                     LyricsCleanup.remove_html_tags(lyrics=lyrics)
                 )
             )
-        )
+        ).strip()
