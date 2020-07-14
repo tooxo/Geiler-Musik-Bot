@@ -483,18 +483,6 @@ class Player(Cog):
             return
         await self.add_to_queue(url, ctx, shuffle=True)
 
-    @play.error
-    @play_next.error
-    @play_skip.error
-    @shuffleplay.error
-    async def _play_error(
-        self, ctx: commands.Context, error: Type[discord.DiscordException]
-    ) -> discord.Message:
-        if isinstance(error, discord.ext.commands.MissingRequiredArgument):
-            return await self.parent.send_error_message(
-                ctx, "You need to enter something to play."
-            )
-
     @commands.check(Checks.user_connection_check)
     @commands.command(aliases=["join"])
     async def connect(self, ctx: commands.Context) -> Optional[discord.Message]:

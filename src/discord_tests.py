@@ -169,7 +169,7 @@ class TestClient:
                 await interface.assert_reply_embed_equals(
                     ",queue", embed, ["fields"]
                 )
-            except Exception as e:
+            except Exception:
                 await interface.send_message(",exit")
                 await interface.disconnect()
                 raise ResponseDidNotMatchError("Response did not match")
@@ -179,9 +179,9 @@ class TestClient:
     def extractor_tests(self):
         @self.test_collector()
         async def youtube_url(interface: TestInterface):
-            youtube_url = "https://www.youtube.com/watch?v=q0hyYWKXF0Q"
+            url = "https://www.youtube.com/watch?v=q0hyYWKXF0Q"
             await interface.connect(self.voice_channel)
-            await interface.send_message(content=",p " + youtube_url)
+            await interface.send_message(content=",p " + url)
             await asyncio.sleep(10)
             last_message = await interface.get_last_message()
             await interface.assert_message_equals(
@@ -273,7 +273,8 @@ class TestClient:
 
         @self.test_collector()
         async def spotify_album(interface: TestInterface):
-            spotify_url = "https://open.spotify.com/album/1A3nVEWRJ8yvlPzawHI1pQ?si=DyQA_PVrQzOAHKrcpoP9ww"
+            spotify_url = "https://open.spotify.com/album/" \
+                          "81A3nVEWRJ8yvlPzawHI1pQ?si=DyQA_PVrQzOAHKrcpoP9ww"
             await interface.connect(self.voice_channel)
             await interface.assert_reply_equals(
                 ",p " + spotify_url,

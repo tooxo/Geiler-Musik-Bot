@@ -107,3 +107,5 @@ RUN pip install -r /requirements.txt
 RUN pip install av*.whl
 RUN rm /av*.whl
 RUN wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh -O /wait.sh && chmod +x /wait.sh
+
+WORKDIR /home/src/app

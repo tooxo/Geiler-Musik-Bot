@@ -1,6 +1,8 @@
 """
 Help
 """
+from typing import Optional
+
 from discord import Embed, Message
 from discord.ext import commands
 
@@ -91,7 +93,9 @@ class Help(commands.Cog):
                 string += _string
             if len(string) > 0:
                 cogs[cog.qualified_name] = f"```{string}```"
-        embed = Embed(title=f"Help - Page {page + 1}")
+        embed = Embed(title=f"{self.prefix}Help - Page {page + 1}").set_footer(
+            text=f"{self.prefix}help <command> for help on a specific command."
+        )
         for cog_name in cogs:
             if cogs[cog_name]:
                 embed.add_field(
@@ -100,18 +104,22 @@ class Help(commands.Cog):
         return await ctx.send(embed=embed)
 
     async def help_command(
-        self, ctx: commands.Context, command: str
-    ) -> Message:
+        self, ctx: commands.Context, command: str, implicit: bool = True
+    ) -> Optional[Message]:
         """
         Command to provide help to the user.
         @param ctx:
         @param command:
+        @param implicit: If the help command show if a command is not found
         @return:
         """
-        embed = Embed(title="Help")
+        embed = Embed(title=f"{self.prefix}Help - {command}")
         if command not in self.bot.all_commands:
-            embed.description = f'"{command}" was not found.'
-            return await ctx.send(embed=embed)
+            if implicit:
+                embed.description = f'"{command}" was not found.'
+                return await ctx.send(embed=embed)
+            else:
+                return None
         command: commands.Command = self.bot.all_commands[command]
         if len(command.aliases) > 0:
             syntax_text = f"{self.prefix}[{command.name}"
@@ -154,7 +162,8 @@ class Help(commands.Cog):
                     return await ctx.send(
                         embed=Embed(
                             title=f"Error",
-                            description=f"Help page {page} not found.",
+                            description=f"{self.prefix}Help page "
+                            f"{page} not found.",
                             color=0xFF0000,
                         )
                     )  # invalid page num

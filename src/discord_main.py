@@ -1,6 +1,7 @@
 """
 Main
 """
+import asyncio
 import logging
 import os
 import subprocess
@@ -43,14 +44,15 @@ LOG = logging_manager.LoggingManager()
 LOG.debug("PID " + str(os.getpid()))
 
 # client = commands.AutoShardedBot(command_prefix=prefix, shard_count=2)
-CLIENT = commands.Bot(command_prefix=PREFIX)
+CLIENT = commands.Bot(command_prefix=PREFIX, case_insensitive=True)
 
 if os.environ.get("TEST_ENVIRONMENT", "False") == "True":
     # pylint: disable=missing-function-docstring
     # pylint: disable=unused-argument
+    # noinspection PyUnusedLocal
     @CLIENT.command()
     async def stop_the_bot(ctx: commands.Context,):
-        sys.exit(0)
+        await CLIENT.logout()
 
 
 def add_cog(cog_type: Type[typing.Callable]):
@@ -121,7 +123,10 @@ async def on_command_error(
             "try again in a few minutes.",
         )
     elif isinstance(error, discord.ext.commands.MissingRequiredArgument):
-        pass
+        # send help
+        await CLIENT.cogs["Help"].help_command(
+            ctx, str(ctx.command), implicit=False
+        )
     else:
         LOG.error(logging_manager.debug_info(str(error)))
         if hasattr(error, "original"):
