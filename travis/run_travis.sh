@@ -1,24 +1,51 @@
 #!/bin/sh
-pytest discord/test.py
-coveralls
+
 docker-compose build
-docker-compose up -d
-sleep 20s
-docker-compose logs
-bash ./discord/run_tests.sh
-docker-compose stop
-docker-compose rm -f
-podman-compose up -d
-sleep 20s
-podman-compose logs discord
-bash ./discord/run_tests.sh
-podman-compose stop discord node web
 
-# create node executable
-cd node/ || exit
-cython node.py --embed -3
-gcc -Os -I /usr/include/python3.7m -o node node.c -lpython3.7m -lpthread -lm -lutil -ldl
+docker run \
+    --mount src=$(pwd)/node/,target=$(pwd)/node,type=bind \
+    -w="$(pwd)/node" \
+    geiler-musik-bot_node \
+    sh -c "pip install coverage && PYTHONWARNINGS='ignore' coverage run --omit='*discord_tests*' --parallel-mode --source=. -m unittest discover"
 
-# cleanup
-cd .. || exit
-find . | grep -E "(__pycache__|\.pyc|\.pyo$)" | sudo xargs rm -rf
+docker run \
+    --mount src=$(pwd),target=$(pwd),type=bind \
+    --env-file=sysenv.env -w="$(pwd)" \
+    geiler-musik-bot_discord \
+    sh -c "pip install coverage && PYTHONWARNINGS='ignore' coverage run --omit='*discord_tests*' --parallel-mode --source=.,src -m unittest discover -s src/"
+
+
+docker run \
+    --mount src=$(pwd),target=$(pwd),type=bind \
+    --env-file=sysenv.env -w="$(pwd)" \
+    --network="web" \
+    --rm \
+    --name discord \
+    geiler-musik-bot_discord \
+    sh -c "pip install coverage && coverage run --source=.,src --parallel-mode --omit='*discord_tests*' src/discord_main.py" \
+    &
+
+docker run \
+    --mount src=$(pwd)/node/,target=$(pwd)/node,type=bind \
+    -w="$(pwd)/node" \
+    --network="web" \
+    --rm \
+    geiler-musik-bot_node \
+    sh -c "pip install coverage && /wait.sh -t 0 discord:9988 -- coverage run --omit='*discord_tests*' --source=. --parallel-mode node.py" \
+    &
+
+sleep 30s
+bash ./src/run_tests.sh
+docker container wait discord
+
+mv ./node/.coverage* .
+
+coverage combine
+coverage report
+coveralls
+
+#podman-compose up -d
+#sleep 20s
+#podman-compose logs discord
+#bash ./src/run_tests.sh
+#podman-compose stop discord node web

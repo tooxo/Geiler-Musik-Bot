@@ -1,0 +1,13 @@
+discord.py
+dnspython
+aiodns
+attr
+motor
+async_timeout
+cchardet
+attrs
+aiohttp
+expiringdict
+dblpy
+pycares
+karp

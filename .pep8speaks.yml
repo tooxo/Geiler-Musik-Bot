@@ -10,6 +10,13 @@ pycodestyle:  # Same as scanner.linter value. Other option is flake8
         - E731  # do not assign a lambda expression, use a def
         - C406  # Unnecessary list literal - rewrite as a dict literal.
         - E741  # ambiguous variable name
+        - E126
+        - E121
+        - E123
+        - E226
+        - E231
+        - W291
+        - E203
 
 no_blank_comment: True
 descending_issues_order: False

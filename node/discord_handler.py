@@ -1,28 +1,35 @@
+"""
+DiscordHandler
+"""
 import asyncio
 import json
+import logging
 import re
 import traceback
-from typing import Dict
+from typing import Dict, Optional, Union
 
 import discord
-import FFmpegPCMAudio
 from discord.ext import commands
+from karp.client import KARPClient
+
+import av_audio_source
 
 
 class Guild:
-    def __init__(self, voice_client: discord.VoiceClient):
-        self.voice_client: discord.voice_client = voice_client
-        self.updater: asyncio.Future
+    """
+    Guild
+    """
+
+    def __init__(self) -> None:
+        self.updater: Optional[asyncio.Future] = None
 
 
 class DiscordHandler:
-    def __init__(
-        self,
-        api_key,
-        writer: asyncio.StreamWriter,
-        reader: asyncio.StreamReader,
-        node,
-    ):
+    """
+    DiscordHandler
+    """
+
+    def __init__(self, api_key, client: KARPClient, node):
         self.__api_key = api_key
 
         self.loop = asyncio.new_event_loop()
@@ -34,157 +41,253 @@ class DiscordHandler:
             guild_subscriptions=False,
             loop=asyncio.get_event_loop(),
         )
-        self.guilds: Dict[int] = {}
+        self.guilds: Dict[int, Guild] = {}
 
-        self.writer: asyncio.StreamWriter = writer
-        self.reader: asyncio.StreamReader = reader
+        self.client: KARPClient = client
 
         self.node = node
 
-        @self.bot.event
-        async def on_message(ignored):
-            # no commands should be accepted
-            pass
+        self.started = asyncio.Event()
+
+        logging.getLogger("discord").setLevel(logging.INFO)
 
         @self.bot.event
-        async def on_error(event, *args, **kwargs):
-            traceback.print_exc()
+        async def on_message(message: discord.Message) -> discord.Message:
+            """
+            Fires on Message
+            :param message:
+            :return:
+            """
+            # no commands should be accepted
+            return message
+
+        @self.bot.event
+        async def on_error(event, *args, **kwargs) -> None:
+            """
+            Fires on error
+            :param event:
+            :param args:
+            :param kwargs:
+            :return:
+            """
+            print(traceback.format_exc(event))
             print(event, *args, **kwargs)
 
+        # noinspection PyUnusedLocal
         @self.bot.event
-        async def on_ready(*args):
-            print("Ready!")
-            self.writer.write("D_READY".encode())
-            asyncio.ensure_future(self.writer.drain())
+        async def on_ready(*args) -> None:  # pylint: disable=unused-argument
+            """
+            Fires on ready
+            :param args:
+            :return:
+            """
+            print("Startup Complete.")
+            self.started.set()
 
     @staticmethod
     def validate_token(token: str) -> bool:
+        """
+        Validate DPY Token
+        :param token: token
+        :return:
+        """
         pattern = r"[MN][A-Za-z\d]{23}\.[\w-]{6}\.[\w-]{27}"
         return re.match(pattern, token) is not None
 
-    @staticmethod
-    def split_response(command: str) -> list:
-        if command.count("C_") > 1:
-            return command.split("C_")[1:]
-        return [command]
-
-    def decide_on_stream(self, data: dict):
-        # if the cipher is identical, the extractor was the node playing
-        # the cipher is also only inserted in youtube_extraction so
-        # soundcloud tracks will return the original stream
-        if self.node.youtube.cipher == data["cipher"]:
-            return (
-                data["youtube_stream"],
-                "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 3",
-            )
-        if "stream/youtube_video" in data["stream"]:
-            return data["stream"], ""
-        return (
-            data["stream"],
-            "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 3",
-        )
-
-    async def update_state(self, guild_id: int):
-        voice_client: discord.VoiceClient = self.guilds[guild_id].voice_client
-        source: FFmpegPCMAudio.FFmpegOpusAudioB = voice_client.source
-        while voice_client.is_playing():
+    async def update_state(self, guild_id: int) -> None:
+        """
+        Update the main client with the current bytes read
+        :param guild_id: guild_id
+        :return:
+        """
+        voice_client: discord.VoiceClient = self.bot.get_guild(
+            guild_id
+        ).voice_client
+        source: av_audio_source.AvAudioSource = voice_client.source
+        while voice_client.is_playing() or voice_client.is_paused():
             await asyncio.sleep(2)
             if not voice_client.is_paused():
                 document = {
                     "guild_id": guild_id,
                     "bytes_read": source.bytes_read,
                 }
-                self.writer.write(f"S_BR_{json.dumps(document)}".encode())
-                await self.writer.drain()
+                await self.client.request(
+                    "discord_bytes", json.dumps(document), response=False
+                )
 
-    async def handle_command(self, command: str):
-        _commands = self.split_response(command)
-        for c in _commands:
-            c = c[2:]
-            data = c[5:]
-            if c.startswith("PLAY"):
-                self.play(data)
-            elif c.startswith("STOP"):
-                self.skip(data)
-            elif c.startswith("CONN"):
-                await self.connect(data=data)
-            elif c.startswith("DCON"):
-                await self.disconnect(data)
-            elif c.startswith("VOLU"):
-                self.volume(data)
-            elif c.startswith("PAUS"):
-                self.pause(data)
-            elif c.startswith("UNPA"):
-                self.resume(data)
-
-    async def stop(self):
+    async def stop(self) -> None:
+        """
+        Stop the discord bot
+        :return:
+        """
         return await self.bot.close()
 
-    async def start(self):
+    async def start(self) -> None:
+        """
+        Start the bot.
+        :return:
+        """
         print("Starting the bot.")
-        await self.bot.start(self.__api_key)
-        # self.bot.run(self.__api_key, loop=asyncio.new_event_loop())
-        print("Starting the bot is done")
+        try:
+            await self.bot.start(self.__api_key)
+        except SystemExit:
+            await self.bot.logout()
 
-    def after(self, error, guild_id: int):
+    def after(self, error, guild_id: int) -> None:
+        """
+        Run after a song is finished
+        :param error:
+        :param guild_id:
+        :return:
+        """
         if error:
-            print(error)
-        document = {"guild_id": guild_id}
-        self.writer.write(f"Z_{json.dumps(document)}".encode())
-        asyncio.new_event_loop().run_until_complete(self.writer.drain())
+            print("play_error", traceback.format_exc(error))
+        document = {
+            "guild_id": guild_id,
+            "connected": bool(self.bot.get_guild(guild_id).voice_client),
+        }
+        asyncio.new_event_loop().run_until_complete(
+            self.client.request(
+                "discord_after", json.dumps(document), None, False
+            )
+        )
         if self.guilds[guild_id].updater:
             self.guilds[guild_id].updater.cancel()
 
-    async def connect(self, data):
-        # guild_id, voice_channel_id
+    async def connect(self, data) -> None:
+        """
+        Connect to a channel
+        :param data:
+        :return:
+        """
+        # guild_id, voice_channel_id, reconnect
         data = json.loads(data)
         channel: discord.VoiceChannel = self.bot.get_channel(
             data["voice_channel_id"]
         )
-        voice_channel = await channel.connect()
-        self.guilds[channel.guild.id] = Guild(voice_channel)
 
-    async def disconnect(self, data):
+        # reconnect routine
+        # it needs to connect and disconnect again to update the voice state
+        # so audio can be sent again
+        if channel.guild.id not in self.guilds:
+            for chan in self.bot.get_guild(channel.guild.id).voice_channels:
+                if self.bot.user in chan.members:
+                    try:
+                        _temporary_voice_client = await channel.connect(
+                            timeout=5, reconnect=False
+                        )
+                        await _temporary_voice_client.disconnect(force=True)
+                    except Exception as thrown_exception:
+                        print(thrown_exception)
+                    break
+
+        if not data["reconnect"]:
+            return
+
+        await channel.connect()
+        self.guilds[channel.guild.id] = Guild()
+
+    async def disconnect(self, data) -> None:
+        """
+        Disconnect from channel
+        :param data:
+        :return:
+        """
         # guild_id
         data = json.loads(data)
-        await self.guilds[data["guild_id"]].voice_client.disconnect()
+        # self.bot.get_guild(data["guild_id"]).voice_client.stop()
+        await self.bot.get_guild(data["guild_id"]).voice_client.disconnect()
 
-    def play(self, data):
-        # guild_id, stream, volume, youtube_stream, cipher
+    async def play(self, data) -> None:
+        """
+        Play a song
+        :param data:
+        :return:
+        """
+        # guild_id, stream, volume, codec
         data = json.loads(data)
-        new_stream, before_args = self.decide_on_stream(data)
-        self.guilds[data["guild_id"]].voice_client.play(
-            source=FFmpegPCMAudio.FFmpegOpusAudioB(
-                new_stream, volume=data["volume"], before_options=before_args
-            ),
+        new_stream, before_args, player = (
+            data["stream"],
+            "",
+            av_audio_source.AvAudioSource,
+        )
+        self.bot.get_guild(data["guild_id"]).voice_client.play(
+            source=player(source=new_stream, volume=data["volume"],),
             after=lambda err: self.after(err, data["guild_id"]),
         )
         self.guilds[data["guild_id"]].updater = asyncio.ensure_future(
             self.update_state(data["guild_id"])
         )
 
-    def skip(self, data):
+    async def seek(self, data: str) -> None:
+        """
+        Seek forwards or backwards
+        :param data:
+        :return:
+        """
+        # guild_id, stream, volume, seconds, direction
+        parsed_data: Dict[str, Union[str, int]] = json.loads(data)
+
+        voice_client: discord.VoiceClient = self.bot.get_guild(
+            parsed_data["guild_id"]
+        ).voice_client
+
+        if isinstance(voice_client.source, av_audio_source.AvAudioSource):
+            if parsed_data["direction"] == "back":
+                parsed_data["seconds"] *= -1
+            voice_client.source.seek(parsed_data["seconds"])
+            document = {
+                "guild_id": parsed_data["guild_id"],
+                "bytes_read": voice_client.source.bytes_read,
+            }
+            await self.client.request(
+                "discord_bytes", json.dumps(document), response=False
+            )
+        else:
+            raise NotImplementedError
+
+    def skip(self, data) -> None:
+        """
+        Skip a song
+        :param data:
+        :return:
+        """
         # guild_id
         data = json.loads(data)
-        if (
-            self.guilds[data["guild_id"]].voice_client.is_playing()
-            or self.guilds[data["guild_id"]].voice_client.is_paused()
-        ):
-            self.guilds[data["guild_id"]].voice_client.stop()
+        voice_client: discord.VoiceClient = self.bot.get_guild(
+            data["guild_id"]
+        ).voice_client
+        if voice_client.is_playing() or voice_client.is_paused():
+            voice_client.stop()
 
-    def volume(self, data):
+    def volume(self, data) -> None:
+        """
+        Change the volume
+        :param data:
+        :return:
+        """
         # guild_id, volume
         data = json.loads(data)
-        self.guilds[data["guild_id"]].voice_client.source.set_volume(
+        self.bot.get_guild(data["guild_id"]).voice_client.source.set_volume(
             data["volume"]
         )
 
-    def pause(self, data: str):
+    def pause(self, data: str) -> None:
+        """
+        Pause the player
+        :param data:
+        :return:
+        """
         # guild_id
         data = json.loads(data)
-        self.guilds[data["guild_id"]].voice_client.pause()
+        self.bot.get_guild(data["guild_id"]).voice_client.pause()
 
-    def resume(self, data):
+    def resume(self, data) -> None:
+        """
+        Resume the playback
+        :param data:
+        :return:
+        """
         # guild_id
         data = json.loads(data)
-        self.guilds[data["guild_id"]].voice_client.resume()
+        self.bot.get_guild(data["guild_id"]).voice_client.resume()
