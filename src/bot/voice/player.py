@@ -5,7 +5,7 @@ import asyncio
 import random
 import re
 import traceback
-from typing import TYPE_CHECKING, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import discord
 from discord.ext import commands

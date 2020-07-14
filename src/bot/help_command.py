@@ -34,7 +34,7 @@ class Help(commands.Cog):
     @staticmethod
     def _lengthen_string(input_string, length: int) -> str:
         _length = length - len(input_string) + 3
-        return f"{input_string}{f' ' * _length}"
+        return f"{input_string}{' ' * _length}"
 
     @staticmethod
     def _split_list(_list: list, _length: int) -> list:
@@ -118,8 +118,7 @@ class Help(commands.Cog):
             if implicit:
                 embed.description = f'"{command}" was not found.'
                 return await ctx.send(embed=embed)
-            else:
-                return None
+            return None
         command: commands.Command = self.bot.all_commands[command]
         if len(command.aliases) > 0:
             syntax_text = f"{self.prefix}[{command.name}"
@@ -161,7 +160,7 @@ class Help(commands.Cog):
                 except IndexError:
                     return await ctx.send(
                         embed=Embed(
-                            title=f"Error",
+                            title="Error",
                             description=f"{self.prefix}Help page "
                             f"{page} not found.",
                             color=0xFF0000,

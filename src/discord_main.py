@@ -1,11 +1,9 @@
 """
 Main
 """
-import asyncio
 import logging
 import os
 import subprocess
-import sys
 import traceback
 import typing
 from typing import Type
