@@ -255,23 +255,6 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
 
             self.bot.loop.create_task(_update_stats(dbl_client))
 
-    # DEPRECATED, NOT USED
-    async def clear_presence(self, ctx: discord.ext.commands.Context):
-        """
-        Stops message updating after a song finished
-        :param ctx:
-        :return:
-        """
-        try:
-            if self.guilds[ctx.guild.id].now_playing_message is not None:
-                await self.guilds[ctx.guild.id].now_playing_message.stop()
-                try:
-                    await self.delete_message(message=ctx.message)
-                except discord.NotFound:
-                    pass
-        except discord.NotFound:
-            self.guilds[ctx.guild.id].now_playing_message = None
-
     @staticmethod
     async def delete_message(
         message: discord.Message, delay: int = None
