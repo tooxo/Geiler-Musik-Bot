@@ -1,12 +1,12 @@
 """
 Genius
 """
+import json
 import re
 import traceback
-import json
 import urllib.parse
-from typing import Tuple
 from html import unescape
+from typing import Tuple
 
 import aiohttp
 import async_timeout
@@ -218,7 +218,7 @@ class LyricsCleanup:
         @param lyrics:
         @return:
         """
-        #while "\n\n" in lyrics:
+        # while "\n\n" in lyrics:
         #    lyrics = lyrics.replace("\n\n", "\n")
         return lyrics
 

@@ -1,4 +1,4 @@
 """
 Node
 """
-from .node import YouTube, SoundCloud, NotAvailableException
+from .node import NotAvailableException, SoundCloud, YouTube

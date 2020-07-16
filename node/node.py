@@ -10,7 +10,6 @@ import time
 import traceback
 from typing import List, Tuple, Union
 from urllib.parse import quote
-from yaml import YAMLError, safe_load
 
 import aiohttp
 import pytube
@@ -18,6 +17,7 @@ from expiringdict import ExpiringDict
 from karp.client import KARPClient
 from karp.request import Request
 from pytube.exceptions import RegexMatchError
+from yaml import YAMLError, safe_load
 
 from discord_handler import DiscordHandler
 
@@ -59,8 +59,8 @@ class YouTube:
 
     def __init__(self) -> None:
         self.research_cache: ExpiringDict = ExpiringDict(1000, 10000)
-        self.search_cache: dict = dict()
-        self.music_search_cache: dict = dict()
+        self.search_cache: dict = {}
+        self.music_search_cache: dict = {}
 
     @staticmethod
     async def extract_manifest(manifest_url: str) -> str:
@@ -709,7 +709,6 @@ class Node:
         @self.client.add_route(route="soundcloud_search")
         async def _soundcloud_search(request: Request):
             term = request.text
-            assert term != ""
             infos = await self.soundcloud.search(search_term=term)
             if isinstance(infos, dict):
                 return json.dumps(infos)

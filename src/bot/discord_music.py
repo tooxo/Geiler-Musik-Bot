@@ -15,6 +15,7 @@ from discord.ext import commands
 import logging_manager
 from bot.node_controller.controller import Controller
 from bot.type.errors import Errors
+from bot.type.exceptions import NoResultsFound
 from bot.type.guild import Guild
 from bot.type.song import Song
 from bot.voice.checks import Checks
@@ -23,7 +24,6 @@ from bot.voice.player import Player
 from bot.voice.player_controls import PlayerControls
 from bot.voice.tts import TTS
 from extractors import genius, mongo, soundcloud, spotify, watch2gether, youtube
-from bot.type.exceptions import NoResultsFound
 
 
 class DiscordBot(commands.Cog, name="Miscellaneous"):
