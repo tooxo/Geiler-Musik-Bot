@@ -1,6 +1,7 @@
 """
 Guild
 """
+import time
 from typing import TYPE_CHECKING, Optional
 
 from bot.type.queue import Queue
@@ -30,7 +31,32 @@ class Guild:
         self.search_service: str = "basic"
         self.announce: bool = True
 
-        self.queue_lock: bool = False
+        self._queue_lock: bool = False
+        self._queue_active_time: int = 0
+
+    def lock_queue(self) -> None:
+        """
+        Lock the queue
+        @return:
+        """
+        self._queue_lock = True
+        self._queue_active_time = time.time()
+
+    def unlock_queue(self) -> None:
+        """
+        Unlock the queue
+        @return:
+        """
+        self._queue_lock = False
+        self._queue_active_time = 0
+
+    @property
+    def queue_locked(self) -> bool:
+        """
+        Check if the queue is locked.
+        @return:
+        """
+        return self._queue_lock and (time.time() - self._queue_active_time) < 10
 
     async def inflate_from_mongo(self, mongo, guild_id) -> None:
         """
