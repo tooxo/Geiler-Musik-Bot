@@ -42,8 +42,8 @@ def restart_token() -> Response:
     Provide the restart token page
     @return:
     """
-    with open("sites/password_check.html") as f:
-        return Response(f.read())
+    with open("sites/password_check.html") as opened_file:
+        return Response(opened_file.read())
 
 
 @APP.route("/")
@@ -52,8 +52,8 @@ def index() -> Response:
     Provide Index
     @return:
     """
-    with open("sites/index.html") as f:
-        return Response(f.read())
+    with open("sites/index.html") as opened_file:
+        return Response(opened_file.read())
 
 
 @APP.route("/response")
@@ -62,8 +62,8 @@ def response() -> Response:
     Provide Response
     @return:
     """
-    with open("sites/response.html") as f:
-        return Response(f.read())
+    with open("sites/response.html") as opened_file:
+        return Response(opened_file.read())
 
 
 @APP.route("/mostplayed")
@@ -72,8 +72,8 @@ def mostplayed() -> Response:
     Provide Most Played
     @return:
     """
-    with open("sites/mostplayed.html") as f:
-        return Response(f.read())
+    with open("sites/mostplayed.html") as opened_file:
+        return Response(opened_file.read())
 
 
 @APP.route("/http/mostplayed.js")
@@ -82,8 +82,8 @@ def mostplayedjs() -> Response:
     Provide Most Played JS
     @return:
     """
-    with open("scripts/mostplayed.js") as f:
-        return Response(f.read())
+    with open("scripts/mostplayed.js") as opened_file:
+        return Response(opened_file.read())
 
 
 @APP.route("/http/main.js")
@@ -92,8 +92,8 @@ def mainjs() -> Response:
 
     @return:
     """
-    with open("scripts/main.js") as f:
-        return Response(f.read())
+    with open("scripts/main.js") as opened_file:
+        return Response(opened_file.read())
 
 
 @APP.route("/sha256.js")
@@ -102,8 +102,8 @@ def sha256js() -> Response:
 
     @return:
     """
-    with open("scripts/sha256.js") as f:
-        return Response(f.read())
+    with open("scripts/sha256.js") as opened_file:
+        return Response(opened_file.read())
 
 
 @APP.route("/sjcl.js")
@@ -112,8 +112,8 @@ def sjcljs() -> Response:
 
     @return:
     """
-    with open("scripts/sjcl.js") as f:
-        return Response(f.read())
+    with open("scripts/sjcl.js") as opened_file:
+        return Response(opened_file.read())
 
 
 @APP.route("/http/chart.js")

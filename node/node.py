@@ -10,6 +10,7 @@ import time
 import traceback
 from typing import List, Tuple, Union
 from urllib.parse import quote
+from yaml import YAMLError, safe_load
 
 import aiohttp
 import pytube
@@ -17,7 +18,6 @@ from expiringdict import ExpiringDict
 from karp.client import KARPClient
 from karp.request import Request
 from pytube.exceptions import RegexMatchError
-from yaml import YAMLError, safe_load
 
 from discord_handler import DiscordHandler
 
