@@ -23,6 +23,7 @@ from bot.voice.player import Player
 from bot.voice.player_controls import PlayerControls
 from bot.voice.tts import TTS
 from extractors import genius, mongo, soundcloud, spotify, watch2gether, youtube
+from bot.type.exceptions import NoResultsFound
 
 
 class DiscordBot(commands.Cog, name="Miscellaneous"):
@@ -133,9 +134,11 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                         # the "\n" need to be subtracted.
                 else:
                     _line_container = [_line]
-
                 for line in _line_container:
                     new_chunk = ""
+                    # in the following I am using a zero-width unicode char
+                    # because discord won't format an empty message, so I need
+                    # to fill it with something invisible
                     if line in ("", " "):
                         if not new_chunk.endswith(
                             "> \N{MONGOLIAN VOWEL SEPARATOR}\n"
@@ -146,7 +149,6 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                             and not new_chunk
                         ):
                             new_chunk += "> \N{MONGOLIAN VOWEL SEPARATOR}\n"
-                            # the good ol' mongolian vowel separator
                     else:
                         new_chunk += "> " + line + "\n"
                     if (len(partial) + len(new_chunk)) >= 2000:
@@ -689,7 +691,16 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         url = None
         await ctx.channel.trigger_typing()
         if song_name:
-            url = await genius.Genius.search_genius(song_name, "")
+            try:
+                url = await genius.Genius.search_genius(song_name, "")
+            except NoResultsFound:
+                return await self.send_error_message(
+                    ctx, Errors.no_results_found
+                )
+            except asyncio.TimeoutError:
+                return await self.send_error_message(
+                    ctx, Errors.cant_reach_genius
+                )
         elif hasattr(self.guilds.get(ctx.guild.id, None), "now_playing"):
             if isinstance(self.guilds[ctx.guild.id].now_playing, Song):
                 song: Song = self.guilds[ctx.guild.id].now_playing
@@ -702,7 +713,12 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     else:
                         url = await genius.Genius.search_genius(song.title, "")
         if url:
-            lyrics, header = await genius.Genius.extract_from_genius(url)
+            try:
+                lyrics, header = await genius.Genius.extract_from_genius(url)
+            except asyncio.TimeoutError:
+                return await self.send_error_message(
+                    ctx, Errors.cant_reach_genius
+                )
             await ctx.send(content=f"> **{header}**")
             return (await self._send_message(ctx, lyrics, use_citation=True))[
                 -1

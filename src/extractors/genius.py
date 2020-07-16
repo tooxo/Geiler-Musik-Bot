@@ -85,7 +85,7 @@ class Genius:
         @param url:
         @return:
         """
-        async with async_timeout.timeout(timeout=8):
+        async with async_timeout.timeout(timeout=10):
             async with aiohttp.request("GET", url=url) as resp:
                 if resp.status not in (200, 301, 302):
                     logging_manager.LoggingManager().info(
@@ -112,7 +112,7 @@ class Genius:
                             raw_json.replace('\\\\"', '\\"')
                             .replace('\\"', '"')
                             .replace("\\'", "'")
-                            .replace("\\`", "`")
+                            .replace("\\`", "'")
                         )  # these ticks and apostrophes seem to confuse the
                         # json parser
                         if r"\$" in raw_json:
@@ -218,8 +218,8 @@ class LyricsCleanup:
         @param lyrics:
         @return:
         """
-        while "\n\n" in lyrics:
-            lyrics = lyrics.replace("\n\n", "\n")
+        #while "\n\n" in lyrics:
+        #    lyrics = lyrics.replace("\n\n", "\n")
         return lyrics
 
     @staticmethod
