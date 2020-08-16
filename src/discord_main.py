@@ -147,11 +147,11 @@ async def on_error(*args, **kwargs) -> None:
 
 VERSIONS = {}
 for mod in (
-    subprocess.check_output(["/usr/local/bin/pip", "freeze"], shell=False)
+    subprocess.check_output(["pip", "freeze"], shell=False)
     .decode()
     .split("\n")
 ):
-    if mod:
+    if mod and "==" in mod:
         VERSIONS[mod.split("==")[0]] = mod.split("==")[1]
 
 DISCORD_VERSION = VERSIONS["discord.py"]

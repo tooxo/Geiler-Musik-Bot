@@ -1,6 +1,7 @@
 """
 Guild
 """
+import asyncio
 import time
 from typing import TYPE_CHECKING, Optional
 
@@ -33,6 +34,9 @@ class Guild:
 
         self._queue_lock: bool = False
         self._queue_active_time: int = 0
+
+        self.job_lock = asyncio.Lock()
+        self.playback_lock = asyncio.Lock()
 
     def lock_queue(self) -> None:
         """
