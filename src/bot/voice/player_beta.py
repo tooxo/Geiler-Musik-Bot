@@ -326,7 +326,14 @@ class PlayerHelper:
             )
         if content_type == Url.other:
             # song_list = await PlayerHelper.search(content, parent, ctx)
-            song_list = [Song(term=content)]
+            if content.lower() == "charts":
+                song_list = await PlayerHelper.load_content_information_spotify(
+                    content="https://open.spotify.com/playlist"
+                            "/37i9dQZEVXbMDoHDwVN2tF?si=UoMb1IlJTweLdkQZTW8fNg",
+                    parent=parent
+                )
+            else:
+                song_list = [Song(term=content)]
         return list(map(_add_user, song_list))
 
     @staticmethod
