@@ -50,8 +50,10 @@ class BetaPlayer(commands.Cog):
         if not await self.join_channel(ctx=ctx):
             return False
 
-        if PlayerHelper.determine_content_type(
-                url) is not None or url.lower() == "charts":
+        if (
+                PlayerHelper.determine_content_type(url) is not None
+                or url.lower() == "charts"
+        ):
             return True
         if re.match(VariableStore.url_pattern, url) is not None:
             await self.parent.send_error_message(
@@ -88,6 +90,12 @@ class BetaPlayer(commands.Cog):
     @commands.check(Checks.same_channel_check)
     @commands.command(aliases=["p"])
     async def play(self, ctx, *, content: str):
+        """
+        Plays a song.
+        :param ctx:
+        :param content:
+        :return:
+        """
         if not await self.play_check(ctx, content):
             return
         return await self._add_to_queue(content, ctx)
@@ -95,6 +103,12 @@ class BetaPlayer(commands.Cog):
     @commands.check(Checks.same_channel_check)
     @commands.command(aliases=["ps", "playskip"])
     async def play_skip(self, ctx, *, content: str):
+        """
+        Queues a song and instantly skips to it.
+        :param ctx:
+        :param content:
+        :return:
+        """
         if not await self.play_check(ctx, content):
             return
         return await self._add_to_queue(content, ctx, skip=True)
@@ -102,6 +116,12 @@ class BetaPlayer(commands.Cog):
     @commands.check(Checks.same_channel_check)
     @commands.command(aliases=["pn", "playnext"])
     async def play_next(self, ctx, *, content: str):
+        """
+        Adds a song to the first position of the queue
+        @param ctx:
+        @param content:
+        @return:
+        """
         if not await self.play_check(ctx, content):
             return
         return await self._add_to_queue(content, ctx, priority=True)
@@ -109,6 +129,12 @@ class BetaPlayer(commands.Cog):
     @commands.check(Checks.same_channel_check)
     @commands.command(aliases=["sp"])
     async def play_shuffle(self, ctx, *, content: str):
+        """
+        Queues multiple songs in random order.
+        :param ctx:
+        :param content:
+        :return:
+        """
         if not await self.play_check(ctx, content):
             return
         return await self._add_to_queue(content, ctx, shuffle=True)
@@ -120,11 +146,16 @@ class BetaPlayer(commands.Cog):
     async def _play_error(self, ctx, error):
         if self.guilds[ctx.guild.id].job_lock.locked():
             self.guilds[ctx.guild.id].job_lock.release()
-        raise error
+        # raise error
 
     @commands.command()
     @commands.check(Checks.user_connection_check)
     async def connect(self, ctx):
+        """
+        Connects the bot to your channel.
+        :param ctx:
+        :return:
+        """
         was_connected = self.guilds[ctx.guild.id].voice_client is not None
         if not await self.join_channel(ctx=ctx):
             return
@@ -199,11 +230,15 @@ class BetaPlayer(commands.Cog):
             song_list: List[Song] = await PlayerHelper.load_content_information(
                 content, content_type, self.parent, ctx
             )
-        except (asyncio.TimeoutError, NoResultsFound, SongExtractionException,
-                BasicError) as be:
+        except (
+                asyncio.TimeoutError,
+                NoResultsFound,
+                SongExtractionException,
+                BasicError,
+        ) as be:
             print(be)
-            if self.guilds[ctx.guild.id].job_lock.locked(): self.guilds[
-                ctx.guild.id].job_lock.release()
+            if self.guilds[ctx.guild.id].job_lock.locked():
+                self.guilds[ctx.guild.id].job_lock.release()
             return
             # shuffle if requested
         if shuffle:
@@ -224,7 +259,7 @@ class BetaPlayer(commands.Cog):
                     ctx,
                     f"Queued **"
                     f"{song_list[0].title or song_list[0].term or song_list[0].link}"
-                    f"**."
+                    f"**.",
                 )
         # now add to queue
         if priority:
@@ -269,13 +304,12 @@ class BetaPlayer(commands.Cog):
                 guild.job_lock.release() if guild.job_lock.locked() else None
                 return
             guild.voice_client.set_after(self._after_song, ctx)
-            await guild.voice_client.play(
-                song, guild.volume
-            )
+            await guild.voice_client.play(song, guild.volume)
             guild.now_playing = song
             if not guild.now_playing_message:
                 guild.now_playing_message = NowPlayingMessage(
-                    parent=self.parent)
+                    parent=self.parent
+                )
             await self.guilds[guild_id].now_playing_message.new_song(ctx)
 
     async def _after_song(self, ctx) -> None:
@@ -330,7 +364,7 @@ class PlayerHelper:
                 song_list = await PlayerHelper.load_content_information_spotify(
                     content="https://open.spotify.com/playlist"
                             "/37i9dQZEVXbMDoHDwVN2tF?si=UoMb1IlJTweLdkQZTW8fNg",
-                    parent=parent
+                    parent=parent,
                 )
             else:
                 song_list = [Song(term=content)]
@@ -390,9 +424,10 @@ class PlayerHelper:
         if song.link:
             if PlayerHelper.determine_content_type(song.link) == Url.youtube:
                 return Song.copy_song(
-                    await parent.youtube.youtube_url(url=song.link,
-                                                     guild_id=song.guild_id),
-                    song
+                    await parent.youtube.youtube_url(
+                        url=song.link, guild_id=song.guild_id
+                    ),
+                    song,
                 )
             else:
                 return Song.copy_song(
@@ -402,9 +437,11 @@ class PlayerHelper:
         if song.term or song.title:
             song = Song.copy_song(
                 song,
-                (await PlayerHelper.search(song.title or song.term, parent,
-                                           ctx))[
-                    0]
+                (
+                    await PlayerHelper.search(
+                        song.title or song.term, parent, ctx
+                    )
+                )[0],
             )
             return await PlayerHelper.complete_content_information(
                 song, parent, ctx
