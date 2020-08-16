@@ -231,6 +231,16 @@ class AvDecoder:
         :param seconds: n
         :return:
         """
+
+        duration_timebase = self.audio.duration
+        if duration_timebase:
+            duration = round(
+                duration_timebase * self.audio_stream.time_base * 0.001)
+            if seconds > duration:
+                # this stops the current playback
+                self.stopped = True
+                return
+
         time_base: int = round(seconds / self.audio_stream.time_base)
 
         if time_base < 0:
