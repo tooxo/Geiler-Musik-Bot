@@ -120,7 +120,7 @@ async def on_command_error(
             message="Our backend seems to be down right now, "
             "try again in a few minutes.",
         )
-    elif isinstance(error, discord.ext.commands.MissingRequiredArgument):
+    elif isinstance(error, discord.ext.commands.errors.MissingRequiredArgument):
         # send help
         await CLIENT.cogs["Help"].help_command(
             ctx, str(ctx.command), implicit=False
