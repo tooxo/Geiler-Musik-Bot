@@ -132,24 +132,36 @@ class Spotify:
                                 )
                             )
 
-                        except (IndexError, KeyError):  # pragma: no cover
+                        except (
+                            IndexError,
+                            KeyError,
+                            TypeError,
+                        ):  # pragma: no cover
                             # Probably invalid local file
                             continue
                     else:
-                        t_list.append(
-                            Song(
-                                title=track["track"]["album"]["artists"][0][
-                                    "name"
-                                ]
-                                + " - "
-                                + track["track"]["name"],
-                                image_url=track["track"]["album"]["images"][0][
-                                    "url"
-                                ],
-                                song_name=track["track"]["name"],
-                                artist=track["track"]["artists"][0]["name"],
+                        try:
+                            t_list.append(
+                                Song(
+                                    title=track["track"]["album"]["artists"][0][
+                                        "name"
+                                    ]
+                                    + " - "
+                                    + track["track"]["name"],
+                                    image_url=track["track"]["album"]["images"][
+                                        0
+                                    ]["url"],
+                                    song_name=track["track"]["name"],
+                                    artist=track["track"]["artists"][0]["name"],
+                                )
                             )
-                        )
+                        except (
+                            IndexError,
+                            KeyError,
+                            TypeError,
+                        ):  # catch preemtively to prevent
+                            # no-response
+                            pass
 
                 if json_result["next"] is None:
                     more = False

@@ -59,8 +59,8 @@ class YouTube:
 
     def __init__(self) -> None:
         self.research_cache: ExpiringDict = ExpiringDict(1000, 10000)
-        self.search_cache: dict = dict()
-        self.music_search_cache: dict = dict()
+        self.search_cache: dict = {}
+        self.music_search_cache: dict = {}
 
     @staticmethod
     async def extract_manifest(manifest_url: str) -> str:
@@ -179,6 +179,8 @@ class YouTube:
         output = []
         ydl = await pytube.Playlist.create(url)
         for url, title in ydl:
+            if not url or not title:
+                continue
             output.append({"title": title, "link": url})
         del ydl
         return output
@@ -340,7 +342,7 @@ class SoundCloud:
     URL_MISSING = "https://api-v2.soundcloud.com/tracks?ids={}&client_id={}"
 
     SCRIPT_REGEX = re.compile(
-        r"(https://a-v2\.sndcdn\.com/assets/48-[\da-z]{8}-[\da-z].js)"
+        r"(https://a-v2\.sndcdn\.com/assets/\d\d?-[\da-z]{8}-[\da-z].js)"
     )
 
     ID_REGEX = re.compile(r'client_id:"([a-zA-Z0-9]+)"')
@@ -366,12 +368,16 @@ class SoundCloud:
             return self.api_key
         async with aiohttp.request("GET", "https://soundcloud.com") as res:
             response = (await res.read()).decode()
-        script = re.findall(self.SCRIPT_REGEX, response)[0]
-        async with aiohttp.request("GET", script) as res:
-            script_src = (await res.read()).decode()
-        client_id = re.findall(self.ID_REGEX, script_src)[0]
-        self.api_key = client_id
-        return client_id
+
+        scripts = re.findall(self.SCRIPT_REGEX, response)
+        for script in scripts:
+            async with aiohttp.request("GET", script) as res:
+                script_src = (await res.read()).decode()
+                client_id = re.findall(self.ID_REGEX, script_src)
+                if not client_id:
+                    continue
+                self.api_key = client_id[0]
+                return self.api_key
 
     @staticmethod
     def _decide_on_format(formats: dict):
@@ -590,8 +596,8 @@ class Node:
         file = open(filename, "r")
         try:
             loaded_yaml = safe_load(file)
-        except YAMLError as ex:
-            print(ex)
+        except YAMLError:
+            traceback.print_exc()
             sys.exit(1)
 
         self.parent_host = loaded_yaml.get("parent_host", "")
@@ -709,7 +715,6 @@ class Node:
         @self.client.add_route(route="soundcloud_search")
         async def _soundcloud_search(request: Request):
             term = request.text
-            assert term != ""
             infos = await self.soundcloud.search(search_term=term)
             if isinstance(infos, dict):
                 return json.dumps(infos)

@@ -5,7 +5,7 @@ import json
 import unittest
 
 import av_audio_source
-from node import YouTube, NotAvailableException, SoundCloud
+from node import NotAvailableException, SoundCloud, YouTube
 
 
 class NodeTest(unittest.TestCase):

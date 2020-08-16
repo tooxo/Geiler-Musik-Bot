@@ -1,11 +1,12 @@
 """
 Genius
 """
+import json
 import re
 import traceback
 import urllib.parse
-from typing import Tuple
 from html import unescape
+from typing import Tuple
 
 import aiohttp
 import async_timeout
@@ -23,14 +24,6 @@ class Genius:
     Genius
     """
 
-    PATTERN_RAW = re.compile(
-        r'<div class="lyrics">[^!]+<!--sse-->([^^]+)<!--/sse-->', re.S
-    )
-    PATTERN_RAW_2 = re.compile(
-        r'<div class="Lyrics__Container-sc-1ynbvzw-2 \S+">(.+)'
-        r'<div class="RightSidebar',
-    )
-    PATTERN = re.compile(r"<[^>]*>", re.S)
     TITLE_PATTERN = re.compile(
         r"<h1[^>]*header_with_cover_art-primary_info-title[^>]*>(.+)</h1>", re.S
     )
@@ -46,6 +39,9 @@ class Genius:
         r'<a[^>]+class="Link-h3isu4-0 dpVWpH '
         r'SongHeader__Artist-sc-1b7aqpg-8 \S+"[^>]+>([^<]+)</a>',
         re.S,
+    )
+    PRELOADED_STATE_PATTERN = re.compile(
+        r"window\.__PRELOADED_STATE__ = JSON\.parse\('(.+)'\);", re.DOTALL
     )
 
     @staticmethod
@@ -89,7 +85,7 @@ class Genius:
         @param url:
         @return:
         """
-        async with async_timeout.timeout(timeout=8):
+        async with async_timeout.timeout(timeout=10):
             async with aiohttp.request("GET", url=url) as resp:
                 if resp.status not in (200, 301, 302):
                     logging_manager.LoggingManager().info(
@@ -99,13 +95,80 @@ class Genius:
                     raise BasicError(Errors.default)
                 text = (await resp.read()).decode("UTF-8")
                 if "LyricsPlaceholder__Message" in text:
-                    parsed_lyrics = "This song is an instrumental"
+                    parsed_lyrics = "[Instrumental]"
                 else:
-                    matcher = Genius.PATTERN_RAW.search(text)
-                    if not matcher:
-                        matcher = Genius.PATTERN_RAW_2.search(text)
-                    raw_lyrics = matcher.group(1)
-                    parsed_lyrics = Genius.PATTERN.sub("", raw_lyrics)
+                    if '<div class="lyrics">' in text:
+                        raw_lyrics = text.split('<div class="lyrics">')[1]
+                        raw_lyrics = raw_lyrics.split("<!--sse-->")[1]
+                        raw_lyrics = raw_lyrics.split(" <!--/sse-->")[0]
+                        parsed_lyrics = raw_lyrics
+                    else:
+                        raw_json = Genius.PRELOADED_STATE_PATTERN.search(
+                            text
+                        ).group(1)
+                        if "');" in raw_json:
+                            raw_json = raw_json.split("');")[0]
+                        raw_json = (
+                            raw_json.replace('\\\\"', '\\"')
+                            .replace('\\"', '"')
+                            .replace("\\'", "'")
+                            .replace("\\`", "'")
+                        )  # these ticks and apostrophes seem to confuse the
+                        # json parser
+                        if r"\$" in raw_json:
+                            raw_json = raw_json.replace(r"\$", "")
+                        for space in map(chr, range(0x2000, 0x200F)):
+                            raw_json = raw_json.replace(space, " ")
+                        js_obj = json.loads(raw_json)
+                        parsed_lyrics = ""
+                        for child in js_obj["songPage"]["lyricsData"]["body"][
+                            "children"
+                        ]:
+                            if isinstance(child, str):
+                                continue
+                            for txt in child["children"]:
+                                if isinstance(txt, dict):
+                                    if len(txt.keys()) == 1:
+                                        parsed_lyrics += "\n"
+                                        continue
+                                    lyrics_list = []
+                                    if "children" in txt:
+                                        for proposed_lyric in txt["children"]:
+                                            if isinstance(proposed_lyric, str):
+                                                if not proposed_lyric:
+                                                    lyrics_list.append("\n")
+                                                else:
+                                                    lyrics_list.append(
+                                                        proposed_lyric
+                                                    )
+                                            elif "children" in proposed_lyric:
+
+                                                def _filter_method(arg1):
+                                                    if (
+                                                        isinstance(arg1, dict)
+                                                        or arg1 == ""
+                                                    ):
+                                                        return "\n"
+                                                    return arg1
+
+                                                lyrics_list.extend(
+                                                    map(
+                                                        _filter_method,
+                                                        proposed_lyric[
+                                                            "children"
+                                                        ],
+                                                    )
+                                                )
+                                            else:
+                                                lyrics_list.append("\n")
+                                    else:
+                                        lyrics_list.append("\n")
+                                    parsed_lyrics += "".join(
+                                        lyrics_list
+                                    )  # + "\n"
+                                else:
+                                    parsed_lyrics += txt
+                                    # parsed_lyrics += "\n"
                 artist_matcher = Genius.ARTIST_PATTERN.search(text)
                 if not artist_matcher:
                     artist_matcher = Genius.ARTIST_PATTERN_2.search(text)
@@ -130,8 +193,9 @@ class LyricsCleanup:
         """
         This removes any other html tags from the lyrics
         (the regex was stolen from here: https://www.regextester.com/93515)
-        :param lyrics: input lyrics
-        :return: filtered lyrics
+
+        @param lyrics: input lyrics
+        @return: filtered lyrics
         """
         html_tag_regex = r"<[^>]*>"
         return re.sub(pattern=html_tag_regex, string=lyrics, repl="")
@@ -145,6 +209,17 @@ class LyricsCleanup:
         """
         while "  " in lyrics:
             lyrics = lyrics.replace("  ", " ")
+        return lyrics
+
+    @staticmethod
+    def remove_double_newlines(lyrics: str) -> str:
+        """
+
+        @param lyrics:
+        @return:
+        """
+        # while "\n\n" in lyrics:
+        #    lyrics = lyrics.replace("\n\n", "\n")
         return lyrics
 
     @staticmethod
@@ -165,14 +240,16 @@ class LyricsCleanup:
     @staticmethod
     def clean_up(lyrics: str) -> str:
         """
-        runs all of them
+        runs all of the lyrics cleanup routines listed above
         :param lyrics:
         :return:
         """
         return unescape(
             LyricsCleanup.remove_start_and_end_spaces(
-                LyricsCleanup.remove_double_spaces(
-                    LyricsCleanup.remove_html_tags(lyrics=lyrics)
+                LyricsCleanup.remove_double_newlines(
+                    LyricsCleanup.remove_double_spaces(
+                        LyricsCleanup.remove_html_tags(lyrics=lyrics)
+                    )
                 )
             )
         ).strip()

@@ -105,22 +105,22 @@ class Player(Cog):
                     await self.parent.send_error_message(
                         ctx, Errors.no_results_found
                     )
-                    self.guilds[guild_id].queue_lock = False
+                    self.guilds[guild_id].unlock_queue()
                     await self.pre_player(ctx)
                     return
                 except SongExtractionException:
                     await self.parent.send_error_message(
                         ctx, Errors.youtube_video_not_available
                     )
-                    self.guilds[guild_id].queue_lock = False
+                    self.guilds[guild_id].unlock_queue()
                     await self.pre_player(ctx)
                     return
-                except BasicError as basic_error:
+                except (BasicError, asyncio.TimeoutError) as basic_error:
                     if str(basic_error) != Errors.error_please_retry:
                         await self.parent.send_error_message(
                             ctx, str(basic_error)
                         )
-                        self.guilds[guild_id].queue_lock = False
+                        self.guilds[guild_id].unlock_queue()
                         await self.pre_player(ctx)
                         return
                     return await self.pre_player(ctx, bypass=small_dict)
@@ -328,7 +328,7 @@ class Player(Cog):
                     pass
             if (
                 self.guilds[ctx.guild.id].now_playing
-                or self.guilds[ctx.guild.id].queue_lock
+                or self.guilds[ctx.guild.id].queue_locked
             ):
                 if not play_skip and not change:
                     await self.parent.send_embed_message(
@@ -346,9 +346,9 @@ class Player(Cog):
                     if self.guilds[ctx.guild.id].voice_client.is_playing():
                         await self.guilds[ctx.guild.id].voice_client.stop()
             if not self.guilds[ctx.guild.id].now_playing:
-                if not self.guilds[ctx.guild.id].queue_lock:
+                if not self.guilds[ctx.guild.id].queue_locked:
                     # locks the queue for direct play
-                    self.guilds[ctx.guild.id].queue_lock = True
+                    self.guilds[ctx.guild.id].lock_queue()
                     if self.guilds[ctx.guild.id].announce:
                         await ctx.trigger_typing()
                     await self.pre_player(ctx)
@@ -573,7 +573,7 @@ class Player(Cog):
         @return:
         """
         try:
-            self.guilds[ctx.guild.id].queue_lock = False
+            self.guilds[ctx.guild.id].unlock_queue()
             if self.guilds[ctx.guild.id].voice_client is None:
                 return
             try:

@@ -5,10 +5,9 @@ import hashlib
 import json
 import os
 
-from pymongo import MongoClient
-
 import bjoern
 from flask import Flask, Response, redirect, request
+from pymongo import MongoClient
 
 HOST = "0.0.0.0"
 PORT = 80
@@ -43,7 +42,8 @@ def restart_token() -> Response:
     Provide the restart token page
     @return:
     """
-    return Response(open("sites/password_check.html").read())
+    with open("sites/password_check.html") as opened_file:
+        return Response(opened_file.read())
 
 
 @APP.route("/")
@@ -52,7 +52,8 @@ def index() -> Response:
     Provide Index
     @return:
     """
-    return Response(open("sites/index.html").read())
+    with open("sites/index.html") as opened_file:
+        return Response(opened_file.read())
 
 
 @APP.route("/response")
@@ -61,7 +62,8 @@ def response() -> Response:
     Provide Response
     @return:
     """
-    return Response(open("sites/response.html").read())
+    with open("sites/response.html") as opened_file:
+        return Response(opened_file.read())
 
 
 @APP.route("/mostplayed")
@@ -70,7 +72,8 @@ def mostplayed() -> Response:
     Provide Most Played
     @return:
     """
-    return Response(open("sites/mostplayed.html").read())
+    with open("sites/mostplayed.html") as opened_file:
+        return Response(opened_file.read())
 
 
 @APP.route("/http/mostplayed.js")
@@ -79,7 +82,8 @@ def mostplayedjs() -> Response:
     Provide Most Played JS
     @return:
     """
-    return Response(open("scripts/mostplayed.js").read())
+    with open("scripts/mostplayed.js") as opened_file:
+        return Response(opened_file.read())
 
 
 @APP.route("/http/main.js")
@@ -88,7 +92,8 @@ def mainjs() -> Response:
 
     @return:
     """
-    return Response(open("scripts/main.js").read())
+    with open("scripts/main.js") as opened_file:
+        return Response(opened_file.read())
 
 
 @APP.route("/sha256.js")
@@ -97,7 +102,8 @@ def sha256js() -> Response:
 
     @return:
     """
-    return Response(open("scripts/sha256.js").read())
+    with open("scripts/sha256.js") as opened_file:
+        return Response(opened_file.read())
 
 
 @APP.route("/sjcl.js")
@@ -106,7 +112,8 @@ def sjcljs() -> Response:
 
     @return:
     """
-    return Response(open("scripts/sjcl.js").read())
+    with open("scripts/sjcl.js") as opened_file:
+        return Response(opened_file.read())
 
 
 @APP.route("/http/chart.js")
@@ -160,10 +167,7 @@ def mongo_response() -> Response:
     alfl = collection.find()
     _list = []
     for item in alfl:
-        i = dict()
-        i["x"] = item["x"]
-        i["y"] = item["y"]
-        _list.append(i)
+        _list.append({"x": item["x"], "y": item["y"]})
     return Response(str(_list))
 
 

@@ -18,6 +18,7 @@ class Errors:
     cant_reach_youtube = (
         "Can't reach YouTube. Server Error on their side maybe?"
     )
+    cant_reach_genius = "Can't reach Genius. Server Error on their side maybe?"
     youtube_url_invalid = "This YouTube Url is invalid."
     youtube_video_not_available = "The requested song is not available."
     error_please_retry = "error_please_retry"

@@ -29,7 +29,7 @@ class VariableStore:
         r"^(http(s)?://)?"
         r"(open\.|play\.)"
         r"spotify\.com/(user/.{,32}/)?(playlist|track|album|artist)/"
-        r"(?P<id>[A-Za-z0-9]{22})(\?|$)(si=.{22,23})?$",
+        r"(?P<id>[A-Za-z0-9]{22,23})(\?|$)(si=.{22,23})?$",
         re.IGNORECASE,
     )
 

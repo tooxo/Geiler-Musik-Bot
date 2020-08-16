@@ -15,6 +15,7 @@ from discord.ext import commands
 import logging_manager
 from bot.node_controller.controller import Controller
 from bot.type.errors import Errors
+from bot.type.exceptions import NoResultsFound
 from bot.type.guild import Guild
 from bot.type.song import Song
 from bot.voice.checks import Checks
@@ -133,9 +134,11 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                         # the "\n" need to be subtracted.
                 else:
                     _line_container = [_line]
-
                 for line in _line_container:
                     new_chunk = ""
+                    # in the following I am using a zero-width unicode char
+                    # because discord won't format an empty message, so I need
+                    # to fill it with something invisible
                     if line in ("", " "):
                         if not new_chunk.endswith(
                             "> \N{MONGOLIAN VOWEL SEPARATOR}\n"
@@ -146,7 +149,6 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                             and not new_chunk
                         ):
                             new_chunk += "> \N{MONGOLIAN VOWEL SEPARATOR}\n"
-                            # the good ol' mongolian vowel separator
                     else:
                         new_chunk += "> " + line + "\n"
                     if (len(partial) + len(new_chunk)) >= 2000:
@@ -254,23 +256,6 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     await asyncio.sleep(1800)
 
             self.bot.loop.create_task(_update_stats(dbl_client))
-
-    # DEPRECATED, NOT USED
-    async def clear_presence(self, ctx: discord.ext.commands.Context):
-        """
-        Stops message updating after a song finished
-        :param ctx:
-        :return:
-        """
-        try:
-            if self.guilds[ctx.guild.id].now_playing_message is not None:
-                await self.guilds[ctx.guild.id].now_playing_message.stop()
-                try:
-                    await self.delete_message(message=ctx.message)
-                except discord.NotFound:
-                    pass
-        except discord.NotFound:
-            self.guilds[ctx.guild.id].now_playing_message = None
 
     @staticmethod
     async def delete_message(
@@ -706,7 +691,16 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         url = None
         await ctx.channel.trigger_typing()
         if song_name:
-            url = await genius.Genius.search_genius(song_name, "")
+            try:
+                url = await genius.Genius.search_genius(song_name, "")
+            except NoResultsFound:
+                return await self.send_error_message(
+                    ctx, Errors.no_results_found
+                )
+            except asyncio.TimeoutError:
+                return await self.send_error_message(
+                    ctx, Errors.cant_reach_genius
+                )
         elif hasattr(self.guilds.get(ctx.guild.id, None), "now_playing"):
             if isinstance(self.guilds[ctx.guild.id].now_playing, Song):
                 song: Song = self.guilds[ctx.guild.id].now_playing
@@ -719,7 +713,12 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     else:
                         url = await genius.Genius.search_genius(song.title, "")
         if url:
-            lyrics, header = await genius.Genius.extract_from_genius(url)
+            try:
+                lyrics, header = await genius.Genius.extract_from_genius(url)
+            except asyncio.TimeoutError:
+                return await self.send_error_message(
+                    ctx, Errors.cant_reach_genius
+                )
             await ctx.send(content=f"> **{header}**")
             return (await self._send_message(ctx, lyrics, use_citation=True))[
                 -1
