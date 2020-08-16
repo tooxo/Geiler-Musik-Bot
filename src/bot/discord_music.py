@@ -435,7 +435,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                             + f"**Duration**: "
                               f"`{datetime.timedelta(seconds=song.duration)}`\n"
                             + f"**User**: `{song.user}`\n"
-                            + f"**Term**: `{song.term}`\n"
+                            + f"**Term**: `{song.term or song.title}`\n"
                     ),
                 )
                 embed.add_field(
