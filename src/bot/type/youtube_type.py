@@ -2,7 +2,6 @@
 YoutubeType
 """
 import re
-from typing import Optional
 
 from bot.type.variable_store import VariableStore
 

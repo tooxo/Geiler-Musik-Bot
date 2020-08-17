@@ -4,10 +4,10 @@ New (improved) Player
 import asyncio
 import random
 import re
+from typing import TYPE_CHECKING, Dict, List
 
 import discord
 from discord.ext import commands
-from typing import TYPE_CHECKING, Dict, List
 
 import logging_manager
 from bot.type.guild import Guild
@@ -37,6 +37,8 @@ class BetaPlayer(commands.Cog):
         self.bot = _bot
         self.parent = _parent
         self.guilds: Dict[int, Guild] = _parent.guilds
+
+        self.log = logging_manager.LoggingManager()
 
     async def play_check(self, ctx: commands.Context, url: str) -> bool:
         """
@@ -143,7 +145,7 @@ class BetaPlayer(commands.Cog):
     @play_skip.error
     @play_next.error
     @play_shuffle.error
-    async def _play_error(self, ctx, error):
+    async def _play_error(self, ctx, _):
         if self.guilds[ctx.guild.id].job_lock.locked():
             self.guilds[ctx.guild.id].job_lock.release()
         # raise error
@@ -235,8 +237,8 @@ class BetaPlayer(commands.Cog):
                 NoResultsFound,
                 SongExtractionException,
                 BasicError,
-        ) as be:
-            print(be)
+        ) as basic_exception:
+            self.log.debug(str(basic_exception))
             if self.guilds[ctx.guild.id].job_lock.locked():
                 self.guilds[ctx.guild.id].job_lock.release()
             return
@@ -255,10 +257,11 @@ class BetaPlayer(commands.Cog):
                     f"{'s' if len(song_list) > 1 else ''}.",
                 )
             else:
+                zero = song_list[0]
                 await self.parent.send_embed_message(
                     ctx,
                     f"Queued **"
-                    f"{song_list[0].title or song_list[0].term or song_list[0].link}"
+                    f"{zero.title or zero.term or zero.link}"
                     f"**.",
                 )
         # now add to queue
@@ -301,7 +304,8 @@ class BetaPlayer(commands.Cog):
                         guild.job_lock.release()
                     return await self._playback(ctx)
             if not guild.voice_client:
-                guild.job_lock.release() if guild.job_lock.locked() else None
+                if guild.job_lock.locked():
+                    guild.job_lock.release()
                 return
             guild.voice_client.set_after(self._after_song, ctx)
             await guild.voice_client.play(song, guild.volume)
@@ -314,9 +318,10 @@ class BetaPlayer(commands.Cog):
 
     async def _after_song(self, ctx) -> None:
         guild_id = ctx.guild.id
-        await self.guilds[guild_id].now_playing_message.after_song(
-            ctx, guild_id
-        ) if self.guilds[guild_id].now_playing_message else None
+        if self.guilds[guild_id].now_playing_message:
+            await self.guilds[guild_id].now_playing_message.after_song(
+                ctx, guild_id
+            )
         self.guilds[guild_id].now_playing = None
         if self.guilds[guild_id].playback_lock.locked():
             self.guilds[guild_id].playback_lock.release()
@@ -331,6 +336,11 @@ class PlayerHelper:
 
     @staticmethod
     def determine_content_type(content: str):
+        """
+        Determine the type of the inputted content
+        @param content: content
+        @return:
+        """
         return Url.determine_source(content)
 
     @staticmethod
@@ -340,6 +350,15 @@ class PlayerHelper:
             parent: "DiscordBot",
             ctx: commands.Context,
     ) -> List[Song]:
+        """
+        Load content information for provided content query and type
+        @param content: content to search for
+        @param content_type: type of content
+        @param parent: -
+        @param ctx: -
+        @return:
+        """
+
         def _add_user(arg1: Song):
             arg1.user = ctx.message.author.id
             arg1.guild_id = ctx.guild.id
@@ -374,16 +393,27 @@ class PlayerHelper:
     async def load_content_information_youtube(
             content: str, parent: "DiscordBot",
     ) -> List[Song]:
+        """
+        Load content information from YouTube
+        @param content: content query
+        @param parent: -
+        @return: information
+        """
         youtube_type: int = Url.determine_youtube_type(content)
         if youtube_type == Url.youtube_url:
             return [Song(link=content)]
-        else:
-            return await parent.youtube.youtube_playlist(content)
+        return await parent.youtube.youtube_playlist(content)
 
     @staticmethod
     async def load_content_information_spotify(
             content: str, parent: "DiscordBot",
     ) -> List[Song]:
+        """
+        Load content information from Spotify
+        @param content: content query
+        @param parent: -
+        @return: information
+        """
         spotify_type = Url.determine_spotify_type(content)
         if spotify_type == Url.spotify_track:
             return [await parent.spotify.spotify_track(content)]
@@ -399,21 +429,39 @@ class PlayerHelper:
     async def load_content_information_soundcloud(
             content: str, parent: "DiscordBot"
     ) -> List[Song]:
+        """
+        Load content information from SoundCloud
+        @param content: content query
+        @param parent: -
+        @return: information
+        """
         soundcloud_type = Url.determine_soundcloud_type(content)
         if soundcloud_type == Url.soundcloud_track:
             return [await parent.soundcloud.soundcloud_track(content)]
-        else:
-            return await parent.soundcloud.soundcloud_playlist(content)
+        return await parent.soundcloud.soundcloud_playlist(content)
 
     @staticmethod
     async def search(
             content: str, parent: "DiscordBot", ctx: commands.Context
     ) -> List[Song]:
-
+        """
+        Search for specific query on either youtube or soundcloud
+        @param content:
+        @param parent:
+        @param ctx:
+        @return:
+        """
+        search_service = parent.guilds[ctx.guild.id].service
+        if search_service in ["basic", "music"]:
+            return [
+                await parent.youtube.youtube_term(
+                    song=Song(term=content, guild_id=ctx.guild.id),
+                    service=parent.guilds[ctx.guild.id].service,
+                )
+            ]
         return [
-            await parent.youtube.youtube_term(
-                song=Song(term=content, guild_id=ctx.guild.id),
-                service=parent.guilds[ctx.guild.id].service,
+            await parent.soundcloud.soundcloud_search(
+                song=Song(term=content, guild_id=ctx.guild.id)
             )
         ]
 
@@ -421,6 +469,14 @@ class PlayerHelper:
     async def complete_content_information(
             song: Song, parent: "DiscordBot", ctx: commands.Context
     ):
+        """
+        Complete the missing information by extracting a useable stream from
+        youtube or soundcloud
+        @param song: unfinished information
+        @param parent: -
+        @param ctx: -
+        @return: complete streaming information
+        """
         if song.link:
             if PlayerHelper.determine_content_type(song.link) == Url.youtube:
                 return Song.copy_song(
@@ -429,11 +485,10 @@ class PlayerHelper:
                     ),
                     song,
                 )
-            else:
-                return Song.copy_song(
-                    await parent.soundcloud.soundcloud_track(url=song.link),
-                    song,
-                )
+            return Song.copy_song(
+                await parent.soundcloud.soundcloud_track(url=song.link),
+                song,
+            )
         if song.term or song.title:
             song = Song.copy_song(
                 song,

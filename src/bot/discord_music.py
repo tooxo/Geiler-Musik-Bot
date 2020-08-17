@@ -21,10 +21,10 @@ from bot.type.song import Song
 from bot.voice.checks import Checks
 from bot.voice.events import Events
 from bot.voice.player import Player
+from bot.voice.player_beta import BetaPlayer
 from bot.voice.player_controls import PlayerControls
 from bot.voice.tts import TTS
 from extractors import genius, mongo, soundcloud, spotify, watch2gether, youtube
-from bot.voice.player_beta import BetaPlayer
 
 
 class DiscordBot(commands.Cog, name="Miscellaneous"):
@@ -99,6 +99,18 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             url: Optional[str] = None,
             color: Optional[int] = 0x00FFCC,
     ) -> List[discord.Message]:
+        """
+        Send a message to discord chat
+        @param ctx: Context
+        @param content: Message Context
+        @param use_embed: If embed should be used
+        @param use_citation: If citation should be used
+        @param use_code_block: If code block should be used
+        @param delete_after: delete after n seconds
+        @param url: embedded url
+        @param color: used color
+        @return:
+        """
         # decide on transfer method
         # embed title = max 256 chars
         # embed description = max 2048 characters
@@ -724,9 +736,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     ctx, Errors.cant_reach_genius
                 )
             await ctx.send(content=f"> **{header}**")
-            return (await self.send_message(ctx, lyrics, use_citation=True))[
-                -1
-            ]
+            return (await self.send_message(ctx, lyrics, use_citation=True))[-1]
         return await self.send_error_message(
             ctx, "Currently not supported for this song."
         )
