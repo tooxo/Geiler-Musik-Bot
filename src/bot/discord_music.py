@@ -73,7 +73,9 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         self._index()
 
         # start server count
-        self._run_dbl_stats()
+        # self._run_dbl_stats()
+        if self.dbl_key:
+            self.dbl_py = dbl.DBLClient(self.bot, self.dbl_key, autopost=True)
 
     @staticmethod
     def generate_key(length: int) -> str:
@@ -242,6 +244,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                 self.guilds[_guild.id].inflate_from_mongo(self.mongo, _guild.id)
             )
 
+    # the dbl lib makes this easier, so deprecated
     def _run_dbl_stats(self) -> None:
         if self.dbl_key != "":
             dbl_client = dbl.DBLClient(self.bot, self.dbl_key)
