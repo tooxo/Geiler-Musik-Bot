@@ -323,10 +323,10 @@ class YouTube:
         :param input_json: data
         :return: Search result url
         """
-        input_json: dict = json.loads(input_json)
-        if input_json.get("service", "basic") == "music":
-            return await self.search_youtube_music(input_json["term"])
-        return await self.search_youtube_basic(input_json["term"])
+        input_dict: dict = json.loads(input_json)
+        if input_dict.get("service", "basic") == "music":
+            return await self.search_youtube_music(input_dict["term"])
+        return await self.search_youtube_basic(input_dict["term"])
 
 
 class SoundCloud:

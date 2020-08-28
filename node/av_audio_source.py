@@ -206,8 +206,10 @@ class AvDecoder:
                     packet = next(packets)
                 except (StopIteration, av.error.ExitError):
                     break
-                if not packet.pts:
-                    continue
+                packet.pts = None
+                packet.dts = None
+                # if not packet.pts:
+                #     continue
                 self.output_container.mux(packet)
 
         # fix for "1 frames left in the queue on closing"
@@ -229,10 +231,25 @@ class AvDecoder:
         :param seconds: n
         :return:
         """
+
+        duration_timebase = self.audio.duration
+        if duration_timebase:
+            duration = round(
+                duration_timebase * self.audio_stream.time_base * 0.001)
+            if seconds > duration:
+                # this stops the current playback
+                self.stopped = True
+                return
+
         time_base: int = round(seconds / self.audio_stream.time_base)
+
+        if time_base < 0:
+            time_base = max(time_base, -2147483648)
+        if time_base > 0:
+            time_base = min(time_base, 2147483647)
+
         # noinspection PyBroadException
         try:
-
             self.audio.seek(offset=time_base, stream=self.audio_stream)
             self.output_buffer.flush()
         except BaseException:
@@ -255,7 +272,7 @@ class AvAudioSource(AudioSource, ABC):
     """
 
     # noinspection PyUnusedLocal
-    def __init__(self, source: str, volume: float,) -> None:
+    def __init__(self, source: str, volume: float, ) -> None:
         """
         Wrapper around AvDecoder for discord.py
         :param source: source stream url
@@ -320,7 +337,7 @@ class AvAudioSource(AudioSource, ABC):
 
         # update the bytes_read
         self.bytes_read = (
-            second_to_seek_to * 200 * OpusEncoder.SAMPLES_PER_FRAME
+                second_to_seek_to * 200 * OpusEncoder.SAMPLES_PER_FRAME
         )
 
         return self.decoder.seek(second_to_seek_to)

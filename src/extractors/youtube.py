@@ -30,14 +30,14 @@ class Youtube:
         self.session = aiohttp.ClientSession()
         self.node_controller = node_controller
 
-    async def youtube_term(self, song: (Song, str), service: str) -> Song:
+    async def youtube_term(self, song: Song, service: str) -> Song:
         """
         Extract information from YouTube by Term
         @param song:
         @param service: 
         @return:
         """
-        term = getattr(song, "title", getattr(song, "term", None))
+        term: str = song.title or song.term
         if not term:
             raise NoResultsFound(Errors.no_results_found)
 
@@ -51,7 +51,8 @@ class Youtube:
         )
 
         if not response.successful:
-            raise NoResultsFound(response.text)
+            raise NoResultsFound(
+                f"Term: {term} | Server Response :{response.text}", )
         url = response.text
 
         url = VariableStore.youtube_url_to_id(url)
@@ -109,7 +110,7 @@ class Youtube:
         )
 
         if not response.successful:
-            raise PlaylistExtractionException()
+            raise PlaylistExtractionException(response.text)
 
         songs = []
         for track in json.loads(response.text):

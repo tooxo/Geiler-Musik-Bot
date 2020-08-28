@@ -81,13 +81,13 @@ class TestClient:
             )
             await interface.assert_reply_equals(
                 ",play despacito luis fonsi",
-                ":asterisk: Added **despacito luis fonsi** to Queue.",
+                "Queued **despacito luis fonsi**.",
             )
             await asyncio.sleep(1)
             await interface.assert_reply_equals(
                 ",skip", "Skipped! :track_next:"
             )
-            await asyncio.sleep(1)
+            await asyncio.sleep(3)
             await interface.assert_reply_equals(
                 ",prev", "`TONES AND I - DANCE MONKEY`"
             )
@@ -153,21 +153,28 @@ class TestClient:
             await interface.connect(self.voice_channel)
             await asyncio.sleep(1)
             try:
-                await interface.send_message(",play despacito luis fonsi")
+                await interface.assert_reply_equals(
+                    ",play despacito luis fonsi",
+                    "`Luis Fonsi - Despacito ft. Daddy Yankee`"
+                )
                 embed = (
                     Embed()
-                    .add_field(
-                        name="**Currently Playing...**",
+                        .add_field(
+                        name="**Currently Playing ...**",
                         value="`Luis Fonsi - Despacito ft. Daddy Yankee`",
                     )
-                    .add_field(
+                        .add_field(
                         name="**Coming up:**",
                         value="Nothing in Queue. Use .play to add something.",
                     )
                 )
                 await asyncio.sleep(10)
-                await interface.assert_reply_embed_equals(
-                    ",queue", embed, ["fields"]
+                await interface.assert_reply_equals(
+                    ",queue",
+                    "**Currently Playing ...**\n`"
+                    "Luis Fonsi - Despacito ft. Daddy Yankee`\n"
+                    "**Coming up:**\n"
+                    "Nothing in Queue. Use .play to add something."
                 )
             except Exception:
                 await interface.send_message(",exit")
@@ -241,7 +248,7 @@ class TestClient:
             await interface.connect(self.voice_channel)
             await interface.assert_reply_equals(
                 ",p " + spotify_url,
-                ":asterisk: Added 50 Tracks to Queue. :asterisk:",
+                "Queued 50 Tracks.",
             )
             # top 50 so its 50 songs every time
             await asyncio.sleep(3)
@@ -263,7 +270,7 @@ class TestClient:
             await interface.connect(self.voice_channel)
             await interface.assert_reply_equals(
                 ",p " + spotify_url,
-                ":asterisk: Added 10 Tracks to Queue. :asterisk:",
+                "Queued 10 Tracks.",
             )
             # top 10 so its 10 songs every time
             await asyncio.sleep(3)
@@ -275,12 +282,12 @@ class TestClient:
         async def spotify_album(interface: TestInterface):
             spotify_url = (
                 "https://open.spotify.com/album/"
-                "81A3nVEWRJ8yvlPzawHI1pQ?si=DyQA_PVrQzOAHKrcpoP9ww"
+                "1A3nVEWRJ8yvlPzawHI1pQ?si=DyQA_PVrQzOAHKrcpoP9ww"
             )
             await interface.connect(self.voice_channel)
             await interface.assert_reply_equals(
                 ",p " + spotify_url,
-                ":asterisk: Added 18 Tracks to Queue. :asterisk:",
+                "Queued 18 Tracks.",
             )
             await asyncio.sleep(3)
             await interface.send_message(",exit")
@@ -289,11 +296,12 @@ class TestClient:
 
         @self.test_collector()
         async def youtube_playlist(interface: TestInterface):
-            spotify_url = "https://www.youtube.com/playlist?list=PLw-VjHDlEOgtl4ldJJ8Arb2WeSlAyBkJS"
+            spotify_url = "https://www.youtube.com/playlist?list=PLw" \
+                          "-VjHDlEOgtl4ldJJ8Arb2WeSlAyBkJS"
             await interface.connect(self.voice_channel)
             await interface.assert_reply_equals(
                 ",p " + spotify_url,
-                ":asterisk: Added 100 Tracks to Queue. :asterisk:",
+                "Queued 100 Tracks.",
             )
             # top 100 so its 100 songs every time
             await asyncio.sleep(3)
@@ -308,7 +316,7 @@ class TestClient:
             await asyncio.sleep(3)
             await interface.assert_reply_equals(
                 ",p kanye west follow god",
-                ":asterisk: Added **kanye west follow god** to Queue.",
+                "Queued **kanye west follow god**.",
             )
             await asyncio.sleep(2)
             await interface.send_message(",s")
@@ -336,7 +344,7 @@ class TestClient:
             await interface.connect(self.voice_channel)
             await interface.assert_reply_equals(
                 ",p https://soundcloud.com/kieramaeee/sets/charts",
-                ":asterisk: Added 216 Tracks to Queue. :asterisk:",
+                "Queued 218 Tracks.",
             )
             await asyncio.sleep(1)
             await interface.send_message(",exit")
@@ -355,7 +363,8 @@ class TestClient:
         async def queue_full(interface: TestInterface):
             await interface.connect(self.voice_channel)
             await interface.send_message(
-                ",p https://www.youtube.com/playlist?list=PLw-VjHDlEOgtl4ldJJ8Arb2WeSlAyBkJS"
+                ",p https://www.youtube.com/playlist?list=PLw"
+                "-VjHDlEOgtl4ldJJ8Arb2WeSlAyBkJS"
             )
             await asyncio.sleep(3)
             await interface.assert_reply_contains(",q", "`(+)` `90 Tracks...`")

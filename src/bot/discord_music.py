@@ -21,6 +21,7 @@ from bot.type.song import Song
 from bot.voice.checks import Checks
 from bot.voice.events import Events
 from bot.voice.player import Player
+from bot.voice.player_beta import BetaPlayer
 from bot.voice.player_controls import PlayerControls
 from bot.voice.tts import TTS
 from extractors import genius, mongo, soundcloud, spotify, watch2gether, youtube
@@ -38,7 +39,10 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         self.guilds: Dict[int, Guild] = {}
 
         self.bot: commands.Bot = bot
-        self.player: Player = Player(self.bot, self)
+        if environ.get("BETA_PLAYER", "False") == "True":
+            self.player: BetaPlayer = BetaPlayer(self.bot, self)
+        else:
+            self.player: Player = Player(self.bot, self)
 
         self.bot.add_cog(self.player)
         self.bot.add_cog(Events(self.bot, self))
@@ -69,7 +73,9 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         self._index()
 
         # start server count
-        self._run_dbl_stats()
+        # self._run_dbl_stats()
+        if self.dbl_key:
+            self.dbl_py = dbl.DBLClient(self.bot, self.dbl_key, autopost=True)
 
     @staticmethod
     def generate_key(length: int) -> str:
@@ -85,16 +91,28 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         return response
 
     @staticmethod
-    async def _send_message(
-        ctx: commands.Context,
-        content: str,
-        use_embed: Optional[bool] = False,
-        use_citation: Optional[bool] = False,
-        use_code_block: Optional[bool] = False,
-        delete_after: Optional[int] = None,
-        url: Optional[str] = None,
-        color: Optional[int] = 0x00FFCC,
+    async def send_message(
+            ctx: commands.Context,
+            content: str,
+            use_embed: Optional[bool] = False,
+            use_citation: Optional[bool] = False,
+            use_code_block: Optional[bool] = False,
+            delete_after: Optional[int] = None,
+            url: Optional[str] = None,
+            color: Optional[int] = 0x00FFCC,
     ) -> List[discord.Message]:
+        """
+        Send a message to discord chat
+        @param ctx: Context
+        @param content: Message Context
+        @param use_embed: If embed should be used
+        @param use_citation: If citation should be used
+        @param use_code_block: If code block should be used
+        @param delete_after: delete after n seconds
+        @param url: embedded url
+        @param color: used color
+        @return:
+        """
         # decide on transfer method
         # embed title = max 256 chars
         # embed description = max 2048 characters
@@ -129,8 +147,8 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     while _line:
                         _line_container.append(_line[:1997])
                         _line = _line[
-                            1997:
-                        ]  # 1997, because the ">" the " " and
+                                1997:
+                                ]  # 1997, because the ">" the " " and
                         # the "\n" need to be subtracted.
                 else:
                     _line_container = [_line]
@@ -141,12 +159,12 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     # to fill it with something invisible
                     if line in ("", " "):
                         if not new_chunk.endswith(
-                            "> \N{MONGOLIAN VOWEL SEPARATOR}\n"
-                        ) and (
-                            not partial.endswith(
                                 "> \N{MONGOLIAN VOWEL SEPARATOR}\n"
-                            )
-                            and not new_chunk
+                        ) and (
+                                not partial.endswith(
+                                    "> \N{MONGOLIAN VOWEL SEPARATOR}\n"
+                                )
+                                and not new_chunk
                         ):
                             new_chunk += "> \N{MONGOLIAN VOWEL SEPARATOR}\n"
                     else:
@@ -191,10 +209,10 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
 
     @staticmethod
     async def send_embed_message(
-        ctx: discord.ext.commands.Context,
-        message: str,
-        delete_after: Optional[int] = 10,
-        url: str = "https://d.chulte.de",
+            ctx: discord.ext.commands.Context,
+            message: str,
+            delete_after: Optional[int] = 10,
+            url: str = "https://d.chulte.de",
     ) -> discord.Message:
         """
         Send Embedded messages to a discord text channel
@@ -202,7 +220,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         try:
             if environ.get("USE_EMBEDS", "True") == "True":
                 return (
-                    await DiscordBot._send_message(
+                    await DiscordBot.send_message(
                         ctx=ctx,
                         content=message,
                         delete_after=delete_after,
@@ -211,7 +229,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     )
                 )[-1]
             return (
-                await DiscordBot._send_message(
+                await DiscordBot.send_message(
                     ctx, message, delete_after=delete_after
                 )
             )[-1]
@@ -226,6 +244,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                 self.guilds[_guild.id].inflate_from_mongo(self.mongo, _guild.id)
             )
 
+    # the dbl lib makes this easier, so deprecated
     def _run_dbl_stats(self) -> None:
         if self.dbl_key != "":
             dbl_client = dbl.DBLClient(self.bot, self.dbl_key)
@@ -259,7 +278,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
 
     @staticmethod
     async def delete_message(
-        message: discord.Message, delay: int = None
+            message: discord.Message, delay: int = None
     ) -> None:
         """
         Deletes a message with an optional delay
@@ -270,9 +289,9 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         try:
             await message.delete(delay=delay)
         except (
-            discord.HTTPException,
-            discord.Forbidden,
-            discord.NotFound,
+                discord.HTTPException,
+                discord.Forbidden,
+                discord.NotFound,
         ) as raised_exceptions:
             logging_manager.LoggingManager().debug(
                 logging_manager.debug_info(raised_exceptions)
@@ -280,7 +299,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
 
     @staticmethod
     async def send_error_message(
-        ctx: commands.Context, message: str, delete_after: int = 30
+            ctx: commands.Context, message: str, delete_after: int = 30
     ) -> discord.Message:
         """
         Sends an error message
@@ -292,7 +311,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         try:
             if environ.get("USE_EMBEDS", "True") == "True":
                 return (
-                    await DiscordBot._send_message(
+                    await DiscordBot.send_message(
                         ctx=ctx,
                         content=message,
                         delete_after=delete_after,
@@ -301,7 +320,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     )
                 )[-1]
             return (
-                await DiscordBot._send_message(
+                await DiscordBot.send_message(
                     ctx=ctx,
                     content=message,
                     delete_after=delete_after,
@@ -401,19 +420,19 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         try:
             song: Song = self.guilds[ctx.guild.id].now_playing
             if not use_embeds:
-                await self._send_message(
+                await self.send_message(
                     use_citation=True,
                     content=f"**Basic Information**\n"
-                    f"Name: `{song.title}`\n"
-                    f"Url: `{song.link}`\n"
-                    f"Duration: "
-                    f"`{datetime.timedelta(seconds=song.duration)}`\n"
-                    f"User: `{song.user}`\n"
-                    f"Term: `{song.term}`\n\n"
-                    f"**Stream Information**\n"
-                    f"Successful: `{True}`\n"
-                    f"Codec: `{song.codec}`\n"
-                    f"Bitrate: `{song.abr} kb/s`",
+                            f"Name: `{song.title}`\n"
+                            f"Url: `{song.link}`\n"
+                            f"Duration: "
+                            f"`{datetime.timedelta(seconds=song.duration)}`\n"
+                            f"User: `{song.user}`\n"
+                            f"Term: `{song.term}`\n\n"
+                            f"**Stream Information**\n"
+                            f"Successful: `{True}`\n"
+                            f"Codec: `{song.codec}`\n"
+                            f"Bitrate: `{song.abr} kb/s`",
                     ctx=ctx,
                 )
             else:
@@ -426,21 +445,21 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     name="Basic Information",
                     inline=False,
                     value=(
-                        f"**Name**: `{song.title}`\n"
-                        + f"**Url**: `{song.link}`\n"
-                        + f"**Duration**: "
-                        f"`{datetime.timedelta(seconds=song.duration)}`\n"
-                        + f"**User**: `{song.user}`\n"
-                        + f"**Term**: `{song.term}`\n"
+                            f"**Name**: `{song.title}`\n"
+                            + f"**Url**: `{song.link}`\n"
+                            + f"**Duration**: "
+                              f"`{datetime.timedelta(seconds=song.duration)}`\n"
+                            + f"**User**: `{song.user}`\n"
+                            + f"**Term**: `{song.term or song.title}`\n"
                     ),
                 )
                 embed.add_field(
                     name="Stream Information",
                     inline=False,
                     value=(
-                        f"**Successful**: `{True}`\n"
-                        + f"**Codec**: `{song.codec}\n`"
-                        + f"**Bitrate**: `{song.abr} kb/s`"
+                            f"**Successful**: `{True}`\n"
+                            + f"**Codec**: `{song.codec}\n`"
+                            + f"**Bitrate**: `{song.abr} kb/s`"
                     ),
                 )
                 if self.guilds[ctx.guild.id].now_playing.image is not None:
@@ -470,25 +489,25 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             if environ.get("USE_EMBEDS", "True") == "True":
                 embed = discord.Embed(
                     title="You are currently using **"
-                    + full
-                    + "** for 'full' and **"
-                    + empty
-                    + "** for 'empty'",
+                          + full
+                          + "** for 'full' and **"
+                          + empty
+                          + "** for 'empty'",
                     color=0x00FFCC,
                 )
                 embed.add_field(
                     name="Syntax to add:",
                     value=".chars <full> <empty> \nUseful Website: "
-                    "https://changaco.oy.lc/unicode-progress-bars/",
+                          "https://changaco.oy.lc/unicode-progress-bars/",
                 )
                 await ctx.send(embed=embed)
                 return
             message = (
-                "You are currently using **"
-                + full
-                + "** for 'full' and **"
-                + empty
-                + "** for 'empty'\n"
+                    "You are currently using **"
+                    + full
+                    + "** for 'full' and **"
+                    + empty
+                    + "** for 'empty'\n"
             )
             message += "Syntax to add:\n"
             message += ".chars <full> <empty> \n"
@@ -513,7 +532,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             await self.send_error_message(
                 ctx=ctx,
                 message="You need to provide 2 Unicode Characters "
-                "separated with a blank space.",
+                        "separated with a blank space.",
             )
             return
         if len(first) > 1 or len(last) > 1:
@@ -531,15 +550,15 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         await self.send_embed_message(
             ctx=ctx,
             message="The characters got updated! Full: **"
-            + first
-            + "**, Empty: **"
-            + last
-            + "**",
+                    + first
+                    + "**, Empty: **"
+                    + last
+                    + "**",
         )
 
     @commands.command(hidden=True)
     async def restart(  # pragma: no cover
-        self, ctx, restart_string=None
+            self, ctx, restart_string=None
     ) -> None:  # pragma: no cover
         """
         Hidden DEBUG Command
@@ -587,7 +606,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             eval_response = str(eval(code))  # pylint: disable=eval-used
         except Exception as raised_exception:
             eval_response = str(raised_exception)
-        await self._send_message(
+        await self.send_message(
             content=eval_response, ctx=ctx, use_code_block=True
         )
 
@@ -611,7 +630,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             embed = discord.Embed(title="None")
             await ctx.send(embed=embed)
             return
-        await self._send_message(ctx, exec_response)
+        await self.send_message(ctx, exec_response)
 
     @commands.command(aliases=["np", "nowplaying"])
     async def now_playing(self, ctx: commands.Context) -> None:
@@ -643,8 +662,8 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                 embed = discord.Embed(
                     title="`>` `" + song.title + "`",
                     description="There are currently "
-                    + str(len(songs))
-                    + " Servers playing!",
+                                + str(len(songs))
+                                + " Servers playing!",
                 )
             await ctx.send(embed=embed)
         else:
@@ -720,9 +739,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                     ctx, Errors.cant_reach_genius
                 )
             await ctx.send(content=f"> **{header}**")
-            return (await self._send_message(ctx, lyrics, use_citation=True))[
-                -1
-            ]
+            return (await self.send_message(ctx, lyrics, use_citation=True))[-1]
         return await self.send_error_message(
             ctx, "Currently not supported for this song."
         )
@@ -737,7 +754,7 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
         """
 
         async def _set_service(
-            _type: str, name: str, _message: discord.Message = None
+                _type: str, name: str, _message: discord.Message = None
         ) -> None:
             await self.mongo.set_service(ctx.guild.id, _type)
             await self.send_embed_message(
@@ -763,19 +780,19 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             embed.add_field(
                 name="Available Services",
                 value="_`1) YouTube Search`_\n"
-                "**`2) YouTube Music Search`**\n_`3) SoundCloud Search`_",
+                      "**`2) YouTube Music Search`**\n_`3) SoundCloud Search`_",
             )
         elif self.guilds[ctx.guild.id].service == "basic":
             embed.add_field(
                 name="Available Services",
                 value="**`1) YouTube Search`**\n"
-                "_`2) YouTube Music Search`_\n_`3) SoundCloud Search`_",
+                      "_`2) YouTube Music Search`_\n_`3) SoundCloud Search`_",
             )
         else:
             embed.add_field(
                 name="Available Services",
                 value="_`1) YouTube Search`_\n"
-                "_`2) YouTube Music Search`_\n**`3) SoundCloud Search`**",
+                      "_`2) YouTube Music Search`_\n**`3) SoundCloud Search`**",
             )
         message: discord.Message = await ctx.send(embed=embed)
         await message.add_reaction(
@@ -792,8 +809,8 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
             if reaction.message.id == message.id:
                 if user.id != self.bot.user.id:
                     if (
-                        reaction.emoji
-                        == "\N{Digit One}\N{Combining Enclosing Keycap}"
+                            reaction.emoji
+                            == "\N{Digit One}\N{Combining Enclosing Keycap}"
                     ):
                         self.guilds[ctx.guild.id].search_service = "basic"
                         asyncio.ensure_future(
@@ -801,8 +818,8 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                         )
                         return True
                     if (
-                        reaction.emoji
-                        == "\N{Digit Two}\N{Combining Enclosing Keycap}"
+                            reaction.emoji
+                            == "\N{Digit Two}\N{Combining Enclosing Keycap}"
                     ):
                         self.guilds[ctx.guild.id].search_service = "music"
                         asyncio.ensure_future(
@@ -810,8 +827,8 @@ class DiscordBot(commands.Cog, name="Miscellaneous"):
                         )
                         return True
                     if (
-                        reaction.emoji
-                        == "\N{Digit Three}\N{Combining Enclosing Keycap}"
+                            reaction.emoji
+                            == "\N{Digit Three}\N{Combining Enclosing Keycap}"
                     ):
                         self.guilds[ctx.guild.id].search_service = "soundcloud"
                         asyncio.ensure_future(

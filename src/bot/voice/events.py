@@ -71,6 +71,8 @@ class Events(Cog):
                             ].now_playing_message.after_song(guild_id=guild_id)
                             self.guilds[guild_id].now_playing_message = None
                         self.guilds[guild_id].song_queue = Queue()
+                        if self.guilds[guild_id].job_lock.locked():
+                            self.guilds[guild_id].job_lock.release()
                         return
                     if (
                         not before.channel

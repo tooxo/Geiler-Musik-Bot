@@ -7,3 +7,4 @@ PORT=stats port
 RESTART_PASSWORD=password to restart the bot from discord.
 LASTFM_KEY=lastfm api key
 DBL_KEY=dbl key
+BETA_PLAYER=(True or False) Use the new updated Player (not really tested yet)
