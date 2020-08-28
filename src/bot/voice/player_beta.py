@@ -53,8 +53,8 @@ class BetaPlayer(commands.Cog):
             return False
 
         if (
-                PlayerHelper.determine_content_type(url) is not None
-                or url.lower() == "charts"
+            PlayerHelper.determine_content_type(url) is not None
+            or url.lower() == "charts"
         ):
             return True
         if re.match(VariableStore.url_pattern, url) is not None:
@@ -177,9 +177,9 @@ class BetaPlayer(commands.Cog):
         if self.guilds[ctx.guild.id].voice_client is None:
             try:
                 if (
-                        ctx.author.voice.channel.user_limit
-                        <= len(ctx.author.voice.channel.members)
-                        and ctx.author.voice.channel.user_limit != 0
+                    ctx.author.voice.channel.user_limit
+                    <= len(ctx.author.voice.channel.members)
+                    and ctx.author.voice.channel.user_limit != 0
                 ):
                     if ctx.guild.me.guild_permissions.administrator is False:
                         await self.parent.send_embed_message(
@@ -216,12 +216,12 @@ class BetaPlayer(commands.Cog):
 
     # Queue Related
     async def _add_to_queue(
-            self,
-            content: str,
-            ctx: commands.Context,
-            skip: bool = False,
-            priority: bool = False,
-            shuffle: bool = False,
+        self,
+        content: str,
+        ctx: commands.Context,
+        skip: bool = False,
+        priority: bool = False,
+        shuffle: bool = False,
     ):
         await self.guilds[ctx.guild.id].job_lock.acquire()
         if not self.guilds[ctx.guild.id].voice_client:
@@ -233,10 +233,10 @@ class BetaPlayer(commands.Cog):
                 content, content_type, self.parent, ctx
             )
         except (
-                asyncio.TimeoutError,
-                NoResultsFound,
-                SongExtractionException,
-                BasicError,
+            asyncio.TimeoutError,
+            NoResultsFound,
+            SongExtractionException,
+            BasicError,
         ) as basic_exception:
             self.log.debug(str(basic_exception))
             if self.guilds[ctx.guild.id].job_lock.locked():
@@ -274,6 +274,14 @@ class BetaPlayer(commands.Cog):
         for _ in song_list:
             await self._playback(ctx)
 
+    async def _playback_error(self, ctx):
+        guild: Guild = self.guilds[ctx.guild.id]
+        if guild.job_lock.locked():
+            guild.job_lock.release()
+        if guild.playback_lock.locked():
+            guild.playback_lock.release()
+        return await self._playback(ctx)
+
     async def _playback(self, ctx):
         """
         Start playback
@@ -294,15 +302,21 @@ class BetaPlayer(commands.Cog):
                     song = await PlayerHelper.complete_content_information(
                         song, self.parent, ctx
                     )
+                except SongExtractionException:
+                    await self.parent.send_error_message(ctx=ctx,
+                                                         message="Error while "
+                                                                 "loading.")
+                    return await self._playback_error(ctx=ctx)
+                except NoResultsFound:
+                    await self.parent.send_error_message(ctx=ctx,
+                                                         message="No results "
+                                                                 "found.")
+                    return await self._playback_error(ctx=ctx)
                 except (
-                        asyncio.TimeoutError,
-                        NoResultsFound,
-                        SongExtractionException,
-                        BasicError,
+                    asyncio.TimeoutError,
+                    BasicError,
                 ):
-                    if guild.job_lock.locked():
-                        guild.job_lock.release()
-                    return await self._playback(ctx)
+                    return await self._playback_error(ctx=ctx)
             if not guild.voice_client:
                 if guild.job_lock.locked():
                     guild.job_lock.release()
@@ -345,10 +359,10 @@ class PlayerHelper:
 
     @staticmethod
     async def load_content_information(
-            content: str,
-            content_type: int,
-            parent: "DiscordBot",
-            ctx: commands.Context,
+        content: str,
+        content_type: int,
+        parent: "DiscordBot",
+        ctx: commands.Context,
     ) -> List[Song]:
         """
         Load content information for provided content query and type
@@ -391,7 +405,7 @@ class PlayerHelper:
 
     @staticmethod
     async def load_content_information_youtube(
-            content: str, parent: "DiscordBot",
+        content: str, parent: "DiscordBot",
     ) -> List[Song]:
         """
         Load content information from YouTube
@@ -406,7 +420,7 @@ class PlayerHelper:
 
     @staticmethod
     async def load_content_information_spotify(
-            content: str, parent: "DiscordBot",
+        content: str, parent: "DiscordBot",
     ) -> List[Song]:
         """
         Load content information from Spotify
@@ -427,7 +441,7 @@ class PlayerHelper:
 
     @staticmethod
     async def load_content_information_soundcloud(
-            content: str, parent: "DiscordBot"
+        content: str, parent: "DiscordBot"
     ) -> List[Song]:
         """
         Load content information from SoundCloud
@@ -442,7 +456,7 @@ class PlayerHelper:
 
     @staticmethod
     async def search(
-            content: str, parent: "DiscordBot", ctx: commands.Context
+        content: str, parent: "DiscordBot", ctx: commands.Context
     ) -> List[Song]:
         """
         Search for specific query on either youtube or soundcloud
@@ -467,7 +481,7 @@ class PlayerHelper:
 
     @staticmethod
     async def complete_content_information(
-            song: Song, parent: "DiscordBot", ctx: commands.Context
+        song: Song, parent: "DiscordBot", ctx: commands.Context
     ):
         """
         Complete the missing information by extracting a useable stream from
@@ -486,8 +500,7 @@ class PlayerHelper:
                     song,
                 )
             return Song.copy_song(
-                await parent.soundcloud.soundcloud_track(url=song.link),
-                song,
+                await parent.soundcloud.soundcloud_track(url=song.link), song,
             )
         if song.term or song.title:
             song = Song.copy_song(
